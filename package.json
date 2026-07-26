@@ -1,0 +1,31 @@
+{
+  "name": "ai",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chanbear/ai.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/chanbear/ai/issues"
+  },
+  "homepage": "https://github.com/chanbear/ai#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/camera": "^8.2.1",
+    "@capacitor/core": "^8.4.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.4.2"
+  },
+  "allowScripts": {
+    "sharp@0.32.6": true
+  }
+}

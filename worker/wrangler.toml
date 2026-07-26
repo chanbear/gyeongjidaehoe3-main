@@ -1,0 +1,8 @@
+name = "ansim-doumi-ai"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+[[d1_databases]]
+binding = "ansim_doumi_db"
+database_name = "ansim-doumi-db"
+database_id = "e027fd86-4aac-4c15-a372-a0465105f64f"

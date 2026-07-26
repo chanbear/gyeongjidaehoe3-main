@@ -1,0 +1,27 @@
+node_modules/
+worker/.wrangler/
+
+# Android build outputs / local machine config
+android/.gradle/
+android/.idea/
+android/local.properties
+android/app/build/
+android/build/
+android/capacitor-cordova-android-plugins/build/
+android/.kotlin/
+
+# unrelated nested project (own git repo)
+everything-claude-code/
+
+# LFS 포인터만 있고 실제 바이너리가 로컬에 없음 (Android Studio에서 다시 빌드 필요)
+안심도우미.apk
+
+# Claude Code worktrees (isolated agent workspaces)
+.claude/worktrees/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example

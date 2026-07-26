@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp index.html www/index.html)",
+      "Bash(cp js/script.js www/js/script.js)"
+    ]
+  }
+}
