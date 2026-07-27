@@ -978,16 +978,8 @@
      coachSidebar는 전체 투어(fullCoachSteps) 진행 중에만 보이는 왼쪽 8개 카테고리 진행률 표시줄이다. -->
 <div class="coach-overlay" id="coachOverlay" style="display:none;">
   <div class="coach-hole" id="coachHole"></div>
-  <div class="coach-sidebar" id="coachSidebar">
-    <div class="coach-sidebar-item" data-cat="doc"></div>
-    <div class="coach-sidebar-item" data-cat="sms"></div>
-    <div class="coach-sidebar-item" data-cat="history"></div>
-    <div class="coach-sidebar-item" data-cat="info"></div>
-    <div class="coach-sidebar-item" data-cat="welfare"></div>
-    <div class="coach-sidebar-item" data-cat="voice"></div>
-    <div class="coach-sidebar-item" data-cat="emergency"></div>
-    <div class="coach-sidebar-item" data-cat="settings"></div>
-  </div>
+  <!-- 진행률 항목은 현재 투어에 들어있는 분류만 updateCoachSidebar()가 그린다(구성이 바뀌어도 빈 칸이 남지 않도록) -->
+  <div class="coach-sidebar" id="coachSidebar"></div>
   <div class="coach-tip" id="coachTip">
     <div class="coach-tip-step" id="coachTipStep"></div>
     <div class="coach-tip-title" id="coachTipTitle"></div>

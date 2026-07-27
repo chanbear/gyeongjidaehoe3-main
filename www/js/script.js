@@ -802,9 +802,8 @@ const fullCoachSteps = [
   { screen: 'screen-settings', target: '#screen-settings .topbar .nav-btn', cat: 'settings', key: 'finish', advance: 'click' }
 ];
 
-const COACH_CATEGORIES = ['doc', 'sms', 'history', 'info', 'welfare', 'voice', 'emergency', 'settings'];
-
-/** "사용 방법 안내"의 각 항목별 "체험해보기": 전체 투어(fullCoachSteps)에서 해당 구간만 골라 재사용한다 */
+/** "사용 방법 안내"의 각 항목별 "체험해보기": 전체 투어(fullCoachSteps)에서 해당 구간만 골라 재사용한다.
+ *  아래 slice/인덱스는 fullCoachSteps의 순서에 의존하므로, 그 배열의 항목을 지우거나 순서를 바꾸지 말 것. */
 const docMiniCoachSteps = fullCoachSteps.slice(0, 3);
 const smsMiniCoachSteps = fullCoachSteps.slice(3, 10);
 const historyMiniCoachSteps = fullCoachSteps.slice(10, 12);
@@ -815,13 +814,23 @@ const emergencyMiniCoachSteps = [fullCoachSteps[17]];
 const settingsLanguageMiniStep = { screen: 'screen-settings', target: '#languageGroup', cat: 'settings', key: 'language', skippable: true };
 const settingsMiniCoachSteps = [fullCoachSteps[19], fullCoachSteps[20], fullCoachSteps[21], settingsLanguageMiniStep, fullCoachSteps[24]];
 
-let coachSteps = fullCoachSteps;
+/** 첫 실행 안내: 앱의 핵심인 문서 촬영·문자 확인만 다루고 마지막에 "나머지는 여기서 볼 수 있어요"로 마무리한다.
+ *  예전에는 8개 분류 25단계를 첫 실행에 한 번에 보여줬는데, 처음 쓰는 어르신에게는 부담이 컸다.
+ *  빠진 기능(기록·정보·복지·음성·긴급·설정)은 설정 → 사용 방법 안내의 항목별 "체험해보기"로 언제든 볼 수 있다. */
+const firstRunHelpStep = {
+  screen: 'screen-home',
+  target: '#screen-home .icon-square-btn[onclick*="screen-settings"]',
+  cat: 'help', key: 'moreHelp', skippable: true
+};
+const firstRunCoachSteps = [...fullCoachSteps.slice(0, 10), firstRunHelpStep];
+
+let coachSteps = firstRunCoachSteps;
 let coachIndex = -1;
 let coachActive = false;
 
-/** steps를 생략하면 전체 기능 투어(fullCoachSteps), 넘기면 "사용 방법 안내"의 항목별 미니 투어를 시작한다 */
+/** steps를 생략하면 첫 실행 안내(firstRunCoachSteps), 넘기면 "사용 방법 안내"의 항목별 미니 투어를 시작한다 */
 function startCoachmark(steps){
-  coachSteps = steps || fullCoachSteps;
+  coachSteps = steps || firstRunCoachSteps;
   coachActive = true;
   coachIndex = 0;
   goTo(coachSteps[0].screen); // goTo가 coachOnNavigate를 호출해 1단계를 띄워줌
@@ -984,13 +993,22 @@ function positionCoachStep(el, step){
 function updateCoachSidebar(activeCat){
   const sidebar = document.getElementById('coachSidebar');
   if (!sidebar) return;
-  const isFullTour = coachSteps === fullCoachSteps;
+  const isFullTour = coachSteps === firstRunCoachSteps;
   const currentStep = coachSteps[coachIndex];
   const passedCats = new Set();
   if (isFullTour) {
     for (let i = 0; i < coachIndex; i++) passedCats.add(coachSteps[i].cat);
   }
-  COACH_CATEGORIES.forEach(cat => {
+  // 사이드바 항목은 지금 투어에 실제로 들어있는 분류만 순서대로 그린다.
+  // HTML에 분류를 고정해두면 투어 구성을 바꿀 때마다 빈 칸이 남으므로 여기서 만든다.
+  const cats = [];
+  coachSteps.forEach(s => { if (!cats.includes(s.cat)) cats.push(s.cat); });
+  const catsKey = cats.join(',');
+  if (sidebar.dataset.cats !== catsKey) {
+    sidebar.dataset.cats = catsKey;
+    sidebar.innerHTML = cats.map(c => `<div class="coach-sidebar-item" data-cat="${escapeHtml(c)}"></div>`).join('');
+  }
+  cats.forEach(cat => {
     const item = sidebar.querySelector(`[data-cat="${cat}"]`);
     if (!item) return;
     item.textContent = t('coach.cat.' + cat);
@@ -1480,6 +1498,8 @@ const I18N = {
     'onboard.notice.voice': '지금은 분석이 어려워요. 체험판이라 실제 분석은 제공되지 않을 수 있어요. 궁금한 점은 관리자에게 문의하세요.',
     'coach.cat.doc': '문서', 'coach.cat.sms': '문자', 'coach.cat.history': '기록', 'coach.cat.info': '정보',
     'coach.cat.welfare': '복지', 'coach.cat.voice': '음성', 'coach.cat.emergency': '긴급', 'coach.cat.settings': '설정',
+    'coach.cat.help': '안내',
+    'coach.moreHelp.title': '나머지 사용법은 여기 있어요', 'coach.moreHelp.desc': '설정 → 사용 방법 안내에서 기록·정보·복지·음성·긴급 사용법을 하나씩 볼 수 있어요.', 'coach.moreHelp.voice': '나머지 사용법은 설정의 사용 방법 안내에서 볼 수 있어요.',
     'coach.next': '다음으로 넘어가기', 'coach.skipTutorial': '튜토리얼 건너뛰기',
     'coach.doc1.title': '문서를 촬영해보세요', 'coach.doc1.desc': '이 카드를 누르면 문서를 찍어 AI에게 분석을 맡길 수 있어요.', 'coach.doc1.voice': '문서 촬영 카드를 눌러보세요.',
     'coach.doc2.title': '직접 촬영해볼게요', 'coach.doc2.desc': '카메라로 문서를 찍어보세요.', 'coach.doc2.voice': '직접 촬영하기를 눌러보세요.',
@@ -1568,6 +1588,8 @@ const I18N = {
     'onboard.notice.voice': '现在暂时无法分析。因为是体验版，可能无法提供实际分析。如有疑问请联系管理员。',
     'coach.cat.doc': '文件', 'coach.cat.sms': '短信', 'coach.cat.history': '记录', 'coach.cat.info': '信息',
     'coach.cat.welfare': '福利', 'coach.cat.voice': '语音', 'coach.cat.emergency': '紧急', 'coach.cat.settings': '设置',
+    'coach.cat.help': '指引',
+    'coach.moreHelp.title': '其他用法在这里', 'coach.moreHelp.desc': '在设置 → 使用方法指引中，可以逐项查看记录、信息、福利、语音、紧急功能的用法。', 'coach.moreHelp.voice': '其他用法可以在设置的使用方法指引中查看。',
     'coach.next': '继续下一步', 'coach.skipTutorial': '跳过教程',
     'coach.doc1.title': '拍摄文件试试看', 'coach.doc1.desc': '点击此卡片可以拍摄文件并交给AI分析。', 'coach.doc1.voice': '请点击拍摄文件卡片。',
     'coach.doc2.title': '直接拍摄一下', 'coach.doc2.desc': '用相机拍摄文件吧。', 'coach.doc2.voice': '请点击直接拍摄。',
