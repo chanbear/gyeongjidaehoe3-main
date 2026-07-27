@@ -1,6 +1,6 @@
 {
-  "name": "안심도우미",
-  "short_name": "안심도우미",
+  "name": "온담",
+  "short_name": "온담",
   "description": "고령층을 위한 AI 문서·문자 확인 도우미",
   "start_url": "./index.html",
   "scope": "./",

@@ -51,7 +51,7 @@
     backdrop-filter:blur(20px) saturate(180%); -webkit-backdrop-filter:blur(20px) saturate(180%);
     border-bottom:1px solid var(--line);
   }
-  .header-title{ font-size:16px; font-weight:800; letter-spacing:-.01em; color:var(--ink); display:flex; align-items:center; gap:6px; }
+  .header-title{ font-size:calc(16px * var(--scale)); font-weight:800; letter-spacing:-.01em; color:var(--ink); display:flex; align-items:center; gap:6px; }
   .header-title svg{ width:19px; height:19px; color:var(--accent); flex-shrink:0; }
   .gear-btn{
     width:40px; height:40px; border-radius:50%; border:none; background:var(--sms-bg); color:var(--ink-soft);
@@ -61,14 +61,14 @@
   .gear-btn:hover{ background:var(--line); color:var(--ink); }
   .gear-btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
   .nav-btn{
-    background:none; border:none; font-size:16px; color:var(--ink-soft); font-weight:600;
+    background:none; border:none; font-size:calc(16px * var(--scale)); color:var(--ink-soft); font-weight:600;
     display:flex; align-items:center; gap:4px; cursor:pointer; padding:10px 8px; min-height:44px; border-radius:10px;
   }
   .nav-btn:hover{ background:var(--sms-bg); }
   .nav-btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
   .replay-btn{
     background:#fff; color:var(--ink); border:2px solid var(--line); border-radius:999px;
-    padding:10px 16px; font-size:15px; font-weight:700; min-height:44px;
+    padding:10px 16px; font-size:calc(15px * var(--scale)); font-weight:700; min-height:44px;
     display:flex; align-items:center; gap:6px; cursor:pointer;
     box-shadow:0 1px 3px rgba(0,0,0,0.04);
   }
@@ -110,7 +110,7 @@
   .result-card.danger .seal{ background:var(--danger-strong); }
   .result-card.info .seal{ background:var(--ink-faint); }
   .result-card .badge{
-    font-size:12.5px; font-weight:700; letter-spacing:.03em; color:var(--success-strong);
+    font-size:calc(12.5px * var(--scale)); font-weight:700; letter-spacing:.03em; color:var(--success-strong);
   }
   .result-card.danger .badge{ color:var(--danger-strong); }
   .result-card.info .badge{ color:var(--ink-soft); }
@@ -133,13 +133,13 @@
   /* ---- 홈: 워드마크 + 큰 타이틀 + 그룹 리스트(아이콘 칩 + 인셋 구분선) ---- */
   .wordmark{ display:flex; align-items:center; gap:7px; }
   .wordmark .mark{ width:22px; height:22px; color:var(--accent); flex-shrink:0; }
-  .wordmark span{ font-size:15px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+  .wordmark span{ font-size:calc(15px * var(--scale)); font-weight:800; letter-spacing:-.01em; color:var(--ink); }
   .topbar .spacer{ flex:1; }
   .large-title{ font-size:calc(30px * var(--scale)); font-weight:800; letter-spacing:-.02em; line-height:1.25; margin:6px 0 20px; }
   .page-title{ font-size:calc(22px * var(--scale)); font-weight:800; letter-spacing:-.015em; margin:0 0 16px; }
 
   .section{ margin-bottom:22px; }
-  .section-label{ font-size:12.5px; font-weight:700; color:var(--ink-faint); letter-spacing:.02em; margin-bottom:8px; padding-left:2px; }
+  .section-label{ font-size:calc(12.5px * var(--scale)); font-weight:700; color:var(--ink-faint); letter-spacing:.02em; margin-bottom:8px; padding-left:2px; }
   .group{ background:var(--bg-app); border-radius:var(--radius-md); overflow:hidden; }
   .row{ position:relative; display:flex; align-items:center; gap:12px; padding:13px 14px; cursor:pointer; }
   .row:not(:last-child)::after{ content:''; position:absolute; left:60px; right:0; bottom:0; height:1px; background:var(--line); }
@@ -168,7 +168,7 @@
   }
   .app-icon.msg{ background:#3f8f77; }
   .app-icon.msg svg{ stroke:#fff; }
-  .app-icon-label{ font-size:14px; color:var(--ink-soft); font-weight:600; }
+  .app-icon-label{ font-size:calc(14px * var(--scale)); color:var(--ink-soft); font-weight:600; }
   .app-icon-wrap.disabled{ opacity:0.45; }
 
   /* ---- pulse highlight ---- */
@@ -199,7 +199,7 @@
     width:100%; min-height:64px; margin-top:12px;
     background:var(--accent-soft); border:2px solid var(--accent);
     border-radius:999px; color:var(--accent-strong);
-    font-size:19px; font-weight:800; cursor:pointer;
+    font-size:calc(19px * var(--scale)); font-weight:800; cursor:pointer;
     display:flex; align-items:center; justify-content:center; gap:8px;
   }
   .practice-again-box:focus-visible{ outline:3px solid var(--accent); outline-offset:3px; }
@@ -211,14 +211,14 @@
   }
   .doc-preview img{ width:100%; display:block; }
   .doc-preview-label{
-    font-size:14px; font-weight:700; color:var(--ink-faint); margin-bottom:8px;
+    font-size:calc(14px * var(--scale)); font-weight:700; color:var(--ink-faint); margin-bottom:8px;
     display:flex; align-items:center; gap:6px;
   }
   .doc-summary{
     background:var(--bg-app); border:1px solid var(--line); border-radius:var(--radius-md);
     padding:18px; margin-bottom:16px;
   }
-  .doc-summary h3{ font-size:16px; font-weight:700; color:var(--ink-soft); margin:0 0 10px; }
+  .doc-summary h3{ font-size:calc(16px * var(--scale)); font-weight:700; color:var(--ink-soft); margin:0 0 10px; }
   .doc-summary p{ font-size:calc(17px * var(--scale)); line-height:1.65; margin:0; color:var(--ink); }
 
   /* ---- camera / gallery mockup ---- */
@@ -229,9 +229,9 @@
   }
   .camera-view .doc-mock{
     width:85%; background:#fff; border-radius:8px; padding:20px 16px;
-    box-shadow:0 4px 20px rgba(0,0,0,0.3); font-size:11px; line-height:1.5; color:#333;
+    box-shadow:0 4px 20px rgba(0,0,0,0.3); font-size:calc(11px * var(--scale)); line-height:1.5; color:#333;
   }
-  .camera-view .doc-mock .doc-title{ font-size:13px; font-weight:700; text-align:center; margin-bottom:10px; border-bottom:1px solid #ddd; padding-bottom:8px; }
+  .camera-view .doc-mock .doc-title{ font-size:calc(13px * var(--scale)); font-weight:700; text-align:center; margin-bottom:10px; border-bottom:1px solid #ddd; padding-bottom:8px; }
   .camera-shutter{
     width:68px; height:68px; border-radius:50%; background:#fff;
     border:4px solid rgba(255,255,255,0.5); cursor:pointer; margin-top:auto; margin-bottom:8px;
@@ -239,50 +239,50 @@
   .camera-shutter:active{ transform:scale(0.92); }
 
   .phone-status-bar{
-    text-align:center; font-size:13px; font-weight:600; color:var(--ink-soft);
+    text-align:center; font-size:calc(13px * var(--scale)); font-weight:600; color:var(--ink-soft);
     margin-bottom:8px; padding-top:4px;
   }
 
   /* ---- history / schedule ---- */
   .history-section{ margin-bottom:20px; }
-  .history-section h2{ font-size:17px; font-weight:700; color:var(--ink-soft); margin:0 0 10px; }
+  .history-section h2{ font-size:calc(17px * var(--scale)); font-weight:700; color:var(--ink-soft); margin:0 0 10px; }
   .history-item{
     padding:14px; background:var(--bg-app); border:1px solid var(--line);
-    border-radius:var(--radius-md); margin-bottom:8px; font-size:16px; line-height:1.5;
+    border-radius:var(--radius-md); margin-bottom:8px; font-size:calc(16px * var(--scale)); line-height:1.5;
   }
   .history-item .hi-title{ font-weight:700; margin-bottom:4px; }
-  .history-item .hi-meta{ font-size:13px; color:var(--ink-faint); }
+  .history-item .hi-meta{ font-size:calc(13px * var(--scale)); color:var(--ink-faint); }
   .schedule-item{
     display:flex; align-items:center; gap:10px; padding:14px;
     background:var(--accent-soft); border:1px solid var(--accent); border-radius:var(--radius-md);
-    margin-bottom:8px; font-size:17px; font-weight:600;
+    margin-bottom:8px; font-size:calc(17px * var(--scale)); font-weight:600;
   }
   .schedule-item.done{ opacity:0.7; text-decoration:line-through; }
-  .empty-state{ text-align:center; color:var(--ink-faint); font-size:16px; padding:24px 12px; line-height:1.6; }
+  .empty-state{ text-align:center; color:var(--ink-faint); font-size:calc(16px * var(--scale)); padding:24px 12px; line-height:1.6; }
 
   /* ---- 설정 화면 ---- */
   .settings-section{ margin-bottom:26px; }
-  .settings-section h2{ font-size:17px; font-weight:700; color:var(--ink-soft); margin:0 0 12px; }
+  .settings-section h2{ font-size:calc(17px * var(--scale)); font-weight:700; color:var(--ink-soft); margin:0 0 12px; }
   .segmented, .view-toggle{ display:flex; gap:8px; }
   .segmented button, .view-toggle button{
     flex:1; border:2px solid var(--line); background:var(--bg-app); color:var(--ink-soft);
     font-weight:700; cursor:pointer;
   }
   .segmented button.active, .view-toggle button.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
-  .segmented button{ min-height:56px; border-radius:var(--radius-md); font-size:16px; }
+  .segmented button{ min-height:56px; border-radius:var(--radius-md); font-size:calc(16px * var(--scale)); }
   .segmented button:focus-visible{ outline:3px solid var(--accent-strong); outline-offset:2px; }
   .field-row{ display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
-  .field-row label{ font-size:15px; font-weight:700; color:var(--ink-soft); }
+  .field-row label{ font-size:calc(15px * var(--scale)); font-weight:700; color:var(--ink-soft); }
   .field-row input[type="text"], .field-row input[type="tel"]{
     min-height:56px; border:2px solid var(--line); border-radius:var(--radius-md);
-    padding:0 16px; font-size:18px; color:var(--ink); font-family:inherit;
+    padding:0 16px; font-size:calc(18px * var(--scale)); color:var(--ink); font-family:inherit;
   }
   .field-row input:focus-visible{ outline:3px solid var(--accent); outline-offset:1px; }
   .toggle-row{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
     padding:14px; background:var(--bg-app); border:1.5px solid var(--line); border-radius:var(--radius-md);
   }
-  .toggle-row span{ font-size:17px; font-weight:600; }
+  .toggle-row span{ font-size:calc(17px * var(--scale)); font-weight:600; }
   .switch{ position:relative; width:52px; height:30px; flex-shrink:0; }
   .switch input{ opacity:0; width:0; height:0; }
   .switch .track{
@@ -295,24 +295,24 @@
   .switch input:checked + .track{ background:var(--accent); }
   .switch input:checked + .track::before{ transform:translateX(22px); }
   .settings-save-note{
-    font-size:14px; color:var(--ink-faint); text-align:center; margin-top:4px;
+    font-size:calc(14px * var(--scale)); color:var(--ink-faint); text-align:center; margin-top:4px;
   }
 
   /* ---- 보호자 / 신고 연결 ---- */
   .action-row{ display:flex; gap:10px; margin-top:12px; }
-  .action-row .secondary-btn{ font-size:16px; min-height:58px; padding:0 8px; text-decoration:none; }
+  .action-row .secondary-btn{ font-size:calc(16px * var(--scale)); min-height:58px; padding:0 8px; text-decoration:none; }
   .guardian-btn{
     width:100%; min-height:60px; margin-top:12px; background:#fff; color:var(--accent-strong);
-    border:2px solid var(--accent); border-radius:999px; font-size:18px; font-weight:700;
+    border:2px solid var(--accent); border-radius:999px; font-size:calc(18px * var(--scale)); font-weight:700;
     cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
   }
   .guardian-btn:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
-  .guardian-note{ font-size:14px; color:var(--ink-faint); text-align:center; margin-top:8px; line-height:1.5; }
+  .guardian-note{ font-size:calc(14px * var(--scale)); color:var(--ink-faint); text-align:center; margin-top:8px; line-height:1.5; }
 
   /* ---- 오류 상태 화면 ---- */
   .error-hint{
     background:var(--danger-soft); border-radius:var(--radius-md); padding:16px;
-    font-size:16px; color:var(--danger-strong); line-height:1.6; margin-bottom:18px;
+    font-size:calc(16px * var(--scale)); color:var(--danger-strong); line-height:1.6; margin-bottom:18px;
   }
 
 /* =========================================================
@@ -333,13 +333,13 @@
 .dashboard-item input{ width:22px; height:22px; accent-color:var(--accent); flex-shrink:0; }
 .dashboard-more-btn{
   width:100%; min-height:44px; background:none; border:none; color:var(--accent-strong);
-  font-size:15px; font-weight:700; cursor:pointer;
+  font-size:calc(15px * var(--scale)); font-weight:700; cursor:pointer;
 }
 
 /* ---- 1-1. 일정 길찾기 지도 ---- */
 .task-map-wrap{ margin:6px 0 4px 34px; }
 .task-map-label{
-  display:flex; align-items:center; font-size:13px; font-weight:700; color:var(--accent-strong); margin-bottom:6px;
+  display:flex; align-items:center; font-size:calc(13px * var(--scale)); font-weight:700; color:var(--accent-strong); margin-bottom:6px;
 }
 .task-map{
   width:100%; height:160px; border-radius:12px; overflow:hidden; background:var(--sms-bg);
@@ -348,13 +348,13 @@
 
 /* ---- 2. 다가오는 일정 ---- */
 .upcoming-schedule{ margin-bottom:18px; display:flex; flex-direction:column; gap:14px; }
-.upcoming-group h3{ font-size:14px; font-weight:700; color:var(--ink-faint); margin:0 0 6px; }
-.upcoming-group .schedule-item{ margin-bottom:6px; font-size:15px; }
-.upcoming-group .empty-hint{ font-size:14px; color:var(--ink-faint); padding:4px 2px; }
+.upcoming-group h3{ font-size:calc(14px * var(--scale)); font-weight:700; color:var(--ink-faint); margin:0 0 6px; }
+.upcoming-group .schedule-item{ margin-bottom:6px; font-size:calc(15px * var(--scale)); }
+.upcoming-group .empty-hint{ font-size:calc(14px * var(--scale)); color:var(--ink-faint); padding:4px 2px; }
 
 /* ---- 7. 쉬운 설명 / 원문 토글 (버튼 공통 스타일은 위 .segmented 옆에서 함께 정의) ---- */
 .view-toggle{ margin-bottom:12px; }
-.view-toggle button{ min-height:48px; border-radius:999px; font-size:15px; }
+.view-toggle button{ min-height:48px; border-radius:999px; font-size:calc(15px * var(--scale)); }
 
 /* ---- checklist + 알림 설정 버튼 ---- */
 .checklist-row{ display:flex; align-items:center; gap:10px; }
@@ -362,48 +362,24 @@
 .reminder-btn{
   flex-shrink:0; min-height:56px; padding:0 12px; border-radius:999px;
   border:2px solid var(--accent); background:#fff; color:var(--accent-strong);
-  font-size:14px; font-weight:700; cursor:pointer;
+  font-size:calc(14px * var(--scale)); font-weight:700; cursor:pointer;
 }
 
 /* ---- 4. 자동 실행 버튼 ---- */
 .auto-actions{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px; }
 .auto-action-btn{
   min-height:56px; border-radius:999px; border:2px solid var(--line);
-  background:var(--bg-app); color:var(--ink); font-size:15px; font-weight:700; cursor:pointer;
+  background:var(--bg-app); color:var(--ink); font-size:calc(15px * var(--scale)); font-weight:700; cursor:pointer;
   display:flex; align-items:center; justify-content:center; gap:6px; text-decoration:none;
-}
-
-/* ---- 3. AI에게 질문하기 ---- */
-.ai-qa-box{
-  background:var(--bg-app); border:1px solid var(--line); border-radius:var(--radius-md);
-  padding:16px; margin-bottom:18px;
-}
-.ai-qa-box h3{ font-size:16px; font-weight:700; color:var(--ink-soft); margin:0 0 10px; }
-.ai-qa-faq{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
-.ai-qa-faq button{
-  min-height:44px; padding:0 12px; border-radius:999px; border:1.5px solid var(--accent);
-  background:var(--accent-soft); color:var(--accent-strong); font-size:14px; font-weight:600; cursor:pointer;
-}
-.ai-qa-input-row{ display:flex; gap:8px; margin-bottom:10px; }
-.ai-qa-input-row input{
-  flex:1; min-height:52px; border:2px solid var(--line); border-radius:var(--radius-md);
-  padding:0 14px; font-size:16px; font-family:inherit;
-}
-.ai-qa-input-row button{
-  min-height:52px; padding:0 16px; border-radius:999px; border:none;
-  background:var(--accent); color:#fff; font-size:15px; font-weight:700; cursor:pointer;
-}
-.ai-qa-answer{
-  background:var(--accent-soft); border-radius:12px; padding:14px; font-size:16px; line-height:1.6; color:var(--accent-strong);
 }
 
 /* ---- 8. 보호자 공유 ---- */
 .share-box{ margin-bottom:18px; }
-.share-box h3{ font-size:16px; font-weight:700; color:var(--ink-soft); margin:0 0 10px; }
+.share-box h3{ font-size:calc(16px * var(--scale)); font-weight:700; color:var(--ink-soft); margin:0 0 10px; }
 .share-buttons{ display:flex; gap:10px; }
 .share-btn{
   flex:1; min-height:56px; border-radius:999px; border:2px solid var(--line);
-  background:var(--bg-app); color:var(--ink); font-size:15px; font-weight:700; cursor:pointer;
+  background:var(--bg-app); color:var(--ink); font-size:calc(15px * var(--scale)); font-weight:700; cursor:pointer;
 }
 
 /* ---- 5. 긴급 도움 FAB + Bottom Sheet ---- */
@@ -427,24 +403,24 @@
   animation:slideUp .25s ease;
 }
 @keyframes slideUp{ from{ transform:translate(-50%, 100%); } to{ transform:translate(-50%, 0); } }
-.bottom-sheet-title{ font-size:18px; font-weight:700; text-align:center; margin-bottom:14px; }
+.bottom-sheet-title{ font-size:calc(18px * var(--scale)); font-weight:700; text-align:center; margin-bottom:14px; }
 .sheet-btn{
   display:block; width:100%; min-height:58px; margin-bottom:10px; border-radius:var(--radius-md);
   border:2px solid var(--line); background:var(--bg-app); color:var(--ink);
-  font-size:17px; font-weight:700; text-align:center; text-decoration:none; cursor:pointer;
+  font-size:calc(17px * var(--scale)); font-weight:700; text-align:center; text-decoration:none; cursor:pointer;
   line-height:58px;
 }
 .sheet-btn-cancel{ background:none; border:none; color:var(--ink-faint); margin-bottom:0; }
-.reminder-target{ font-size:15px; color:var(--ink-soft); text-align:center; margin-bottom:14px; }
+.reminder-target{ font-size:calc(15px * var(--scale)); color:var(--ink-soft); text-align:center; margin-bottom:14px; }
 
 /* ---- 음성 컨트롤 ---- */
 .voice-control-row{ display:flex; gap:10px; margin-top:12px; }
-.voice-control-row .secondary-btn{ min-height:52px; font-size:15px; }
+.voice-control-row .secondary-btn{ min-height:52px; font-size:calc(15px * var(--scale)); }
 
 /* ---- 9. 토스트(공유/질문 등 공통 알림) ---- */
 .global-toast{
   position:fixed; left:50%; top:24px; transform:translate(-50%,-14px);
-  background:#1c2622; color:#fff; font-size:15px; font-weight:600;
+  background:#1c2622; color:#fff; font-size:calc(15px * var(--scale)); font-weight:600;
   padding:12px 18px; border-radius:999px; opacity:0; pointer-events:none; z-index:95;
   transition:opacity .25s ease, transform .25s ease; max-width:80vw; text-align:center;
 }
@@ -475,7 +451,7 @@
    ========================================================= */
 
 /* 카드류에 은은한 그림자를 더해 목업의 "떠 있는 카드" 느낌을 낸다 */
-.group, .doc-summary, .ai-qa-box, .toggle-row, .history-item, .dashboard-card,
+.group, .doc-summary, .toggle-row, .history-item, .dashboard-card,
 .doc-info-card, .feature-card, .hero-card, .icon-square-btn, .tip-card, .todo-list{
   box-shadow:var(--shadow-card);
 }
@@ -538,7 +514,7 @@
 /* ---- 안내 배너 (본 서비스는 참고용) ---- */
 .disclaimer-banner{
   background:var(--sms-bg); border-radius:var(--radius-md); padding:14px 16px;
-  font-size:13px; color:var(--ink-soft); text-align:center; line-height:1.6; margin-top:auto;
+  font-size:calc(13px * var(--scale)); color:var(--ink-soft); text-align:center; line-height:1.6; margin-top:auto;
 }
 
 /* ---- 문서/문자 요약 카드 (분석 결과 화면 상단 요약 박스) ---- */
@@ -547,7 +523,7 @@
   padding:18px; margin-bottom:16px;
 }
 .doc-info-card .pill-badge{
-  display:inline-block; font-size:12px; font-weight:700; color:var(--accent-strong);
+  display:inline-block; font-size:calc(12px * var(--scale)); font-weight:700; color:var(--accent-strong);
   background:var(--accent-soft); padding:4px 10px; border-radius:999px; margin-bottom:8px;
 }
 
@@ -561,20 +537,20 @@
 .todo-list .checklist-row::before{
   content:counter(todo); position:absolute; left:14px; top:50%; transform:translateY(-50%);
   width:24px; height:24px; border-radius:50%; background:var(--accent-soft); color:var(--accent-strong);
-  font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center;
+  font-size:calc(13px * var(--scale)); font-weight:800; display:flex; align-items:center; justify-content:center;
 }
 
 /* ---- 위험 감지 알약 배지 ---- */
 .danger-pill{
   display:inline-flex; align-items:center; gap:6px; background:var(--danger); color:#fff;
-  font-size:13px; font-weight:800; padding:6px 14px; border-radius:999px; margin-bottom:12px;
+  font-size:calc(13px * var(--scale)); font-weight:800; padding:6px 14px; border-radius:999px; margin-bottom:12px;
 }
 
 /* ---- 정보/팁 카드 (꼭 확인해주세요) ---- */
 .tip-card{
   background:var(--sms-bg); border-radius:var(--radius-md); padding:16px 18px; margin-bottom:18px;
 }
-.tip-card .tip-title{ display:flex; align-items:center; gap:8px; font-size:16px; font-weight:700; color:var(--ink); margin-bottom:10px; }
+.tip-card .tip-title{ display:flex; align-items:center; gap:8px; font-size:calc(16px * var(--scale)); font-weight:700; color:var(--ink); margin-bottom:10px; }
 .tip-card ul{ margin:0; padding-left:20px; }
 .tip-card li{ font-size:calc(15px * var(--scale)); color:var(--ink-soft); line-height:1.6; margin-bottom:4px; }
 
@@ -591,7 +567,7 @@
 .settings-link-row{
   display:flex; align-items:center; justify-content:space-between; gap:10px;
   background:var(--bg-app); border:1px solid var(--line); border-radius:var(--radius-md);
-  padding:14px 16px; cursor:pointer; margin-bottom:10px; color:var(--ink); font-size:16px; font-weight:600;
+  padding:14px 16px; cursor:pointer; margin-bottom:10px; color:var(--ink); font-size:calc(16px * var(--scale)); font-weight:600;
 }
 .settings-link-row svg{ width:16px; height:16px; color:var(--ink-faint); }
 
@@ -599,36 +575,18 @@
 .emergency-fab{
   right:20px; bottom:24px; width:auto; height:auto; border-radius:999px;
   background:var(--help); color:#fff; padding:14px 20px;
-  display:flex; align-items:center; gap:8px; font-size:15px; font-weight:800;
+  display:flex; align-items:center; gap:8px; font-size:calc(15px * var(--scale)); font-weight:800;
   box-shadow:0 8px 20px rgba(255,107,120,0.45);
 }
 .emergency-fab svg{ width:22px; height:22px; }
 /* 안내(온보딩) 화면에서는 실제 앱 기능인 긴급 도움 버튼을 노출하지 않는다 */
 body.in-onboarding .emergency-fab{ display:none; }
 
-/* ---- 고대비 모드(저시력 사용자용): 대부분의 색이 CSS 변수를 참조하므로 변수만 진하게 덮어써도 전체에 적용된다 ---- */
-body.high-contrast{
-  --ink:#000000; --ink-soft:#000000; --ink-faint:#333333;
-  --line:#000000; --bg-app:#ffffff; --bg-page:#ffffff;
-  --accent:#0033cc; --accent-soft:#ffffff; --accent-strong:#001f80;
-  --danger:#b30000; --danger-soft:#fff2f2; --danger-strong:#8a0000;
-  --success:#006600; --success-soft:#f0fff0; --success-strong:#004d00;
-}
-body.high-contrast .group, body.high-contrast .feature-card, body.high-contrast .dashboard-card,
-body.high-contrast .hero-card, body.high-contrast .doc-info-card, body.high-contrast .tip-card,
-body.high-contrast .todo-list, body.high-contrast .icon-square-btn, body.high-contrast .history-item,
-body.high-contrast .toggle-row, body.high-contrast .settings-link-row, body.high-contrast .checklist,
-body.high-contrast .doc-summary, body.high-contrast .ai-qa-box, body.high-contrast .share-box{
-  border:2px solid #000 !important;
-}
-body.high-contrast .topbar{ border-bottom:2px solid #000; background:#fff; }
-body.high-contrast .primary-btn{ background:#000; color:#fff; }
-
 /* ---- 튜토리얼: 문자 길게 눌러 복사하기 연습(실제 폰 길게 누르기 시 뜨는 복사 메뉴를 흉내) ---- */
 .tutorial-copy-popup{
   position:absolute; top:-52px; left:50%; transform:translateX(-50%);
   background:#2b2f2d; color:#fff; border:none; border-radius:10px;
-  padding:10px 18px; font-size:15px; font-weight:700; cursor:pointer;
+  padding:10px 18px; font-size:calc(15px * var(--scale)); font-weight:700; cursor:pointer;
   box-shadow:0 6px 16px rgba(0,0,0,.3); z-index:5; white-space:nowrap;
 }
 .tutorial-copy-popup::after{
@@ -638,6 +596,10 @@ body.high-contrast .primary-btn{ background:#000; color:#fff; }
 
 /* ---- 코치마크 튜토리얼: 실제 화면 위에 스포트라이트(구멍 뚫린 어둡게 처리)와 말풍선으로 안내 ---- */
 .coach-overlay{ position:fixed; inset:0; z-index:500; pointer-events:none; }
+
+/* 튜토리얼 건너뛰기 확인 시트는 코치마크 진행 중에도 열리므로 오버레이(500)보다 위에 있어야 한다 */
+#skipConfirmBackdrop{ z-index:600; }
+#skipConfirmSheet{ z-index:610; }
 .coach-hole{
   position:fixed; border-radius:16px; pointer-events:none;
   box-shadow:0 0 0 9999px rgba(10,14,20,.6);
@@ -647,7 +609,28 @@ body.high-contrast .primary-btn{ background:#000; color:#fff; }
   position:fixed; max-width:280px; background:#fff; border-radius:var(--radius-lg);
   padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.28); pointer-events:auto;
 }
-.coach-tip-step{ font-size:13px; font-weight:700; color:var(--accent-strong); margin-bottom:4px; }
-.coach-tip-title{ font-size:17px; font-weight:800; color:var(--ink); margin-bottom:4px; }
-.coach-tip-desc{ font-size:14px; color:var(--ink-soft); line-height:1.5; margin-bottom:10px; }
-.coach-tip-skip{ font-size:13px; color:var(--ink-faint); padding:0; min-height:auto; }
+.coach-tip-step{ font-size:calc(13px * var(--scale)); font-weight:700; color:var(--accent-strong); margin-bottom:4px; }
+.coach-tip-title{ font-size:calc(17px * var(--scale)); font-weight:800; color:var(--ink); margin-bottom:4px; }
+.coach-tip-desc{ font-size:calc(14px * var(--scale)); color:var(--ink-soft); line-height:1.5; margin-bottom:10px; }
+.coach-tip-next{
+  width:100%; min-height:48px; margin-bottom:6px; background:var(--accent); color:#fff; border:none;
+  border-radius:999px; font-size:calc(15px * var(--scale)); font-weight:700; cursor:pointer;
+}
+.coach-tip-skip{ font-size:calc(13px * var(--scale)); color:var(--ink-faint); padding:0; min-height:auto; }
+
+/* ---- 코치마크 왼쪽 카테고리 진행률 사이드바: 전체 투어(fullCoachSteps) 중에만 표시, 실제 화면 콘텐츠는 오른쪽으로 밀어준다 ---- */
+.coach-sidebar{
+  display:none; flex-direction:column; position:fixed; top:0; left:0; bottom:0; width:64px;
+  background:var(--bg-page); border-right:1px solid var(--line); z-index:1;
+  padding-top:calc(14px + env(safe-area-inset-top)); pointer-events:none;
+}
+.coach-sidebar-item{
+  flex:1; display:flex; align-items:center; justify-content:center; text-align:center;
+  font-size:calc(12px * var(--scale)); font-weight:700; color:var(--ink-faint); line-height:1.3; padding:2px;
+  border-left:3px solid transparent;
+}
+.coach-sidebar-item.active{ color:var(--accent-strong); border-left-color:var(--accent); background:var(--accent-soft); }
+.coach-sidebar-item.done{ color:var(--ink-soft); }
+body.coach-sidebar-active.coach-sidebar-shown .screen.active{
+  left:64px; width:calc(100% - 64px); transition:left .2s ease, width .2s ease;
+}

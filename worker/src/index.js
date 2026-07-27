@@ -1,4 +1,25 @@
-import Anthropic from '@anthropic-ai/sdk';
+/** (더 이상 사용하지 않음) Anthropic API를 호출하던 Durable Object.
+ *  Cloudflare 콜로(홍콩 등)에서 나가는 요청이 403(forbidden)으로 차단되는 문제가 있었고,
+ *  locationHint로 리전을 바꿔가며(wnam/enam/weur/eeur/apac/oc) 우회를 시도했지만
+ *  전 리전에서 동일하게 차단됨 — Cloudflare 데이터센터 IP 대역 자체가 막힌 것으로 판단.
+ *  대신 Cloudflare 바깥의 Vercel 중계 서버(relay/)를 거쳐 호출하도록 변경했다(runAnalysis 참고).
+ *  DO 클래스 삭제는 migrations 조율이 필요해 위험 부담이 있어 일단 미사용 상태로 남겨둔다. */
+export class AnthropicProxy {
+  async fetch(request) {
+    const body = await request.text();
+    return fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': request.headers.get('x-api-key'),
+        'anthropic-version': '2023-06-01',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+        'accept': 'application/json',
+      },
+      body,
+    });
+  }
+}
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -37,7 +58,7 @@ const DOC_PROMPT = `당신은 고령자를 위한 문서 분석 도우미입니�
 function buildProfileNote(profile) {
   if (!profile || typeof profile !== 'object') return '';
   const parts = [];
-  if (profile.ageBand) parts.push(profile.ageBand);
+  if (profile.age) parts.push(profile.age + '대'); // 앱에서 연령대(50/60/70/80) 단위로 받으므로 "73세"가 아닌 "70대"로 전달
   if (profile.gender) parts.push(profile.gender);
   if (profile.region) parts.push(profile.region + ' 거주');
   if (parts.length === 0) return '';
@@ -59,21 +80,30 @@ function json(data, status) {
   });
 }
 
-let client;
-function getClient(env) {
-  if (!client) client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-  return client;
-}
+const RELAY_URL = 'https://relay-jet-six.vercel.app';
 
 async function runAnalysis(env, content) {
-  const response = await getClient(env).messages.create({
-    model: 'claude-opus-4-8',
-    max_tokens: 1024,
-    output_config: { format: { type: 'json_schema', schema: ANALYSIS_SCHEMA } },
-    messages: [{ role: 'user', content }],
+  // Cloudflare 데이터센터 IP 대역이 Anthropic API에서 차단되어(리전 무관), Cloudflare 밖의
+  // Vercel 중계 서버(relay/)를 거쳐 호출한다. RELAY_SECRET은 이 중계 서버를 아무나 호출해
+  // Anthropic 크레딧을 소모하지 못하도록 막는 공유 비밀값이다.
+  const proxied = await fetch(`${RELAY_URL}/api/proxy`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-relay-secret': env.RELAY_SECRET,
+    },
+    body: JSON.stringify({
+      model: 'claude-opus-4-8',
+      max_tokens: 1024,
+      output_config: { format: { type: 'json_schema', schema: ANALYSIS_SCHEMA } },
+      messages: [{ role: 'user', content }],
+    }),
   });
 
-  const textBlock = response.content.find((b) => b.type === 'text');
+  const data = await proxied.json();
+  if (!proxied.ok) throw new Error(`${proxied.status} ${JSON.stringify(data)}`);
+
+  const textBlock = (data.content || []).find((b) => b.type === 'text');
   if (!textBlock) throw new Error('AI 응답을 이해하지 못했습니다.');
   return JSON.parse(textBlock.text);
 }
@@ -141,7 +171,7 @@ export default {
       } catch {
         return json({ error: '잘못된 요청입니다.' }, 400);
       }
-      const { deviceId, name, gender, ageBand, region } = body || {};
+      const { deviceId, name, gender, age, region } = body || {};
       if (!deviceId || typeof deviceId !== 'string') return json({ error: 'deviceId가 없습니다.' }, 400);
 
       try {
@@ -152,7 +182,7 @@ export default {
              name = excluded.name, gender = excluded.gender,
              age_band = excluded.age_band, region = excluded.region,
              updated_at = excluded.updated_at`
-        ).bind(deviceId, name || '', gender || '', ageBand || '', region || '').run();
+        ).bind(deviceId, name || '', gender || '', age ? String(age) : '', region || '').run();
         return json({ ok: true }, 200);
       } catch (err) {
         return json({ error: '저장에 실패했습니다.', detail: String(err && err.message || err) }, 502);
@@ -165,9 +195,10 @@ export default {
 
       try {
         const row = await env.ansim_doumi_db.prepare(
-          `SELECT name, gender, age_band as ageBand, region FROM profiles WHERE device_id = ?`
+          `SELECT name, gender, age_band as age, region FROM profiles WHERE device_id = ?`
         ).bind(deviceId).first();
-        return json(row || { name: '', gender: '', ageBand: '', region: '' }, 200);
+        if (row && row.age) row.age = parseInt(row.age, 10) || null;
+        return json(row || { name: '', gender: '', age: null, region: '' }, 200);
       } catch (err) {
         return json({ error: '불러오기에 실패했습니다.', detail: String(err && err.message || err) }, 502);
       }

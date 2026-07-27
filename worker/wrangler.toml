@@ -1,4 +1,4 @@
-name = "ansim-doumi-ai"
+name = "ondam-ai"
 main = "src/index.js"
 compatibility_date = "2026-07-01"
 
@@ -6,3 +6,11 @@ compatibility_date = "2026-07-01"
 binding = "ansim_doumi_db"
 database_name = "ansim-doumi-db"
 database_id = "e027fd86-4aac-4c15-a372-a0465105f64f"
+
+[[durable_objects.bindings]]
+name = "ANTHROPIC_PROXY"
+class_name = "AnthropicProxy"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AnthropicProxy"]

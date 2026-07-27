@@ -1,4 +1,4 @@
-package com.ansimhelper.app;
+package com.ondam.app;
 
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;

@@ -1,4 +1,4 @@
-package com.ansimhelper.app;
+package com.ondam.app;
 
 import android.content.Intent;
 import com.getcapacitor.Plugin;

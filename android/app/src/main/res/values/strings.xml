@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">안심도우미</string>
-    <string name="title_activity_main">안심도우미</string>
-    <string name="package_name">com.ansimhelper.app</string>
-    <string name="custom_url_scheme">com.ansimhelper.app</string>
+    <string name="app_name">온담</string>
+    <string name="title_activity_main">온담</string>
+    <string name="package_name">com.ondam.app</string>
+    <string name="custom_url_scheme">com.ondam.app</string>
 </resources>

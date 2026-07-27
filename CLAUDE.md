@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 프로젝트 개요
 
-"안심도우미" (AI 디지털 도우미) — 고령층 대상 문서/문자 사기 판별 및 생활 안내 앱. Capacitor로 웹 앱을 Android 네이티브(APK)로 감싼 하이브리드 앱이며, 문서 이미지 분석을 위한 별도 Cloudflare Worker 백엔드(Anthropic API 연동)를 포함한다.
+"온담"(AI 디지털 도우미, 온기를 담아 전하는 서비스) — 고령층 대상 문서/문자 사기 판별 및 생활 안내 앱. Capacitor로 웹 앱을 Android 네이티브(APK)로 감싼 하이브리드 앱이며, 문서 이미지 분석을 위한 별도 Cloudflare Worker 백엔드(Anthropic API 연동)를 포함한다.
+
+> 참고: 안드로이드 패키지명(`com.ondam.app`)과 표시 이름은 "온담"으로 바뀌었지만, Worker 배포 주소(`ansim-doumi-ai.kke88084.workers.dev`)·D1 데이터베이스명(`ansim-doumi-db`)·GitHub 저장소명 등 기존에 배포·연동된 식별자는 재배포 부담을 피하기 위해 이전 이름("안심도우미"/`ansimhelper`/`ansim-doumi`)을 그대로 유지한다. 이 문서와 코드에서 그런 식별자를 볼 수 있는 것은 의도된 것이다.
 
 세 부분이 독립적으로 존재한다:
 - **루트 (`/`)**: 프레임워크·번들러 없는 순수 HTML/CSS/JS 프런트엔드
