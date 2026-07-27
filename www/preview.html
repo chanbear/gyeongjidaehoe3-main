@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>온담 - 기기 화면 미리보기</title>
+<!--
+  발표·시연용 미리보기 페이지.
+  index.html 을 아이폰/안드로이드 크기의 iframe 에 띄워 데스크톱에서도 폰 화면 그대로 보여준다.
+  앱 자체(index.html / js / css)는 전혀 건드리지 않으며, 이 파일은 Capacitor 앱(www/)에 포함하지 않는다.
+-->
+<style>
+  :root {
+    --bg: #eef1f7;
+    --panel: #ffffff;
+    --line: #d7dde8;
+    --text: #1b2440;
+    --muted: #5b6884;
+    --accent: #2454e6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header h1 { font-size: 17px; margin: 0; }
+  header h1 span { color: var(--muted); font-weight: 400; font-size: 14px; margin-left: 6px; }
+  .spacer { flex: 1 1 auto; }
+
+  .ctrl { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  select, button {
+    font: inherit;
+    font-size: 13px;
+    padding: 7px 11px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+  }
+  button:hover, select:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .stage {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 40px;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 32px 20px 60px;
+  }
+
+  .device { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .device-label { font-size: 13px; color: var(--muted); }
+  .device-label b { color: var(--text); font-weight: 600; }
+
+  /* 폰 외곽 프레임 */
+  .frame {
+    position: relative;
+    background: #10131c;
+    padding: 12px;
+    box-shadow: 0 18px 44px rgba(20, 30, 60, .28);
+    flex: none;
+  }
+  .frame.ios { border-radius: 44px; }
+  .frame.android { border-radius: 26px; padding: 10px; }
+
+  .screen-wrap {
+    position: relative;
+    overflow: hidden;
+    background: #fff;
+  }
+  .frame.ios .screen-wrap { border-radius: 33px; }
+  .frame.android .screen-wrap { border-radius: 17px; }
+
+  iframe {
+    border: 0;
+    display: block;
+    transform-origin: top left;
+    background: #fff;
+  }
+
+  /* 아이폰 다이나믹 아일랜드 / 안드로이드 펀치홀 */
+  .notch {
+    position: absolute;
+    z-index: 3;
+    background: #10131c;
+    pointer-events: none;
+  }
+  .frame.ios .notch {
+    top: 10px; left: 50%; transform: translateX(-50%);
+    width: 104px; height: 26px; border-radius: 14px;
+  }
+  .frame.android .notch {
+    top: 10px; left: 50%; transform: translateX(-50%);
+    width: 9px; height: 9px; border-radius: 50%;
+  }
+
+  .note {
+    max-width: 760px;
+    margin: 0 auto 40px;
+    padding: 16px 20px;
+    background: #fff8e6;
+    border: 1px solid #f0dca8;
+    border-radius: 10px;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: #6b5417;
+  }
+  .note b { color: #4a390c; }
+  .note ul { margin: 8px 0 0; padding-left: 20px; }
+  .note li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>온담 <span>기기 화면 미리보기</span></h1>
+  <div class="spacer"></div>
+
+  <div class="ctrl">
+    <label for="iosSel">iPhone</label>
+    <select id="iosSel"></select>
+  </div>
+  <div class="ctrl">
+    <label for="androidSel">Android</label>
+    <select id="androidSel"></select>
+  </div>
+  <div class="ctrl">
+    <label for="zoomSel">배율</label>
+    <select id="zoomSel">
+      <option value="0.6">60%</option>
+      <option value="0.75">75%</option>
+      <option value="0.9" selected>90%</option>
+      <option value="1">100%</option>
+    </select>
+  </div>
+  <button id="reloadBtn" class="primary">둘 다 새로고침</button>
+  <button id="resetBtn" title="저장된 프로필·기록·설정을 지우고 첫 실행 상태로 되돌립니다">첫 실행 상태로</button>
+</header>
+
+<div class="stage">
+  <div class="device">
+    <div class="device-label"><b>iPhone</b> · <span id="iosDim"></span></div>
+    <div class="frame ios">
+      <div class="notch"></div>
+      <div class="screen-wrap" id="iosWrap">
+        <iframe id="iosFrame" src="./index.html" allow="camera; microphone; geolocation"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <div class="device">
+    <div class="device-label"><b>Android</b> · <span id="androidDim"></span></div>
+    <div class="frame android">
+      <div class="notch"></div>
+      <div class="screen-wrap" id="androidWrap">
+        <iframe id="androidFrame" src="./index.html" allow="camera; microphone; geolocation"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <b>미리보기라서 실제 기기와 다른 점</b>
+  <ul>
+    <li>두 화면은 브라우저의 같은 저장소(localStorage)를 공유합니다. 한쪽에서 설정을 바꾸면 다른 쪽을 새로고침했을 때 같이 바뀝니다.</li>
+    <li>문자 확인 흐름에서 기기 문자 앱을 여는 단계(<code>sms:</code>)는 데스크톱에서 열리지 않습니다. 붙여넣기 화면부터는 정상 동작합니다.</li>
+    <li>카메라는 데스크톱 웹캠으로 열립니다. 실제 문서 촬영 시연은 휴대폰에서 직접 열어 보시는 게 정확합니다.</li>
+  </ul>
+</div>
+
+<script>
+// 논리 해상도(CSS px) 기준. 실제 기기의 뷰포트 크기와 동일하게 맞춘 값이다.
+const IOS_DEVICES = [
+  { name: 'iPhone SE (3rd)', w: 375, h: 667 },
+  { name: 'iPhone 13 mini',  w: 375, h: 812 },
+  { name: 'iPhone 15',       w: 393, h: 852 },
+  { name: 'iPhone 15 Pro Max', w: 430, h: 932 }
+];
+const ANDROID_DEVICES = [
+  { name: 'Galaxy S23',      w: 360, h: 780 },
+  { name: 'Pixel 7',         w: 412, h: 915 },
+  { name: 'Galaxy S23 Ultra', w: 412, h: 915 },
+  { name: 'Galaxy A15',      w: 360, h: 800 }
+];
+
+function fillSelect(sel, list, defaultIndex) {
+  sel.innerHTML = list.map((d, i) =>
+    `<option value="${i}">${d.name} (${d.w}×${d.h})</option>`).join('');
+  sel.value = String(defaultIndex);
+}
+
+/** iframe 을 기기 논리 해상도로 만든 뒤 CSS transform 으로 축소해 데스크톱 화면에 맞춘다.
+ *  iframe 자체를 작게 만들면 앱이 좁은 화면으로 인식하므로, 크기는 그대로 두고 scale 만 건다. */
+function applyDevice(wrapId, frameId, dimId, device, zoom) {
+  const wrap = document.getElementById(wrapId);
+  const frame = document.getElementById(frameId);
+  frame.style.width = device.w + 'px';
+  frame.style.height = device.h + 'px';
+  frame.style.transform = `scale(${zoom})`;
+  wrap.style.width = Math.round(device.w * zoom) + 'px';
+  wrap.style.height = Math.round(device.h * zoom) + 'px';
+  document.getElementById(dimId).textContent = `${device.w} × ${device.h}`;
+}
+
+const iosSel = document.getElementById('iosSel');
+const androidSel = document.getElementById('androidSel');
+const zoomSel = document.getElementById('zoomSel');
+
+fillSelect(iosSel, IOS_DEVICES, 2);        // iPhone 15
+fillSelect(androidSel, ANDROID_DEVICES, 0); // Galaxy S23
+
+function render() {
+  const zoom = parseFloat(zoomSel.value);
+  applyDevice('iosWrap', 'iosFrame', 'iosDim', IOS_DEVICES[iosSel.value], zoom);
+  applyDevice('androidWrap', 'androidFrame', 'androidDim', ANDROID_DEVICES[androidSel.value], zoom);
+}
+
+iosSel.addEventListener('change', render);
+androidSel.addEventListener('change', render);
+zoomSel.addEventListener('change', render);
+
+document.getElementById('reloadBtn').addEventListener('click', () => {
+  ['iosFrame', 'androidFrame'].forEach(id => {
+    const f = document.getElementById(id);
+    f.src = f.src;
+  });
+});
+
+// 앱이 쓰는 localStorage 키만 지운다(같은 origin 이라 여기서 접근 가능).
+document.getElementById('resetBtn').addEventListener('click', () => {
+  localStorage.removeItem('ai_helper_state_v1');
+  localStorage.removeItem('ai_helper_device_id');
+  document.getElementById('reloadBtn').click();
+});
+
+render();
+</script>
+
+</body>
+</html>
