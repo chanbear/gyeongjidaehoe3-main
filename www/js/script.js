@@ -2165,6 +2165,9 @@ window.addEventListener('load', () => {
     activeScreenEl = first;
     document.body.classList.toggle('in-onboarding', onboardScreens.has(first.id));
   }
+  // 이 경로는 goTo()를 우회하므로 네비바 표시도 여기서 직접 맞춰준다(빠뜨리면 첫 화면에서 네비바가 안 보인다)
+  document.body.classList.toggle('has-bottom-nav', TAB_SCREENS.has(first.id));
+  syncBottomNav(first.id);
   first.scrollTop = 0; // goTo()와 동일하게 항상 맨 위에서 시작(브라우저의 스크롤 복원 방지)
   document.getElementById('liveRegion').textContent = screenVoiceText(first);
 
