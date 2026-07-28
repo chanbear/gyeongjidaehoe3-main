@@ -176,7 +176,8 @@ function goTo(id){
   if (id === 'screen-history') renderHistory();
   if (id === 'screen-welfare-nearby') loadWelfareNearby();
   if (id === 'screen-loading-doc') startLoadingProgress('progressFillLoadDoc');
-  if (id === 'screen-result-doc') { renderDocResult(); setDocView('easy'); applyDocPreview(); }
+  if (id === 'screen-doc-collect') renderPendingPhotos();
+  if (id === 'screen-result-doc') { renderDocResult(); setDocView('easy'); applyDocPreview(); renderDocPager(); }
   if (id === 'screen-loading-text') startLoadingProgress('progressFillLoadText');
   if (id === 'screen-result-text') {
     renderSmsResult();
@@ -795,7 +796,18 @@ function finishDocResult(){
   const badge = lastDocAnalysis ? (statusBadgeMap[lastDocAnalysis.status] || statusBadgeMap.normal) : statusBadgeMap.normal;
   const headline = lastDocAnalysis ? (lastDocAnalysis.headline || '문서 분석') : '건강검진 안내';
   // 문서에서 읽어낸 값을 기록에 함께 남겨 기한 알림·통계에 쓴다(없으면 addHistory가 알아서 걸러낸다)
-  addHistory('📄 ' + headline, badge.text, lastDocAnalysis || undefined);
+  // 문서가 여러 개면 각각을 기록에 남긴다(통계·기한 알림이 문서 단위로 쌓여야 하므로)
+  if (docAnalyses.length > 1) {
+    docAnalyses.forEach(doc => {
+      const b = statusBadgeMap[doc.status] || statusBadgeMap.normal;
+      addHistory('📄 ' + (doc.headline || '문서 분석'), b.text, doc);
+    });
+  } else {
+    addHistory('📄 ' + headline, badge.text, lastDocAnalysis || undefined);
+  }
+  pendingPhotos = [];
+  docAnalyses = [];
+  docAnalysisIndex = 0;
   lastCapturedPhoto = null;
   lastDocAnalysis = null;
   goTo('screen-home');
@@ -1097,8 +1109,51 @@ async function pickPhoto(useCamera, webCaptureMode){
     if (!dataUrl) return;
     lastCapturedPhoto = dataUrl;
   }
+  // 바로 분석하지 않고 모아두는 화면으로 간다. 원하는 만큼 찍은 뒤 "분석하기"를 눌러야 분석이 시작된다.
+  pendingPhotos.push(lastCapturedPhoto);
+  lastCapturedPhoto = pendingPhotos[0];   // 결과 화면 미리보기는 첫 장을 쓴다
+  goTo('screen-doc-collect');
+}
+
+/** 아직 분석하지 않고 모아둔 사진들.
+ *  한 문서의 여러 페이지일 수도, 서로 다른 문서일 수도 있으며 그 판단은 AI가 한다
+ *  (어르신에게 "이게 한 문서인가요?"를 묻지 않기 위함). */
+let pendingPhotos = [];
+const MAX_DOC_PHOTOS = 5;   // worker/src/index.js 의 같은 이름 상수와 맞춰야 한다
+
+function removePendingPhoto(index){
+  pendingPhotos.splice(index, 1);
+  lastCapturedPhoto = pendingPhotos[0] || null;
+  if (pendingPhotos.length === 0) { goTo('screen-doc-choice'); return; }
+  renderPendingPhotos();
+}
+
+function renderPendingPhotos(){
+  const list = document.getElementById('pendingPhotoList');
+  if (!list) return;
+  list.innerHTML = pendingPhotos.map((src, i) => `
+    <div class="photo-thumb">
+      <img src="${escapeHtml(src)}" alt="">
+      <span class="photo-num">${i + 1}</span>
+      <button type="button" class="photo-remove" onclick="removePendingPhoto(${i})" aria-label="${escapeHtml(t('docCollect.remove'))}">×</button>
+    </div>`).join('');
+  const count = document.getElementById('pendingPhotoCount');
+  if (count) count.textContent = t('docCollect.count').replace('{n}', pendingPhotos.length);
+  const addBtn = document.getElementById('pendingAddBtn');
+  if (addBtn) addBtn.style.display = pendingPhotos.length >= MAX_DOC_PHOTOS ? 'none' : '';
+}
+
+/** "분석하기": 모아둔 사진을 한 번에 보낸다 */
+function analyzePendingPhotos(){
+  if (pendingPhotos.length === 0) return;
   goTo('screen-loading-doc');
-  if (AI_WORKER_URL) analyzeDocument(lastCapturedPhoto);
+  if (AI_WORKER_URL) analyzeDocument(pendingPhotos);
+}
+
+function cancelPendingPhotos(){
+  pendingPhotos = [];
+  lastCapturedPhoto = null;
+  goTo('screen-home');
 }
 function capturePhoto(){ return pickPhoto(true, 'environment'); }
 function pickFromGallery(){ return pickPhoto(false, null); }
@@ -1173,25 +1228,64 @@ function retryAiError(){
   goTo(aiErrorRetryScreen);
 }
 
-async function analyzeDocument(dataUrl){
-  const parsed = dataUrlToBase64(dataUrl);
-  if (!parsed) { goTo('screen-doc-error'); return; }
+/** 사진 한 장(문자열) 또는 여러 장(배열)을 받아 분석한다. */
+async function analyzeDocument(input){
+  const dataUrls = Array.isArray(input) ? input : [input];
+  const parsedList = dataUrls.map(dataUrlToBase64).filter(Boolean);
+  if (parsedList.length === 0) { goTo('screen-doc-error'); return; }
   if (!navigator.onLine) { goToAiError('screen-doc-choice', true); return; }
 
   try {
     const res = await fetch(AI_WORKER_URL + '/analyze-doc', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: parsed.base64, mediaType: parsed.mediaType, profile: appState.profile })
+      body: JSON.stringify({
+        images: parsedList.map(p => ({ data: p.base64, mediaType: p.mediaType })),
+        // 아직 배포되지 않은 Worker(단일 image 만 읽음)와도 통하도록 첫 장을 함께 보낸다
+        image: parsedList[0].base64,
+        mediaType: parsedList[0].mediaType,
+        profile: appState.profile,
+      })
     });
     const data = await res.json();
     if (!res.ok || data.error) { goToAiError('screen-doc-choice'); return; }
-    lastDocAnalysis = data;
+    // 새 형식은 documents 배열, 예전 형식은 단일 객체. 둘 다 받아들인다.
+    docAnalyses = Array.isArray(data.documents) && data.documents.length ? data.documents : [data];
+    docAnalysisIndex = 0;
+    lastDocAnalysis = docAnalyses[0];
     finishAllProgress();
     goTo('screen-result-doc');
   } catch (err) {
     goToAiError('screen-doc-choice', !navigator.onLine);
   }
+}
+
+/* ---- 문서가 여러 개일 때 결과를 넘겨 보기 ----
+   사진을 여러 장 찍으면 AI가 한 문서로 묶거나 여러 문서로 나눈다.
+   1개면 지금까지와 똑같이 보이고, 2개 이상일 때만 넘기기 막대가 나타난다. */
+let docAnalyses = [];
+let docAnalysisIndex = 0;
+
+function showDocAnalysis(index){
+  if (index < 0 || index >= docAnalyses.length) return;
+  docAnalysisIndex = index;
+  lastDocAnalysis = docAnalyses[index];
+  renderDocResult();
+  setDocView('easy');
+  applyDocPreview();
+  renderDocPager();
+}
+
+function renderDocPager(){
+  const pager = document.getElementById('docPager');
+  if (!pager) return;
+  if (docAnalyses.length < 2) { pager.style.display = 'none'; return; }
+  pager.innerHTML = `
+    <div class="pager-label">${escapeHtml(t('result.docCountLabel').replace('{i}', docAnalysisIndex + 1).replace('{n}', docAnalyses.length))}</div>
+    <div class="pager-dots">
+      ${docAnalyses.map((_, i) => `<button type="button" class="pager-dot${i === docAnalysisIndex ? ' is-active' : ''}" onclick="showDocAnalysis(${i})" aria-label="${i + 1}">${i + 1}</button>`).join('')}
+    </div>`;
+  pager.style.display = 'block';
 }
 
 /** AI 분석 결과(headline/summary/checklist/status)를 결과 화면에 반영. AI가 만든 텍스트이므로 항상 textContent로만 채워 넣는다(HTML 삽입 금지). */
@@ -1615,6 +1709,15 @@ const I18N = {
     'home.dueMore': '전체 통계 보기',
     'stats.title': '고지서 통계',
     'result.share': '자녀에게 보내기',
+    'docCollect.title': '찍은 사진',
+    'docCollect.count': '{n}장을 찍으셨어요.',
+    'docCollect.hint': '여러 장을 찍으셔도 됩니다. 같은 문서의 앞뒤든, 서로 다른 문서든 알아서 구분해 드려요.',
+    'docCollect.addMore': '사진 더 찍기',
+    'docCollect.analyze': '분석하기',
+    'docCollect.remove': '이 사진 지우기',
+    'docCollect.voice': '사진을 더 찍으시거나, 다 찍으셨으면 분석하기를 눌러주세요.',
+    'docChoice.photoLimit': '사진은 다섯 장까지 찍으실 수 있어요.',
+    'result.docCountLabel': '문서 {i} / {n}',
     'result.shareNothing': '보낼 결과가 없어요.',
     'stats.thisMonth': '이번 달 고지서',
     'stats.cumulative': '달마다 쌓인 금액',
@@ -1785,6 +1888,15 @@ const I18N = {
     'home.dueMore': '查看全部统计',
     'stats.title': '缴费单统计',
     'result.share': '发送给子女',
+    'docCollect.title': '已拍摄的照片',
+    'docCollect.count': '已拍摄{n}张。',
+    'docCollect.hint': '可以拍多张。无论是同一份文件的正反面，还是不同的文件，我们都会自动区分。',
+    'docCollect.addMore': '再拍一张',
+    'docCollect.analyze': '开始分析',
+    'docCollect.remove': '删除这张照片',
+    'docCollect.voice': '可以继续拍照，拍完后请点击开始分析。',
+    'docChoice.photoLimit': '照片最多可以拍五张。',
+    'result.docCountLabel': '文件 {i} / {n}',
     'result.shareNothing': '没有可发送的结果。',
     'stats.thisMonth': '本月缴费单',
     'stats.cumulative': '每月累计金额',
@@ -1955,6 +2067,15 @@ const I18N = {
     'home.dueMore': 'Xem toàn bộ thống kê',
     'stats.title': 'Thống kê hóa đơn',
     'result.share': 'Gửi cho con cái',
+    'docCollect.title': 'Ảnh đã chụp',
+    'docCollect.count': 'Bạn đã chụp {n} ảnh.',
+    'docCollect.hint': 'Bạn có thể chụp nhiều ảnh. Dù là mặt trước sau của cùng một tài liệu hay các tài liệu khác nhau, chúng tôi sẽ tự phân biệt.',
+    'docCollect.addMore': 'Chụp thêm ảnh',
+    'docCollect.analyze': 'Phân tích',
+    'docCollect.remove': 'Xóa ảnh này',
+    'docCollect.voice': 'Bạn có thể chụp thêm, hoặc bấm Phân tích khi đã chụp xong.',
+    'docChoice.photoLimit': 'Bạn có thể chụp tối đa năm ảnh.',
+    'result.docCountLabel': 'Tài liệu {i} / {n}',
     'result.shareNothing': 'Không có kết quả để gửi.',
     'stats.thisMonth': 'Hóa đơn tháng này',
     'stats.cumulative': 'Số tiền tích lũy theo tháng',
@@ -2125,6 +2246,15 @@ const I18N = {
     'home.dueMore': 'ดูสถิติทั้งหมด',
     'stats.title': 'สถิติใบแจ้งหนี้',
     'result.share': 'ส่งให้ลูกหลาน',
+    'docCollect.title': 'รูปที่ถ่ายแล้ว',
+    'docCollect.count': 'ถ่ายไปแล้ว {n} รูป',
+    'docCollect.hint': 'ถ่ายได้หลายรูป ไม่ว่าจะเป็นด้านหน้าหลังของเอกสารเดียวกัน หรือเอกสารคนละฉบับ เราจะแยกให้เอง',
+    'docCollect.addMore': 'ถ่ายเพิ่ม',
+    'docCollect.analyze': 'วิเคราะห์',
+    'docCollect.remove': 'ลบรูปนี้',
+    'docCollect.voice': 'ถ่ายเพิ่มได้ หรือถ้าถ่ายครบแล้วกรุณากดวิเคราะห์',
+    'docChoice.photoLimit': 'ถ่ายรูปได้สูงสุดห้ารูป',
+    'result.docCountLabel': 'เอกสาร {i} / {n}',
     'result.shareNothing': 'ไม่มีผลลัพธ์ที่จะส่ง',
     'stats.thisMonth': 'ใบแจ้งหนี้เดือนนี้',
     'stats.cumulative': 'ยอดสะสมรายเดือน',
@@ -2295,6 +2425,15 @@ const I18N = {
     'home.dueMore': 'Barcha statistikani ko\'rish',
     'stats.title': 'Hisob-kitob statistikasi',
     'result.share': 'Farzandlarga yuborish',
+    'docCollect.title': 'Olingan suratlar',
+    'docCollect.count': '{n} ta surat oldingiz.',
+    'docCollect.hint': 'Bir nechta surat olishingiz mumkin. Bir hujjatning old-orqasi ham, turli hujjatlar ham bo\'lsa, o\'zimiz ajratamiz.',
+    'docCollect.addMore': 'Yana surat olish',
+    'docCollect.analyze': 'Tahlil qilish',
+    'docCollect.remove': 'Bu suratni o\'chirish',
+    'docCollect.voice': 'Yana surat olishingiz yoki tugagan bo\'lsa Tahlil qilish tugmasini bosishingiz mumkin.',
+    'docChoice.photoLimit': 'Eng ko‘pi bilan besh ta surat olish mumkin.',
+    'result.docCountLabel': 'Hujjat {i} / {n}',
     'result.shareNothing': 'Yuboradigan natija yo\'q.',
     'stats.thisMonth': 'Shu oydagi hisoblar',
     'stats.cumulative': 'Oylar bo\'yicha to\'plangan summa',

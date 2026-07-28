@@ -42,9 +42,10 @@ const ANALYSIS_SCHEMA = {
   additionalProperties: false,
 };
 
-/** 문서(사진) 분석 전용 스키마. 문자 분석에는 쓰지 않는다(문자에는 금액·기한 개념이 없다).
- *  아래 4개는 문서에서 확실히 읽히지 않으면 빈 값으로 두게 하고, 프런트엔드는 값이 없으면 해당 UI를 숨긴다. */
-const DOC_ANALYSIS_SCHEMA = {
+/** 한 문서에 대한 분석 결과. 문자 분석에는 쓰지 않는다(문자에는 금액·기한 개념이 없다).
+ *  category/amount/dueDate/issuer 는 문서에서 확실히 읽히지 않으면 빈 값으로 두게 하고,
+ *  프런트엔드는 값이 없으면 해당 UI를 숨긴다. */
+const DOC_ONE_SCHEMA = {
   type: 'object',
   properties: {
     ...ANALYSIS_SCHEMA.properties,
@@ -52,12 +53,34 @@ const DOC_ANALYSIS_SCHEMA = {
     amount: { type: 'integer' },
     dueDate: { type: 'string' },
     issuer: { type: 'string' },
+    pages: { type: 'array', items: { type: 'integer' } },  // 이 문서를 이루는 사진 번호(1부터)
   },
-  required: [...ANALYSIS_SCHEMA.required, 'category', 'amount', 'dueDate', 'issuer'],
+  required: [...ANALYSIS_SCHEMA.required, 'category', 'amount', 'dueDate', 'issuer', 'pages'],
   additionalProperties: false,
 };
 
-const DOC_PROMPT = `당신은 고령자를 위한 문서 분석 도우미입니다. 사진 속 문서(공공기관 안내문, 병원 서류, 고지서, 안내문 등)의 내용을 분석해서 다음 항목을 한국어로 작성하세요.
+/** 사진 여러 장을 받아 문서 단위로 묶어 돌려준다.
+ *  한 문서의 여러 페이지일 수도, 서로 다른 문서일 수도 있어 판단은 AI가 한다
+ *  (어르신에게 "이게 한 문서인가요?"를 묻지 않기 위함). */
+const DOC_ANALYSIS_SCHEMA = {
+  type: 'object',
+  properties: { documents: { type: 'array', items: DOC_ONE_SCHEMA } },
+  required: ['documents'],
+  additionalProperties: false,
+};
+
+/** 한 번에 보낼 수 있는 사진 수. 너무 많으면 응답이 길어져 잘리고 비용도 커진다. */
+const MAX_DOC_PHOTOS = 5;
+
+const DOC_PROMPT = `당신은 고령자를 위한 문서 분석 도우미입니다. 사진(한 장 이상)에 찍힌 문서(공공기관 안내문, 병원 서류, 고지서 등)를 분석하세요.
+
+먼저 사진들이 몇 개의 문서인지 판단하세요.
+- 같은 문서의 여러 페이지(앞뒤, 접힌 면, 나눠 찍은 부분)라면 하나의 문서로 묶어 결과를 1개만 만드세요.
+- 서로 다른 문서라면 각각 별도의 결과로 나누세요.
+- 판단 근거는 기관명·문서 제목·서식·내용의 연결성입니다. 애매하면 별도 문서로 나누세요.
+documents 배열에 문서마다 결과를 하나씩 담고, 각 문서의 pages 에는 그 문서를 이루는 사진 번호([사진 1] 의 1)를 넣으세요.
+
+문서마다 다음 항목을 한국어로 작성하세요.
 
 - status: 이 문서가 사기·개인정보 요구 등으로 위험하면 "danger", 특별한 조치 없이 참고만 하면 되는 정보성 문서면 "info", 기한 내에 예약·신청·납부 등 조치가 필요하면 "normal"
 - headline: 문서의 핵심 내용을 한 문장으로, 노인이 이해하기 쉽게
@@ -74,7 +97,7 @@ const DOC_PROMPT = `당신은 고령자를 위한 문서 분석 도우미입니�
 
 amount·dueDate·issuer는 문서에 실제로 적힌 것만 쓰세요. 추측하거나 계산해서 채우지 말고, 조금이라도 불확실하면 0 또는 빈 문자열로 두세요.
 
-사진이 문서가 아니거나 글자를 읽을 수 없으면 status는 "info", headline은 "사진을 다시 확인해주세요", summary에 그 이유를 설명하고 checklist는 빈 배열, phone/website/mapQuery/dueDate/issuer도 빈 문자열, category는 "기타", amount는 0으로 답하세요.`;
+사진이 문서가 아니거나 글자를 읽을 수 없으면 documents 에 결과를 하나만 담고 status는 "info", headline은 "사진을 다시 확인해주세요", summary에 그 이유를 설명하고 checklist는 빈 배열, phone/website/mapQuery/dueDate/issuer도 빈 문자열, category는 "기타", amount는 0, pages 에는 문제가 된 사진 번호를 넣으세요.`;
 
 /** 사용자가 설정에서 선택 입력한 성별/연령대/지역(선택 사항). 있으면 설명 톤 참고용으로만 쓰고, 모르는 지역별 기관명·연락처·주소는 절대 지어내지 않도록 명시한다. */
 function buildProfileNote(profile) {
@@ -150,15 +173,30 @@ export default {
         return json({ error: '잘못된 요청입니다.' }, 400);
       }
 
-      const { image, mediaType, profile } = body || {};
-      if (!image || typeof image !== 'string') return json({ error: '이미지가 없습니다.' }, 400);
+      // images(배열)가 새 형식, image(단일)는 예전 앱 버전 호환용.
+      const { image, images, mediaType, profile } = body || {};
+      const photos = Array.isArray(images) && images.length
+        ? images
+        : (typeof image === 'string' && image ? [{ data: image, mediaType }] : []);
+      if (photos.length === 0) return json({ error: '이미지가 없습니다.' }, 400);
+      if (photos.length > MAX_DOC_PHOTOS) return json({ error: `사진은 한 번에 ${MAX_DOC_PHOTOS}장까지 보낼 수 있습니다.` }, 400);
+
+      const invalid = photos.some((p) => !p || typeof p.data !== 'string' || !p.data);
+      if (invalid) return json({ error: '이미지 형식이 올바르지 않습니다.' }, 400);
 
       try {
-        const result = await runAnalysis(env, [
-          { type: 'image', source: { type: 'base64', media_type: mediaType || 'image/jpeg', data: image } },
-          { type: 'text', text: DOC_PROMPT + buildProfileNote(profile) },
-        ], DOC_ANALYSIS_SCHEMA);
-        return json(result, 200);
+        const content = photos.map((p, i) => ([
+          { type: 'text', text: `[사진 ${i + 1}]` },
+          { type: 'image', source: { type: 'base64', media_type: p.mediaType || mediaType || 'image/jpeg', data: p.data } },
+        ])).flat();
+        content.push({ type: 'text', text: DOC_PROMPT + buildProfileNote(profile) });
+
+        const result = await runAnalysis(env, content, DOC_ANALYSIS_SCHEMA);
+
+        // 항상 documents 배열로 돌려준다. 앱은 예전 형식(단일 객체)도 읽을 수 있으므로
+        // 첫 문서를 최상위에도 펼쳐 두어 배포 시점이 어긋나도 화면이 깨지지 않게 한다.
+        const docs = Array.isArray(result.documents) && result.documents.length ? result.documents : [result];
+        return json({ ...docs[0], documents: docs }, 200);
       } catch (err) {
         return json({ error: 'AI 분석에 실패했습니다.', detail: String(err && err.message || err) }, 502);
       }

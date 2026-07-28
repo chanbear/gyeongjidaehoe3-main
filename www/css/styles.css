@@ -535,6 +535,33 @@
   border-radius:999px; padding:6px 12px;
 }
 
+/* ---- 찍은 사진 모아두기 ---- */
+.photo-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:10px; margin-bottom:14px; }
+.photo-thumb{ position:relative; border-radius:var(--radius-sm); overflow:hidden; border:1.5px solid var(--line); background:var(--bg-app); aspect-ratio:3/4; }
+.photo-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+.photo-num{
+  position:absolute; left:6px; top:6px; min-width:22px; height:22px; border-radius:11px;
+  background:rgba(23,27,43,.72); color:#fff; font-size:12px; font-weight:800;
+  display:flex; align-items:center; justify-content:center; padding:0 6px;
+}
+/* 삭제 버튼은 어르신이 잘못 누르지 않도록 충분히 크게(44px) 잡는다 */
+.photo-remove{
+  position:absolute; right:2px; top:2px; width:36px; height:36px; border:none; cursor:pointer;
+  background:none; color:#fff; font-size:22px; font-weight:700; line-height:1;
+  text-shadow:0 1px 3px rgba(0,0,0,.6);
+}
+
+/* 문서가 여러 개일 때 결과를 넘겨 보는 막대 */
+.doc-pager{ margin-bottom:16px; text-align:center; }
+.pager-label{ font-size:calc(14px * var(--scale)); font-weight:700; color:var(--ink-soft); margin-bottom:8px; }
+.pager-dots{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+.pager-dot{
+  min-width:44px; min-height:44px; border-radius:22px; cursor:pointer;
+  border:2px solid var(--line); background:var(--bg-app); color:var(--ink-soft);
+  font-size:calc(16px * var(--scale)); font-weight:800;
+}
+.pager-dot.is-active{ border-color:var(--accent); background:var(--accent-soft); color:var(--accent-strong); }
+
 /* ---- 통계 화면 ---- */
 .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
 .stat-hero{

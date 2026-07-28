@@ -190,6 +190,21 @@
         <div class="disclaimer-banner" data-i18n="home.disclaimer">본 서비스는 AI 분석 결과로 참고용이며,<br>중요 문서는 전문가와 상담하시기 바랍니다.</div>
       </section>
 
+      <!-- 찍은 사진 모아두기: 원하는 만큼 찍은 뒤 "분석하기"를 눌러야 분석이 시작된다.
+           한 문서의 여러 페이지든 서로 다른 문서든 상관없이 담을 수 있고, 묶는 판단은 AI가 한다. -->
+      <section class="screen" id="screen-doc-collect" data-voice="사진을 더 찍으시거나, 다 찍으셨으면 분석하기를 눌러주세요." data-voice-i18n="docCollect.voice">
+        <div class="topbar"><button class="nav-btn" onclick="cancelPendingPhotos()" data-i18n="common.home">← 홈으로</button><span></span></div>
+        <h1 data-i18n="docCollect.title">찍은 사진</h1>
+        <p class="desc" id="pendingPhotoCount"></p>
+
+        <div class="photo-grid" id="pendingPhotoList"></div>
+
+        <p class="settings-save-note" style="text-align:left;" data-i18n="docCollect.hint">여러 장을 찍으셔도 됩니다. 같은 문서의 앞뒤든, 서로 다른 문서든 알아서 구분해 드려요.</p>
+
+        <button class="secondary-btn" id="pendingAddBtn" style="margin-top:14px;" onclick="capturePhoto()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-camera"></use></svg><span data-i18n="docCollect.addMore">사진 더 찍기</span></button>
+        <button class="primary-btn" style="margin-top:12px;" onclick="analyzePendingPhotos()" data-i18n="docCollect.analyze">분석하기</button>
+      </section>
+
       <!-- 통계: 이번 달 합계 + 전체 누적 선 그래프 + 다가오는 기한 전체.
            기록에 금액·기한이 하나도 없으면(=Worker 배포 전) 안내 문구만 보여준다. -->
       <section class="screen" id="screen-stats" data-voice="지금까지 확인한 고지서의 금액과 납부 기한을 모아서 보여드려요.">
@@ -671,6 +686,9 @@
           <div class="headline">올해 안에 건강검진을 받으셔야 합니다.</div>
         </div>
         <button class="voice-pill block" data-replay><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="result.readAloud">큰 소리로 읽어주기</span></button>
+
+        <!-- 문서가 2개 이상일 때만 나타나는 넘기기 막대(사진을 여러 장 찍어 서로 다른 문서로 판별된 경우) -->
+        <div class="doc-pager" id="docPager" style="display:none;"></div>
 
         <!-- 핵심 값(금액·기한·기관·분류): AI가 문서에서 실제로 읽어낸 값이 있을 때만 renderDocKeyFacts()가 보여준다.
              값이 없으면 통째로 숨긴다 - 0원이나 임의의 날짜를 지어내 보여주지 않기 위함. -->
