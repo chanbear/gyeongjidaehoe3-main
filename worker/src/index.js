@@ -118,6 +118,30 @@ const SMS_PROMPT = `당신은 고령자를 위한 문자 메시지 분석 도우
 - checklist: 사용자가 해야 할 구체적인 행동 목록 (없으면 빈 배열)
 - phone, website, mapQuery: 문자 분석에서는 사용하지 않으니 항상 빈 문자열로 답하세요`;
 
+/* ---- 되묻기(질문하기) ----
+   자유 대화가 아니라 "방금 분석한 문서·문자에 대해 되묻기"만 다룬다.
+   답변 근거를 눈앞의 분석 결과로 한정해, 앱이 모르는 지역별 혜택·기관 정보를 지어내지 않도록 한다. */
+const ASK_SCHEMA = {
+  type: 'object',
+  properties: {
+    answer: { type: 'string' },
+    // 분석 결과에 근거가 있으면 true, 일반 상식으로 답했으면 false (앱이 이 차이를 표시한다)
+    fromDocument: { type: 'boolean' },
+  },
+  required: ['answer', 'fromDocument'],
+  additionalProperties: false,
+};
+
+const ASK_PROMPT = `당신은 고령자를 돕는 도우미입니다. 사용자가 방금 확인한 문서(또는 문자)의 분석 결과를 보고, 사용자의 질문에 한국어로 답하세요.
+
+규칙:
+- 2~3문장으로 짧게, 존댓말로, 전문 용어 없이 답하세요.
+- 아래 [분석 결과]에 있는 내용으로 답할 수 있으면 그걸 근거로 답하고 fromDocument는 true로 하세요.
+- [분석 결과]에 없는 내용이면, 일반적으로 알려진 사실만 조심스럽게 answer에 담고 fromDocument는 false로 하세요.
+- 확실하지 않으면 "이 문서에는 그 내용이 없어요"라고 솔직히 말하고, 어디에 문의하면 되는지 안내하세요.
+- 기관명·전화번호·주소·금액·날짜는 [분석 결과]에 적힌 것만 쓰세요. 절대 지어내지 마세요.
+- 돈을 보내라거나 개인정보를 알려달라는 조언은 어떤 경우에도 하지 마세요.`;
+
 function json(data, status) {
   return new Response(JSON.stringify(data), {
     status,
@@ -220,6 +244,47 @@ export default {
         return json(result, 200);
       } catch (err) {
         return json({ error: 'AI 분석에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
+    if (url.pathname === '/ask') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+
+      const { question, analysis, history, profile } = body || {};
+      if (!question || typeof question !== 'string') return json({ error: '질문이 없습니다.' }, 400);
+      if (question.length > 300) return json({ error: '질문이 너무 깁니다.' }, 400);
+      if (!analysis || typeof analysis !== 'object') return json({ error: '무엇에 대한 질문인지 알 수 없습니다.' }, 400);
+
+      // 분석 결과 중 답변 근거가 될 수 있는 값만 추려 넣는다(이미지는 다시 보내지 않는다).
+      const facts = ['headline', 'summary', 'category', 'issuer', 'amount', 'dueDate', 'phone', 'website', 'mapQuery']
+        .map((k) => (analysis[k] || analysis[k] === 0 ? `- ${k}: ${analysis[k]}` : null))
+        .filter(Boolean);
+      if (Array.isArray(analysis.checklist) && analysis.checklist.length) {
+        facts.push(`- checklist: ${analysis.checklist.join(' / ')}`);
+      }
+
+      // 직전 대화는 몇 턴만 보낸다(길어지면 비용이 커지고 엉뚱한 맥락이 섞인다).
+      const recent = (Array.isArray(history) ? history : []).slice(-4)
+        .filter((h) => h && typeof h.q === 'string' && typeof h.a === 'string')
+        .map((h) => `사용자: ${h.q}\n도우미: ${h.a}`)
+        .join('\n');
+
+      try {
+        const prompt = [
+          ASK_PROMPT + buildProfileNote(profile),
+          `\n[분석 결과]\n${facts.join('\n')}`,
+          recent ? `\n[앞선 대화]\n${recent}` : '',
+          `\n[질문]\n${question}`,
+        ].join('\n');
+        const result = await runAnalysis(env, [{ type: 'text', text: prompt }], ASK_SCHEMA);
+        return json(result, 200);
+      } catch (err) {
+        return json({ error: '답변을 만들지 못했습니다.', detail: String(err && err.message || err) }, 502);
       }
     }
 

@@ -190,6 +190,27 @@
         <div class="disclaimer-banner" data-i18n="home.disclaimer">본 서비스는 AI 분석 결과로 참고용이며,<br>중요 문서는 전문가와 상담하시기 바랍니다.</div>
       </section>
 
+      <!-- 되묻기: 방금 확인한 문서·문자에 대해서만 질문한다(자유 대화가 아니다).
+           빈 입력창은 어르신에게 부담이라 추천 질문 버튼을 먼저 보여주고, 직접 입력도 가능하게 둔다. -->
+      <section class="screen" id="screen-ask" data-voice="궁금한 것을 눌러보시거나 직접 적어주세요." data-voice-i18n="ask.voice">
+        <div class="topbar"><button class="nav-btn" onclick="closeAsk()" data-i18n="common.back">← 뒤로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-question"></use></svg><span data-i18n="ask.title">물어보기</span></span><span></span></div>
+
+        <p class="desc" id="askContextLabel"></p>
+
+        <div class="ask-log" id="askLog"></div>
+
+        <div class="section">
+          <div class="section-label" data-i18n="ask.suggested">이런 걸 물어보실 수 있어요</div>
+          <div class="ask-suggestions" id="askSuggestions"></div>
+        </div>
+
+        <div class="field-row">
+          <input type="text" id="askInput" placeholder="직접 물어보기" data-i18n-placeholder="ask.placeholder" onkeydown="if(event.key==='Enter')submitAsk()" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+        </div>
+        <button class="primary-btn" style="margin-top:12px;" id="askSendBtn" onclick="submitAsk()" data-i18n="ask.send">물어보기</button>
+        <p class="settings-save-note" style="margin-top:12px;" data-i18n="ask.note">이 문서에 적힌 내용을 바탕으로 답해드려요. 문서에 없는 내용은 그렇다고 알려드립니다.</p>
+      </section>
+
       <!-- 찍은 사진 모아두기: 원하는 만큼 찍은 뒤 "분석하기"를 눌러야 분석이 시작된다.
            한 문서의 여러 페이지든 서로 다른 문서든 상관없이 담을 수 있고, 묶는 판단은 AI가 한다. -->
       <section class="screen" id="screen-doc-collect" data-voice="사진을 더 찍으시거나, 다 찍으셨으면 분석하기를 눌러주세요." data-voice-i18n="docCollect.voice">
@@ -759,7 +780,8 @@
           </div>
         </div>
 
-        <button class="secondary-btn" onclick="shareResult('doc')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-share"></use></svg><span data-i18n="result.share">자녀에게 보내기</span></button>
+        <button class="secondary-btn" onclick="openAsk('doc')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-question"></use></svg><span data-i18n="result.ask">이 문서에 대해 물어보기</span></button>
+        <button class="secondary-btn" style="margin-top:10px;" onclick="shareResult('doc')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-share"></use></svg><span data-i18n="result.share">자녀에게 보내기</span></button>
         <button class="primary-btn" style="margin-top:12px;" onclick="finishDocResult()" data-i18n="result.docConfirm">확인 완료</button>
       </section>
 
@@ -875,6 +897,7 @@
           <a class="secondary-btn" href="tel:118"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg><span data-i18n="result.report118">118 신고(경찰청 상담)</span></a>
           <button class="secondary-btn" onclick="callGuardian()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg><span data-i18n="result.callFamily">가족에게 전화</span></button>
         </div>
+        <button class="secondary-btn" style="margin-top:10px;" onclick="openAsk('sms')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-question"></use></svg><span data-i18n="result.askSms">이 문자에 대해 물어보기</span></button>
         <button class="secondary-btn" style="margin-top:10px;" onclick="shareResult('sms')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-share"></use></svg><span data-i18n="result.share">자녀에게 보내기</span></button>
         <button class="secondary-btn" style="margin-top:10px;" onclick="goTo('screen-sms-phone')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-chat"></use></svg><span data-i18n="result.checkAnotherSms">다른 문자 확인하기</span></button>
         <p class="settings-save-note" style="margin-top:14px;" data-i18n="result.legalNote">본 판별은 인공지능 분석 결과이므로 법적 효력이 없습니다.<br>의심스러운 경우 반드시 관계 기관에 직접 문의하세요.</p>

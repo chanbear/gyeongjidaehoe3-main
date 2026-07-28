@@ -177,6 +177,7 @@ function goTo(id){
   if (id === 'screen-welfare-nearby') loadWelfareNearby();
   if (id === 'screen-loading-doc') startLoadingProgress('progressFillLoadDoc');
   if (id === 'screen-doc-collect') renderPendingPhotos();
+  if (id === 'screen-ask') renderAskScreen();
   if (id === 'screen-result-doc') { renderDocResult(); setDocView('easy'); applyDocPreview(); renderDocPager(); }
   if (id === 'screen-loading-text') startLoadingProgress('progressFillLoadText');
   if (id === 'screen-result-text') {
@@ -1709,6 +1710,18 @@ const I18N = {
     'home.dueMore': '전체 통계 보기',
     'stats.title': '고지서 통계',
     'result.share': '자녀에게 보내기',
+    'result.ask': '이 문서에 대해 물어보기',
+    'result.askSms': '이 문자에 대해 물어보기',
+    'ask.title': '물어보기',
+    'ask.voice': '궁금한 것을 눌러보시거나 직접 적어주세요.',
+    'ask.suggested': '이런 걸 물어보실 수 있어요',
+    'ask.placeholder': '직접 물어보기',
+    'ask.send': '물어보기',
+    'ask.note': '이 문서에 적힌 내용을 바탕으로 답해드려요. 문서에 없는 내용은 그렇다고 알려드립니다.',
+    'ask.thinking': '생각하고 있어요...',
+    'ask.failed': '지금은 답변을 드리기 어려워요. 잠시 후 다시 물어봐 주세요.',
+    'ask.offline': '인터넷 연결을 확인해주세요.',
+    'ask.notInDocument': '※ 이 문서에 적힌 내용은 아니에요. 정확한 것은 해당 기관에 확인해주세요.',
     'docCollect.title': '찍은 사진',
     'docCollect.count': '{n}장을 찍으셨어요.',
     'docCollect.hint': '여러 장을 찍으셔도 됩니다. 같은 문서의 앞뒤든, 서로 다른 문서든 알아서 구분해 드려요.',
@@ -1888,6 +1901,18 @@ const I18N = {
     'home.dueMore': '查看全部统计',
     'stats.title': '缴费单统计',
     'result.share': '发送给子女',
+    'result.ask': '询问关于这份文件',
+    'result.askSms': '询问关于这条短信',
+    'ask.title': '提问',
+    'ask.voice': '请点击想了解的内容，或直接输入。',
+    'ask.suggested': '您可以这样提问',
+    'ask.placeholder': '直接提问',
+    'ask.send': '提问',
+    'ask.note': '我们会根据这份文件上写的内容回答。文件上没有的内容会如实告知。',
+    'ask.thinking': '正在思考...',
+    'ask.failed': '现在难以给出答复。请稍后再问。',
+    'ask.offline': '请检查网络连接。',
+    'ask.notInDocument': '※ 这不是文件上写的内容。准确信息请向相关机构确认。',
     'docCollect.title': '已拍摄的照片',
     'docCollect.count': '已拍摄{n}张。',
     'docCollect.hint': '可以拍多张。无论是同一份文件的正反面，还是不同的文件，我们都会自动区分。',
@@ -2067,6 +2092,18 @@ const I18N = {
     'home.dueMore': 'Xem toàn bộ thống kê',
     'stats.title': 'Thống kê hóa đơn',
     'result.share': 'Gửi cho con cái',
+    'result.ask': 'Hỏi về tài liệu này',
+    'result.askSms': 'Hỏi về tin nhắn này',
+    'ask.title': 'Hỏi đáp',
+    'ask.voice': 'Hãy bấm vào điều bạn thắc mắc hoặc tự nhập câu hỏi.',
+    'ask.suggested': 'Bạn có thể hỏi như thế này',
+    'ask.placeholder': 'Tự nhập câu hỏi',
+    'ask.send': 'Hỏi',
+    'ask.note': 'Chúng tôi trả lời dựa trên nội dung ghi trong tài liệu này. Nếu tài liệu không có, chúng tôi sẽ nói rõ.',
+    'ask.thinking': 'Đang suy nghĩ...',
+    'ask.failed': 'Hiện chưa thể trả lời. Xin hỏi lại sau ít phút.',
+    'ask.offline': 'Xin kiểm tra kết nối mạng.',
+    'ask.notInDocument': '※ Đây không phải nội dung ghi trong tài liệu. Xin xác nhận chính xác với cơ quan liên quan.',
     'docCollect.title': 'Ảnh đã chụp',
     'docCollect.count': 'Bạn đã chụp {n} ảnh.',
     'docCollect.hint': 'Bạn có thể chụp nhiều ảnh. Dù là mặt trước sau của cùng một tài liệu hay các tài liệu khác nhau, chúng tôi sẽ tự phân biệt.',
@@ -2246,6 +2283,18 @@ const I18N = {
     'home.dueMore': 'ดูสถิติทั้งหมด',
     'stats.title': 'สถิติใบแจ้งหนี้',
     'result.share': 'ส่งให้ลูกหลาน',
+    'result.ask': 'ถามเกี่ยวกับเอกสารนี้',
+    'result.askSms': 'ถามเกี่ยวกับข้อความนี้',
+    'ask.title': 'สอบถาม',
+    'ask.voice': 'กรุณากดสิ่งที่สงสัย หรือพิมพ์คำถามเอง',
+    'ask.suggested': 'คุณถามแบบนี้ได้',
+    'ask.placeholder': 'พิมพ์คำถามเอง',
+    'ask.send': 'ถาม',
+    'ask.note': 'เราตอบตามเนื้อหาที่เขียนไว้ในเอกสารนี้ หากไม่มีในเอกสารเราจะแจ้งให้ทราบ',
+    'ask.thinking': 'กำลังคิด...',
+    'ask.failed': 'ตอนนี้ยังตอบไม่ได้ กรุณาถามใหม่ภายหลัง',
+    'ask.offline': 'กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต',
+    'ask.notInDocument': '※ ไม่ใช่เนื้อหาที่เขียนในเอกสาร กรุณาตรวจสอบกับหน่วยงานที่เกี่ยวข้อง',
     'docCollect.title': 'รูปที่ถ่ายแล้ว',
     'docCollect.count': 'ถ่ายไปแล้ว {n} รูป',
     'docCollect.hint': 'ถ่ายได้หลายรูป ไม่ว่าจะเป็นด้านหน้าหลังของเอกสารเดียวกัน หรือเอกสารคนละฉบับ เราจะแยกให้เอง',
@@ -2425,6 +2474,18 @@ const I18N = {
     'home.dueMore': 'Barcha statistikani ko\'rish',
     'stats.title': 'Hisob-kitob statistikasi',
     'result.share': 'Farzandlarga yuborish',
+    'result.ask': 'Bu hujjat haqida so‘rash',
+    'result.askSms': 'Bu SMS haqida so‘rash',
+    'ask.title': 'So‘rash',
+    'ask.voice': 'Qiziqtirgan narsani bosing yoki o‘zingiz yozing.',
+    'ask.suggested': 'Shunday so‘rashingiz mumkin',
+    'ask.placeholder': 'O‘zingiz so‘rang',
+    'ask.send': 'So‘rash',
+    'ask.note': 'Bu hujjatda yozilganlarga asoslanib javob beramiz. Hujjatda bo‘lmasa, shuni aytamiz.',
+    'ask.thinking': 'O‘ylayapman...',
+    'ask.failed': 'Hozir javob berish qiyin. Birozdan so‘ng qayta so‘rang.',
+    'ask.offline': 'Internet aloqasini tekshiring.',
+    'ask.notInDocument': '※ Bu hujjatda yozilgan narsa emas. Aniq ma’lumotni tegishli idoradan tekshiring.',
     'docCollect.title': 'Olingan suratlar',
     'docCollect.count': '{n} ta surat oldingiz.',
     'docCollect.hint': 'Bir nechta surat olishingiz mumkin. Bir hujjatning old-orqasi ham, turli hujjatlar ham bo\'lsa, o\'zimiz ajratamiz.',
@@ -2784,6 +2845,118 @@ function renderHomeDueCard(){
       </div>`;
   }).join('');
   card.style.display = 'block';
+}
+
+/* ---- 되묻기 ----
+   자유 대화가 아니라 "방금 확인한 문서·문자"에 대해서만 묻는다.
+   근거를 눈앞의 분석 결과로 한정해야 앱이 모르는 지역별 혜택·기관 정보를 지어내지 않는다. */
+let askKind = 'doc';        // 'doc' | 'sms'
+let askHistory = [];        // [{q, a}] — Worker에 직전 몇 턴만 함께 보낸다
+let askPending = false;
+
+/** 추천 질문: 분석 결과에 실제로 있는 값에 맞춰 고른다(금액이 없으면 납부 질문을 권하지 않는다) */
+function askSuggestions(data){
+  const list = [];
+  if (askKind === 'sms') {
+    if (data.status === 'danger') {
+      list.push('이미 링크를 눌렀으면 어떻게 하나요?', '어디에 신고하면 되나요?');
+    } else {
+      list.push('이 문자 믿어도 되나요?', '제가 뭘 하면 되나요?');
+    }
+    list.push('보낸 곳이 진짜인지 어떻게 확인하나요?');
+  } else {
+    if (formatDocAmount(data.amount)) list.push('어디에 내면 되나요?');
+    if (data.dueDate) list.push('기한을 넘기면 어떻게 되나요?');
+    list.push('제가 꼭 해야 하는 일이 뭔가요?');
+    if (data.phone) list.push('어디에 물어보면 되나요?');
+    if (list.length < 3) list.push('이게 무슨 문서인가요?');
+  }
+  return list.slice(0, 4);
+}
+
+function currentAskAnalysis(){
+  return askKind === 'sms' ? lastSmsAnalysis : lastDocAnalysis;
+}
+
+function openAsk(kind){
+  askKind = kind === 'sms' ? 'sms' : 'doc';
+  const data = currentAskAnalysis();
+  if (!data) { speak(t('result.shareNothing')); return; }
+  askHistory = [];
+  goTo('screen-ask');
+}
+
+function closeAsk(){
+  goTo(askKind === 'sms' ? 'screen-result-text' : 'screen-result-doc');
+}
+
+function renderAskScreen(){
+  const data = currentAskAnalysis();
+  if (!data) return;
+  const label = document.getElementById('askContextLabel');
+  if (label) label.textContent = data.headline || '';
+
+  document.getElementById('askSuggestions').innerHTML = askSuggestions(data)
+    .map(q => `<button type="button" class="ask-chip" onclick="submitAsk(${JSON.stringify(q).replace(/"/g, '&quot;')})">${escapeHtml(q)}</button>`)
+    .join('');
+  renderAskLog();
+}
+
+function renderAskLog(){
+  const log = document.getElementById('askLog');
+  if (!log) return;
+  log.innerHTML = askHistory.map(item => `
+    <div class="ask-q">${escapeHtml(item.q)}</div>
+    <div class="ask-a${item.pending ? ' is-pending' : ''}">
+      ${escapeHtml(item.a)}
+      ${item.fromDocument === false ? `<div class="ask-a-note">${escapeHtml(t('ask.notInDocument'))}</div>` : ''}
+    </div>`).join('');
+  log.scrollTop = log.scrollHeight;
+}
+
+async function submitAsk(preset){
+  if (askPending) return;
+  const input = document.getElementById('askInput');
+  const question = String(preset || (input && input.value) || '').trim();
+  if (!question) return;
+  const data = currentAskAnalysis();
+  if (!data) return;
+
+  if (input) input.value = '';
+  askPending = true;
+  document.getElementById('askSendBtn').disabled = true;
+  askHistory.push({ q: question, a: t('ask.thinking'), pending: true });
+  renderAskLog();
+
+  const finish = (answer, fromDocument) => {
+    const last = askHistory[askHistory.length - 1];
+    last.a = answer;
+    last.pending = false;
+    last.fromDocument = fromDocument;
+    askPending = false;
+    document.getElementById('askSendBtn').disabled = false;
+    renderAskLog();
+    speak(answer);   // 답변은 AI가 만든 한국어 문장이라 한국어로 읽는다(CLAUDE.md 9번)
+  };
+
+  if (!AI_WORKER_URL || !navigator.onLine) { finish(t('ask.offline'), undefined); return; }
+  try {
+    const res = await fetch(AI_WORKER_URL + '/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question,
+        analysis: data,
+        history: askHistory.slice(0, -1).map(h => ({ q: h.q, a: h.a })),
+        profile: appState.profile,
+      })
+    });
+    const json = await res.json();
+    if (!res.ok || json.error || !json.answer) { finish(t('ask.failed'), undefined); return; }
+    finish(json.answer, json.fromDocument);
+  } catch (err) {
+    finish(t('ask.failed'), undefined);
+  }
 }
 
 /* ---- 분석 결과 공유하기 ----
