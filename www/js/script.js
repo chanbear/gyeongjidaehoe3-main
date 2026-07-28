@@ -769,10 +769,15 @@ function finishDocResult(){
 }
 
 function finishSmsResult(){
-  if (lastSmsAnalysis) {
+  // 코치마크 튜토리얼(coachActive) 중에는 문자 분석 결과를 기록에 남기지 않는다.
+  // 튜토리얼에서 문자를 붙여넣는 건 사용법을 익히려는 연습이지 실제로 확인한 문자가 아니어서,
+  // 기록 화면이 연습 내역으로 채워지면 어르신이 진짜 확인 기록과 구분하기 어렵기 때문이다.
+  // (사진 분석 finishDocResult()는 실제 문서를 찍은 것이므로 튜토리얼 중에도 그대로 기록한다.)
+  if (lastSmsAnalysis && !coachActive) {
     const badge = statusBadgeMap[lastSmsAnalysis.status] || statusBadgeMap.normal;
     addHistory('💬 ' + (lastSmsAnalysis.headline || '문자 분석'), badge.text);
     if (lastSmsAnalysis.status === 'danger' && appState.guardian.autoNotify && appState.guardian.name) {
+      // 보호자 알림 기록도 위와 같은 이유로 튜토리얼 중에는 남기지 않는다.
       addHistory('🔔 보호자 알림 발송 (자동)', '⚪ 완료');
     }
   }
