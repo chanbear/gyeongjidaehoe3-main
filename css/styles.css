@@ -452,7 +452,7 @@
 
 /* 카드류에 은은한 그림자를 더해 목업의 "떠 있는 카드" 느낌을 낸다 */
 .group, .doc-summary, .toggle-row, .history-item, .dashboard-card,
-.doc-info-card, .feature-card, .hero-card, .icon-square-btn, .tip-card, .todo-list{
+.doc-info-card, .feature-card, .hero-card, .tip-card, .todo-list{
   box-shadow:var(--shadow-card);
 }
 
@@ -500,16 +500,6 @@
 .feature-card .fc-title{ font-size:calc(18px * var(--scale)); font-weight:700; color:var(--ink); }
 .feature-card .fc-desc{ font-size:calc(14px * var(--scale)); color:var(--ink-soft); margin-top:2px; line-height:1.4; }
 .feature-card .chev{ width:18px; height:18px; color:var(--ink-faint); flex-shrink:0; }
-
-/* ---- 2열 아이콘 버튼 (최근 기록 / 도움말) ---- */
-.icon-square-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }
-.icon-square-btn{
-  display:flex; flex-direction:column; align-items:center; gap:8px; padding:18px 10px;
-  background:var(--bg-app); border:1px solid var(--line); border-radius:var(--radius-md);
-  cursor:pointer; color:var(--ink);
-}
-.icon-square-btn svg{ width:24px; height:24px; color:var(--ink-soft); }
-.icon-square-btn span{ font-size:calc(14.5px * var(--scale)); font-weight:700; }
 
 /* ---- 안내 배너 (본 서비스는 참고용) ---- */
 .disclaimer-banner{
