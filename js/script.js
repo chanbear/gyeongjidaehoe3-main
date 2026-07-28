@@ -1619,7 +1619,19 @@ const I18N = {
     'sms.filledTitle': '문자 내용이<br>들어왔어요.',
     'sms.filledVoice': '문자 내용이 잘 들어왔어요. 확인 버튼을 눌러 결과를 확인해보세요.',
     'emergency.title': '긴급 도움', 'emergency.guardian': '보호자',
-    'emergency.howToAgain': '사용법 다시 보기', 'emergency.close': '닫기'
+    'emergency.howToAgain': '사용법 다시 보기', 'emergency.close': '닫기',
+    'error.docBlurTitle': '사진이 흐려요.',
+    'error.docBlurDesc': '글씨가 잘 보이지 않아요.<br>밝은 곳에서 다시 찍어주세요.',
+    'error.docBlurHint': '💡 문서를 평평하게 놓고, 그림자가 생기지 않도록 밝은 곳에서 찍으면 더 잘 인식돼요.',
+    'error.retakePhoto': '다시 찍기', 'error.pickGallery': '갤러리에서 선택하기',
+    'error.docBlurVoice': '사진이 흐려서 읽을 수 없어요. 밝은 곳에서 다시 찍어주세요.',
+    'error.retry': '다시 시도', 'error.goHome': '홈으로 돌아가기',
+    'error.aiVoice': '지금은 분석이 어려워요. 잠시 후 다시 시도해주세요.',
+    'error.textShortTitle': '내용이 너무 짧아요.',
+    'error.textShortDesc': '문자 전체가 복사되지 않은 것 같아요.<br>다시 복사해서 붙여넣어주세요.',
+    'error.textShortHint': "💡 문자를 길게 눌렀을 때 나오는 메뉴에서 '복사'를 눌렀는지 확인해주세요.",
+    'error.pasteAgain': '다시 붙여넣기',
+    'error.textShortVoice': '문자 내용이 너무 짧아서 확인하기 어려워요. 문자 전체를 다시 복사해주세요.'
   },
   zh: {
     'home.sectionTitle': '需要什么帮助？',
@@ -1760,7 +1772,19 @@ const I18N = {
     'sms.filledTitle': '短信内容<br>已输入。',
     'sms.filledVoice': '短信内容已经输入好了。请点击确认按钮查看结果。',
     'emergency.title': '紧急求助', 'emergency.guardian': '监护人',
-    'emergency.howToAgain': '重新查看使用方法', 'emergency.close': '关闭'
+    'emergency.howToAgain': '重新查看使用方法', 'emergency.close': '关闭',
+    'error.docBlurTitle': '照片模糊了。',
+    'error.docBlurDesc': '字看不清楚。<br>请在明亮的地方重新拍摄。',
+    'error.docBlurHint': '💡 把文件放平，在明亮且不产生阴影的地方拍摄，识别效果会更好。',
+    'error.retakePhoto': '重新拍摄', 'error.pickGallery': '从相册选择',
+    'error.docBlurVoice': '照片太模糊，无法读取。请在明亮的地方重新拍摄。',
+    'error.retry': '重试', 'error.goHome': '返回主页',
+    'error.aiVoice': '现在暂时无法分析。请稍后再试。',
+    'error.textShortTitle': '内容太短了。',
+    'error.textShortDesc': '好像没有复制到完整的短信。<br>请重新复制后粘贴。',
+    'error.textShortHint': '💡 请确认长按短信后出现的菜单中是否点击了“复制”。',
+    'error.pasteAgain': '重新粘贴',
+    'error.textShortVoice': '短信内容太短，难以确认。请重新复制完整的短信。'
   },
   vi: {
     'home.sectionTitle': 'Bạn cần giúp gì?',
@@ -1901,7 +1925,19 @@ const I18N = {
     'sms.filledTitle': 'Nội dung tin nhắn<br>đã được nhập.',
     'sms.filledVoice': 'Nội dung tin nhắn đã được nhập tốt. Hãy nhấn nút Xác nhận để xem kết quả.',
     'emergency.title': 'Trợ giúp khẩn cấp', 'emergency.guardian': 'Người giám hộ',
-    'emergency.howToAgain': 'Xem lại cách sử dụng', 'emergency.close': 'Đóng'
+    'emergency.howToAgain': 'Xem lại cách sử dụng', 'emergency.close': 'Đóng',
+    'error.docBlurTitle': 'Ảnh bị mờ.',
+    'error.docBlurDesc': 'Không nhìn rõ chữ.<br>Hãy chụp lại ở nơi sáng hơn.',
+    'error.docBlurHint': '💡 Đặt tài liệu phẳng và chụp ở nơi sáng, không có bóng đổ thì sẽ nhận diện tốt hơn.',
+    'error.retakePhoto': 'Chụp lại', 'error.pickGallery': 'Chọn từ thư viện ảnh',
+    'error.docBlurVoice': 'Ảnh bị mờ nên không đọc được. Hãy chụp lại ở nơi sáng hơn.',
+    'error.retry': 'Thử lại', 'error.goHome': 'Quay về trang chủ',
+    'error.aiVoice': 'Hiện tại chưa thể phân tích. Hãy thử lại sau ít phút.',
+    'error.textShortTitle': 'Nội dung quá ngắn.',
+    'error.textShortDesc': 'Có vẻ tin nhắn chưa được sao chép đầy đủ.<br>Hãy sao chép lại rồi dán vào.',
+    'error.textShortHint': '💡 Hãy kiểm tra xem bạn đã nhấn “Sao chép” trong menu hiện ra khi nhấn giữ tin nhắn chưa.',
+    'error.pasteAgain': 'Dán lại',
+    'error.textShortVoice': 'Nội dung tin nhắn quá ngắn nên khó kiểm tra. Hãy sao chép lại toàn bộ tin nhắn.'
   },
   th: {
     'home.sectionTitle': 'ต้องการความช่วยเหลือเรื่องอะไร?',
@@ -2042,7 +2078,19 @@ const I18N = {
     'sms.filledTitle': 'เนื้อหาข้อความ<br>เข้ามาแล้ว',
     'sms.filledVoice': 'เนื้อหาข้อความเข้ามาเรียบร้อยแล้ว กรุณากดปุ่มยืนยันเพื่อดูผลลัพธ์',
     'emergency.title': 'ขอความช่วยเหลือฉุกเฉิน', 'emergency.guardian': 'ผู้ดูแล',
-    'emergency.howToAgain': 'ดูวิธีใช้งานอีกครั้ง', 'emergency.close': 'ปิด'
+    'emergency.howToAgain': 'ดูวิธีใช้งานอีกครั้ง', 'emergency.close': 'ปิด',
+    'error.docBlurTitle': 'รูปภาพเบลอ',
+    'error.docBlurDesc': 'มองไม่เห็นตัวอักษรชัดเจน<br>กรุณาถ่ายใหม่ในที่สว่าง',
+    'error.docBlurHint': '💡 วางเอกสารให้เรียบ และถ่ายในที่สว่างไม่มีเงา จะอ่านได้ดีขึ้น',
+    'error.retakePhoto': 'ถ่ายใหม่', 'error.pickGallery': 'เลือกจากคลังภาพ',
+    'error.docBlurVoice': 'รูปภาพเบลอจนอ่านไม่ได้ กรุณาถ่ายใหม่ในที่สว่าง',
+    'error.retry': 'ลองอีกครั้ง', 'error.goHome': 'กลับไปหน้าแรก',
+    'error.aiVoice': 'ตอนนี้ยังวิเคราะห์ไม่ได้ กรุณาลองใหม่อีกครั้งในภายหลัง',
+    'error.textShortTitle': 'เนื้อหาสั้นเกินไป',
+    'error.textShortDesc': 'ดูเหมือนว่าคัดลอกข้อความมาไม่ครบ<br>กรุณาคัดลอกใหม่แล้ววางอีกครั้ง',
+    'error.textShortHint': '💡 กรุณาตรวจสอบว่าได้กด “คัดลอก” ในเมนูที่ขึ้นมาตอนกดค้างที่ข้อความหรือไม่',
+    'error.pasteAgain': 'วางใหม่อีกครั้ง',
+    'error.textShortVoice': 'เนื้อหาข้อความสั้นเกินไปจึงตรวจสอบได้ยาก กรุณาคัดลอกข้อความทั้งหมดใหม่'
   },
   uz: {
     'home.sectionTitle': 'Sizga qanday yordam kerak?',
@@ -2183,7 +2231,19 @@ const I18N = {
     'sms.filledTitle': 'SMS matni<br>kiritildi.',
     'sms.filledVoice': "SMS matni to'g'ri kiritildi. Natijani ko'rish uchun Tasdiqlash tugmasini bosing.",
     'emergency.title': 'Shoshilinch yordam', 'emergency.guardian': 'Vasiy',
-    'emergency.howToAgain': "Foydalanish yo'riqnomasini qayta ko'rish", 'emergency.close': 'Yopish'
+    'emergency.howToAgain': "Foydalanish yo'riqnomasini qayta ko'rish", 'emergency.close': 'Yopish',
+    'error.docBlurTitle': 'Rasm xira chiqdi.',
+    'error.docBlurDesc': "Harflar yaxshi ko'rinmayapti.<br>Yorug' joyda qaytadan suratga oling.",
+    'error.docBlurHint': "💡 Hujjatni tekis qo'ying va soya tushmaydigan yorug' joyda suratga olsangiz yaxshiroq o'qiladi.",
+    'error.retakePhoto': 'Qayta suratga olish', 'error.pickGallery': 'Galereyadan tanlash',
+    'error.docBlurVoice': "Rasm xira bo'lgani uchun o'qib bo'lmadi. Yorug' joyda qaytadan suratga oling.",
+    'error.retry': 'Qayta urinish', 'error.goHome': 'Bosh sahifaga qaytish',
+    'error.aiVoice': "Hozir tahlil qilib bo'lmadi. Birozdan so'ng qayta urinib ko'ring.",
+    'error.textShortTitle': 'Matn juda qisqa.',
+    'error.textShortDesc': "SMS to'liq nusxalanmaganga o'xshaydi.<br>Qaytadan nusxa olib joylashtiring.",
+    'error.textShortHint': "💡 SMS ni bosib turganda chiqadigan menyuda “Nusxa olish” ni bosganingizni tekshiring.",
+    'error.pasteAgain': 'Qaytadan joylashtirish',
+    'error.textShortVoice': "SMS matni juda qisqa bo'lgani uchun tekshirish qiyin. Butun SMS ni qaytadan nusxalang."
   }
 };
 
