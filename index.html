@@ -941,6 +941,11 @@
     <button type="button" data-tab="screen-info" onclick="goTo('screen-info')">
       <svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg><span data-i18n="nav.info">정보</span>
     </button>
+    <!-- 긴급 도움: 화면을 이동하는 탭이 아니라 바로 시트를 여는 버튼이라 data-tab을 두지 않는다(활성 표시 대상 아님).
+         id는 코치마크의 emergency 단계가 참조하므로 그대로 유지한다. -->
+    <button type="button" class="nav-help" id="emergencyFab" onclick="openEmergencySheet()" aria-label="긴급 도움">
+      <span class="nav-help-badge"><svg viewBox="0 0 24 24"><use href="#ic-alert"></use></svg></span><span data-i18n="nav.help">도움</span>
+    </button>
     <button type="button" data-tab="screen-history" onclick="goTo('screen-history')">
       <svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg><span data-i18n="nav.history">기록</span>
     </button>
@@ -948,9 +953,6 @@
       <svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg><span data-i18n="nav.settings">설정</span>
     </button>
   </nav>
-
-  <!-- 긴급 도움 FAB -->
-  <button class="emergency-fab" id="emergencyFab" onclick="openEmergencySheet()" aria-label="긴급 도움"><svg viewBox="0 0 24 24"><use href="#ic-alert"></use></svg>도움</button>
 
   <!-- 긴급 도움 Bottom Sheet -->
   <div class="sheet-backdrop" id="emergencyBackdrop" style="display:none;" onclick="closeEmergencySheet()"></div>

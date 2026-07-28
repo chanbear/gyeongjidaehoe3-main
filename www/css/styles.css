@@ -382,16 +382,7 @@
   background:var(--bg-app); color:var(--ink); font-size:calc(15px * var(--scale)); font-weight:700; cursor:pointer;
 }
 
-/* ---- 5. 긴급 도움 FAB + Bottom Sheet ---- */
-.emergency-fab{
-  position:fixed; right:24px; bottom:28px; z-index:80;
-  width:64px; height:64px; border-radius:50%; border:none;
-  background:var(--danger); color:#fff;
-  display:flex; align-items:center; justify-content:center;
-  box-shadow:0 8px 20px rgba(179,38,30,0.45); cursor:pointer;
-}
-.emergency-fab svg{ width:28px; height:28px; }
-.emergency-fab:hover{ transform:translateY(-2px); box-shadow:0 10px 24px rgba(179,38,30,0.5); }
+/* ---- 5. 긴급 도움 Bottom Sheet (버튼 자체는 하단 네비게이션 바 가운데에 있다) ---- */
 .sheet-backdrop{
   position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:85;
 }
@@ -561,20 +552,11 @@
 }
 .settings-link-row svg{ width:16px; height:16px; color:var(--ink-faint); }
 
-/* ---- 도움(긴급) FAB: 목업의 코랄 색 알약 버튼 ---- */
-.emergency-fab{
-  right:20px; bottom:24px; width:auto; height:auto; border-radius:999px;
-  background:var(--help); color:#fff; padding:14px 20px;
-  display:flex; align-items:center; gap:8px; font-size:calc(15px * var(--scale)); font-weight:800;
-  box-shadow:0 8px 20px rgba(255,107,120,0.45);
-}
-.emergency-fab svg{ width:22px; height:22px; }
-/* 안내(온보딩) 화면에서는 실제 앱 기능인 긴급 도움 버튼을 노출하지 않는다 */
-body.in-onboarding .emergency-fab{ display:none; }
 
 /* ---- 하단 네비게이션 바 ----
    최상위 4개 탭(홈·정보·기록·설정)에서만 body.has-bottom-nav 로 노출된다.
-   z-index는 긴급 FAB(80)·시트(85)·코치마크(500)보다 아래여야 그것들이 가려지지 않는다. */
+   가운데 칸은 화면 이동이 아니라 긴급 도움 시트를 여는 버튼이다.
+   z-index는 시트(85)·코치마크(500)보다 아래여야 그것들이 가려지지 않는다. */
 :root{ --bottom-nav-h:64px; }
 
 .bottom-nav{
@@ -601,13 +583,21 @@ body.has-bottom-nav .bottom-nav{ display:flex; }
 .bottom-nav button span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
 .bottom-nav button.is-active{ color:var(--accent-strong); }
 
+/* 가운데 긴급 도움: 다른 칸과 높이는 같게 두되 채워진 원으로 눈에 띄게 한다.
+   어르신이 급할 때 찾는 버튼이라 색·형태를 나머지와 확실히 구분한다. */
+.bottom-nav button.nav-help{ color:var(--help); }
+.bottom-nav .nav-help-badge{
+  display:flex; align-items:center; justify-content:center;
+  width:36px; height:36px; border-radius:50%;
+  background:var(--help); color:#fff;
+  box-shadow:0 4px 12px rgba(255,107,120,0.45);
+}
+.bottom-nav .nav-help-badge svg{ width:22px; height:22px; }
+.bottom-nav button.nav-help{ gap:1px; }
+
 /* 네비바가 마지막 콘텐츠를 가리지 않도록 탭 화면에만 아래 여백을 준다 */
 body.has-bottom-nav .screen.active{
   padding-bottom:calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 24px);
-}
-/* 긴급 FAB도 네비바 위로 올린다 */
-body.has-bottom-nav .emergency-fab{
-  bottom:calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 16px);
 }
 
 /* ---- 튜토리얼: 문자 길게 눌러 복사하기 연습(실제 폰 길게 누르기 시 뜨는 복사 메뉴를 흉내) ---- */
