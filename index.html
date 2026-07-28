@@ -635,6 +635,21 @@
         </div>
         <button class="voice-pill block" data-replay><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="result.readAloud">큰 소리로 읽어주기</span></button>
 
+        <!-- 핵심 값(금액·기한·기관·분류): AI가 문서에서 실제로 읽어낸 값이 있을 때만 renderDocKeyFacts()가 보여준다.
+             값이 없으면 통째로 숨긴다 - 0원이나 임의의 날짜를 지어내 보여주지 않기 위함. -->
+        <div class="key-facts" id="docKeyFacts" style="display:none;">
+          <div class="key-fact" id="docKeyAmount" style="display:none;">
+            <div class="kf-label" data-i18n="result.amountLabel">납부할 금액</div>
+            <div class="kf-value" id="docKeyAmountValue"></div>
+          </div>
+          <div class="key-fact" id="docKeyDue" style="display:none;">
+            <div class="kf-label" data-i18n="result.dueLabel">납부 기한</div>
+            <div class="kf-value" id="docKeyDueValue"></div>
+            <div class="kf-sub" id="docKeyDueLeft"></div>
+          </div>
+          <div class="key-fact-tags" id="docKeyTags"></div>
+        </div>
+
         <div class="doc-info-card">
           <span class="pill-badge" data-i18n="result.docKind">문서 종류</span>
           <div class="doc-preview-label"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-camera"></use></svg><span data-i18n="result.viewPhoto">사진 보기</span></div>

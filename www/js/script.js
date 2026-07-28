@@ -1162,6 +1162,71 @@ async function analyzeDocument(dataUrl){
 }
 
 /** AI 분석 결과(headline/summary/checklist/status)를 결과 화면에 반영. AI가 만든 텍스트이므로 항상 textContent로만 채워 넣는다(HTML 삽입 금지). */
+/* ---- 문서에서 읽어낸 핵심 값(금액·기한·기관·분류) ----
+   Worker가 category/amount/dueDate/issuer 를 돌려주기 시작하면 켜지는 화면이다.
+   아직 배포 전이라 이 필드들이 없는 응답이 오면 아래 함수들이 전부 빈 값으로 처리해 카드를 숨긴다.
+   값이 없을 때 "0원"이나 임의의 날짜를 지어내지 않는다. */
+
+/** 금액을 천 단위 콤마와 함께. 값이 없거나 0이면 빈 문자열 */
+function formatDocAmount(amount){
+  const n = Number(amount);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  return n.toLocaleString('ko-KR') + '원';
+}
+
+/** "2026-08-10" -> "8월 10일까지". 형식이 아니면 빈 문자열 */
+function formatDocDueDate(dueDate){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dueDate || '').trim());
+  if (!m) return '';
+  return `${Number(m[2])}월 ${Number(m[3])}일까지`;
+}
+
+/** 기한까지 남은 날짜 안내. { text, urgent } 또는 null */
+function docDueDateLeft(dueDate){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dueDate || '').trim());
+  if (!m) return null;
+  const due = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (isNaN(due.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((due - today) / 86400000);
+  if (days < 0) return { text: '기한이 지났어요', urgent: true };
+  if (days === 0) return { text: '오늘까지예요', urgent: true };
+  return { text: `${days}일 남았어요`, urgent: days <= 7 };
+}
+
+function renderDocKeyFacts(data){
+  const wrap = document.getElementById('docKeyFacts');
+  if (!wrap) return;
+  const amountText = formatDocAmount(data && data.amount);
+  const dueText = formatDocDueDate(data && data.dueDate);
+  const issuer = String((data && data.issuer) || '').trim();
+  const category = String((data && data.category) || '').trim();
+
+  const amountBox = document.getElementById('docKeyAmount');
+  amountBox.style.display = amountText ? 'block' : 'none';
+  if (amountText) document.getElementById('docKeyAmountValue').textContent = amountText;
+
+  const dueBox = document.getElementById('docKeyDue');
+  dueBox.style.display = dueText ? 'block' : 'none';
+  if (dueText) {
+    document.getElementById('docKeyDueValue').textContent = dueText;
+    const left = docDueDateLeft(data.dueDate);
+    const leftEl = document.getElementById('docKeyDueLeft');
+    leftEl.textContent = left ? left.text : '';
+    leftEl.classList.toggle('urgent', !!(left && left.urgent));
+  }
+
+  // 기관명·분류는 AI가 문서에서 읽은 값이므로 번역하지 않고 원문 그대로 보여준다
+  const tags = [];
+  if (issuer) tags.push(issuer);
+  if (category && category !== '기타') tags.push(category);
+  document.getElementById('docKeyTags').innerHTML =
+    tags.map(v => `<span class="tag">${escapeHtml(v)}</span>`).join('');
+
+  wrap.style.display = (amountText || dueText || tags.length) ? 'flex' : 'none';
+}
+
 function renderDocResult(){
   const data = lastDocAnalysis;
   if (!data) return;
@@ -1172,6 +1237,7 @@ function renderDocResult(){
   document.getElementById('screen-result-doc').setAttribute('data-voice', voiceText);
   speak(voiceText);
 
+  renderDocKeyFacts(data);
   applyResultHero(document.querySelector('#screen-result-doc .result-card'), data);
 
   document.querySelector('#docEasyView p').textContent = data.summary || '';
@@ -1615,6 +1681,7 @@ const I18N = {
     'docCapture.voice': '문서가 화면 가운데 오도록 맞춘 다음, 아래 버튼을 눌러 촬영해주세요.',
     'result.docTitle': '분석 결과', 'result.readAloud': '큰 소리로 읽어주기',
     'result.docKind': '문서 종류', 'result.viewPhoto': '사진 보기',
+    'result.amountLabel': '납부할 금액', 'result.dueLabel': '납부 기한',
     'result.viewEasy': '쉬운 설명', 'result.viewOriginal': '원문 보기',
     'result.aiSummaryTitle': '⚪ AI가 정리한 내용', 'result.originalTitle': '원문',
     'result.todoLabel': '해야 할 일',
@@ -1775,6 +1842,7 @@ const I18N = {
     'docCapture.voice': '请将文件对准屏幕中央，然后按下方按钮拍摄。',
     'result.docTitle': '分析结果', 'result.readAloud': '大声朗读',
     'result.docKind': '文件种类', 'result.viewPhoto': '查看照片',
+    'result.amountLabel': '应缴金额', 'result.dueLabel': '缴纳期限',
     'result.viewEasy': '简单说明', 'result.viewOriginal': '查看原文',
     'result.aiSummaryTitle': '⚪ AI整理的内容', 'result.originalTitle': '原文',
     'result.todoLabel': '要做的事',
@@ -1935,6 +2003,7 @@ const I18N = {
     'docCapture.voice': 'Hãy căn tài liệu vào giữa màn hình rồi nhấn nút bên dưới để chụp.',
     'result.docTitle': 'Kết quả phân tích', 'result.readAloud': 'Đọc to lên',
     'result.docKind': 'Loại tài liệu', 'result.viewPhoto': 'Xem ảnh',
+    'result.amountLabel': 'Số tiền phải nộp', 'result.dueLabel': 'Hạn nộp',
     'result.viewEasy': 'Giải thích dễ hiểu', 'result.viewOriginal': 'Xem nguyên văn',
     'result.aiSummaryTitle': '⚪ Nội dung AI đã tóm tắt', 'result.originalTitle': 'Nguyên văn',
     'result.todoLabel': 'Việc cần làm',
@@ -2095,6 +2164,7 @@ const I18N = {
     'docCapture.voice': 'กรุณาจัดเอกสารให้อยู่กลางหน้าจอ แล้วกดปุ่มด้านล่างเพื่อถ่ายภาพ',
     'result.docTitle': 'ผลการวิเคราะห์', 'result.readAloud': 'อ่านออกเสียงดัง',
     'result.docKind': 'ประเภทเอกสาร', 'result.viewPhoto': 'ดูรูปภาพ',
+    'result.amountLabel': 'จำนวนเงินที่ต้องชำระ', 'result.dueLabel': 'กำหนดชำระ',
     'result.viewEasy': 'คำอธิบายง่ายๆ', 'result.viewOriginal': 'ดูต้นฉบับ',
     'result.aiSummaryTitle': '⚪ เนื้อหาที่ AI สรุปให้', 'result.originalTitle': 'ต้นฉบับ',
     'result.todoLabel': 'สิ่งที่ต้องทำ',
@@ -2255,6 +2325,7 @@ const I18N = {
     'docCapture.voice': "Hujjatni ekran o'rtasiga joylashtiring va pastdagi tugmani bosib suratga oling.",
     'result.docTitle': 'Tahlil natijasi', 'result.readAloud': "Baland ovozda o'qib berish",
     'result.docKind': 'Hujjat turi', 'result.viewPhoto': "Rasmni ko'rish",
+    'result.amountLabel': "To'lanadigan summa", 'result.dueLabel': "To'lov muddati",
     'result.viewEasy': 'Sodda tushuntirish', 'result.viewOriginal': "Asl matnni ko'rish",
     'result.aiSummaryTitle': '⚪ AI jamlagan mazmun', 'result.originalTitle': 'Asl matn',
     'result.todoLabel': "Bajarish kerak bo'lgan ishlar",

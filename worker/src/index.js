@@ -42,6 +42,21 @@ const ANALYSIS_SCHEMA = {
   additionalProperties: false,
 };
 
+/** 문서(사진) 분석 전용 스키마. 문자 분석에는 쓰지 않는다(문자에는 금액·기한 개념이 없다).
+ *  아래 4개는 문서에서 확실히 읽히지 않으면 빈 값으로 두게 하고, 프런트엔드는 값이 없으면 해당 UI를 숨긴다. */
+const DOC_ANALYSIS_SCHEMA = {
+  type: 'object',
+  properties: {
+    ...ANALYSIS_SCHEMA.properties,
+    category: { type: 'string', enum: ['고지서', '안내문', '통지서', '광고', '기타'] },
+    amount: { type: 'integer' },
+    dueDate: { type: 'string' },
+    issuer: { type: 'string' },
+  },
+  required: [...ANALYSIS_SCHEMA.required, 'category', 'amount', 'dueDate', 'issuer'],
+  additionalProperties: false,
+};
+
 const DOC_PROMPT = `당신은 고령자를 위한 문서 분석 도우미입니다. 사진 속 문서(공공기관 안내문, 병원 서류, 고지서, 안내문 등)의 내용을 분석해서 다음 항목을 한국어로 작성하세요.
 
 - status: 이 문서가 사기·개인정보 요구 등으로 위험하면 "danger", 특별한 조치 없이 참고만 하면 되는 정보성 문서면 "info", 기한 내에 예약·신청·납부 등 조치가 필요하면 "normal"
@@ -52,13 +67,20 @@ const DOC_PROMPT = `당신은 고령자를 위한 문서 분석 도우미입니�
 - website: 문서에 실제로 적힌 공식 홈페이지 주소가 있으면 그대로, 없으면 빈 문자열 (지어내지 말 것)
 - mapQuery: 방문해야 할 기관·장소명이 문서에 있으면 지도 검색에 쓸 이름(예: "국민건강보험공단 OO지사"), 없으면 빈 문자열 (지어내지 말 것)
 
-사진이 문서가 아니거나 글자를 읽을 수 없으면 status는 "info", headline은 "사진을 다시 확인해주세요", summary에 그 이유를 설명하고 checklist는 빈 배열, phone/website/mapQuery도 빈 문자열로 답하세요.`;
+- category: 문서 종류를 "고지서"(납부할 돈이 적힌 것), "안내문"(알림·설명), "통지서"(결정·처분 통보), "광고"(홍보물), "기타" 중 하나로
+- amount: 납부해야 할 금액이 문서에 적혀 있으면 숫자만(원 단위, 콤마 없이). 금액이 없거나 확실하지 않으면 0
+- dueDate: 납부·신청 기한이 적혀 있으면 "YYYY-MM-DD" 형식으로. 없거나 확실하지 않으면 빈 문자열
+- issuer: 문서를 보낸 기관명이 적혀 있으면 그대로. 없으면 빈 문자열
+
+amount·dueDate·issuer는 문서에 실제로 적힌 것만 쓰세요. 추측하거나 계산해서 채우지 말고, 조금이라도 불확실하면 0 또는 빈 문자열로 두세요.
+
+사진이 문서가 아니거나 글자를 읽을 수 없으면 status는 "info", headline은 "사진을 다시 확인해주세요", summary에 그 이유를 설명하고 checklist는 빈 배열, phone/website/mapQuery/dueDate/issuer도 빈 문자열, category는 "기타", amount는 0으로 답하세요.`;
 
 /** 사용자가 설정에서 선택 입력한 성별/연령대/지역(선택 사항). 있으면 설명 톤 참고용으로만 쓰고, 모르는 지역별 기관명·연락처·주소는 절대 지어내지 않도록 명시한다. */
 function buildProfileNote(profile) {
   if (!profile || typeof profile !== 'object') return '';
   const parts = [];
-  if (profile.age) parts.push(profile.age + '대'); // 앱에서 연령대(50/60/70/80) 단위로 받으므로 "73세"가 아닌 "70대"로 전달
+  if (profile.age) parts.push(profile.age + '세'); // 앱이 만 나이를 한 살 단위로 받으므로 "73세" 그대로 전달한다(예전에는 연령대 단위라 "70대"였다)
   if (profile.gender) parts.push(profile.gender);
   if (profile.region) parts.push(profile.region + ' 거주');
   if (parts.length === 0) return '';
@@ -82,7 +104,7 @@ function json(data, status) {
 
 const RELAY_URL = 'https://relay-jet-six.vercel.app';
 
-async function runAnalysis(env, content) {
+async function runAnalysis(env, content, schema = ANALYSIS_SCHEMA) {
   // Cloudflare 데이터센터 IP 대역이 Anthropic API에서 차단되어(리전 무관), Cloudflare 밖의
   // Vercel 중계 서버(relay/)를 거쳐 호출한다. RELAY_SECRET은 이 중계 서버를 아무나 호출해
   // Anthropic 크레딧을 소모하지 못하도록 막는 공유 비밀값이다.
@@ -95,7 +117,7 @@ async function runAnalysis(env, content) {
     body: JSON.stringify({
       model: 'claude-opus-4-8',
       max_tokens: 1024,
-      output_config: { format: { type: 'json_schema', schema: ANALYSIS_SCHEMA } },
+      output_config: { format: { type: 'json_schema', schema } },
       messages: [{ role: 'user', content }],
     }),
   });
@@ -135,7 +157,7 @@ export default {
         const result = await runAnalysis(env, [
           { type: 'image', source: { type: 'base64', media_type: mediaType || 'image/jpeg', data: image } },
           { type: 'text', text: DOC_PROMPT + buildProfileNote(profile) },
-        ]);
+        ], DOC_ANALYSIS_SCHEMA);
         return json(result, 200);
       } catch (err) {
         return json({ error: 'AI 분석에 실패했습니다.', detail: String(err && err.message || err) }, 502);

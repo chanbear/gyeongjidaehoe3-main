@@ -515,6 +515,26 @@
 .feature-card .fc-desc{ font-size:calc(14px * var(--scale)); color:var(--ink-soft); margin-top:2px; line-height:1.4; }
 .feature-card .chev{ width:18px; height:18px; color:var(--ink-faint); flex-shrink:0; }
 
+/* ---- 문서 결과의 핵심 값 카드(금액·기한·기관) ----
+   AI가 문서에서 실제로 읽어낸 값이 있을 때만 표시된다. 고령층 대상이라 금액·기한은 크게 보여준다. */
+.key-facts{
+  display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px;
+}
+.key-fact{
+  flex:1 1 140px; background:var(--bg-app); border:1.5px solid var(--line);
+  border-radius:var(--radius-md); padding:14px 16px;
+}
+.kf-label{ font-size:calc(13px * var(--scale)); color:var(--ink-soft); font-weight:700; margin-bottom:4px; }
+.kf-value{ font-size:calc(24px * var(--scale)); font-weight:800; letter-spacing:-.02em; color:var(--ink); line-height:1.25; }
+.kf-sub{ font-size:calc(13.5px * var(--scale)); font-weight:700; color:var(--accent-strong); margin-top:3px; }
+.kf-sub.urgent{ color:var(--danger-strong); }
+.key-fact-tags{ flex:1 1 100%; display:flex; flex-wrap:wrap; gap:6px; }
+.key-fact-tags .tag{
+  font-size:calc(13px * var(--scale)); font-weight:700;
+  background:var(--accent-soft); color:var(--accent-strong);
+  border-radius:999px; padding:6px 12px;
+}
+
 /* ---- 안내 배너 (본 서비스는 참고용) ---- */
 .disclaimer-banner{
   background:var(--sms-bg); border-radius:var(--radius-md); padding:14px 16px;
