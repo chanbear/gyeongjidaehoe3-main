@@ -927,16 +927,17 @@
   <!-- 하단 네비게이션 바: 최상위 4개 탭 화면(홈·정보·기록·설정)에서만 보인다(body.has-bottom-nav).
        .screen-stack 밖에 하나만 두고 goTo()가 표시/활성 상태를 갱신한다. -->
   <nav class="bottom-nav" id="bottomNav" aria-label="주요 화면 이동">
-    <button type="button" data-tab="screen-home" onclick="goTo('screen-home')">
-      <svg viewBox="0 0 24 24"><use href="#ic-home"></use></svg><span data-i18n="nav.home">홈</span>
+    <!-- 순서: 도움 / 정보 / 홈 / 기록 / 설정 — 가장 급할 때 누르는 도움을 엄지가 닿기 쉬운 맨 왼쪽에, 홈을 가운데에 둔다.
+         긴급 도움: 화면을 이동하는 탭이 아니라 바로 시트를 여는 버튼이라 data-tab을 두지 않는다(활성 표시 대상 아님).
+         id는 코치마크의 emergency 단계가 참조하므로 그대로 유지한다. -->
+    <button type="button" class="nav-help" id="emergencyFab" onclick="openEmergencySheet()" aria-label="긴급 도움">
+      <span class="nav-help-badge"><svg viewBox="0 0 24 24"><use href="#ic-alert"></use></svg></span><span data-i18n="nav.help">도움</span>
     </button>
     <button type="button" data-tab="screen-info" onclick="goTo('screen-info')">
       <svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg><span data-i18n="nav.info">정보</span>
     </button>
-    <!-- 긴급 도움: 화면을 이동하는 탭이 아니라 바로 시트를 여는 버튼이라 data-tab을 두지 않는다(활성 표시 대상 아님).
-         id는 코치마크의 emergency 단계가 참조하므로 그대로 유지한다. -->
-    <button type="button" class="nav-help" id="emergencyFab" onclick="openEmergencySheet()" aria-label="긴급 도움">
-      <span class="nav-help-badge"><svg viewBox="0 0 24 24"><use href="#ic-alert"></use></svg></span><span data-i18n="nav.help">도움</span>
+    <button type="button" data-tab="screen-home" onclick="goTo('screen-home')">
+      <svg viewBox="0 0 24 24"><use href="#ic-home"></use></svg><span data-i18n="nav.home">홈</span>
     </button>
     <button type="button" data-tab="screen-history" onclick="goTo('screen-history')">
       <svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg><span data-i18n="nav.history">기록</span>
