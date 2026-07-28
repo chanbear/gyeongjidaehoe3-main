@@ -95,12 +95,10 @@
         </div>
 
         <div class="settings-section">
-          <h2 data-i18n="onboard.profile.ageLabel">연령대</h2>
-          <div class="segmented" id="profileAgeGroup">
-            <button data-value="50" onclick="setProfileField('age',50)" data-i18n="onboard.profile.age50">50대 이하</button>
-            <button data-value="60" onclick="setProfileField('age',60)" data-i18n="onboard.profile.age60">60대</button>
-            <button data-value="70" onclick="setProfileField('age',70)" data-i18n="onboard.profile.age70">70대</button>
-            <button data-value="80" onclick="setProfileField('age',80)" data-i18n="onboard.profile.age80">80대 이상</button>
+          <h2 data-i18n="onboard.profile.ageLabel">나이</h2>
+          <div class="field-row">
+            <input type="number" id="profileAge" inputmode="numeric" min="1" max="120" placeholder="예: 73" data-i18n-placeholder="onboard.profile.agePlaceholder" oninput="setProfileAge(this.value)" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+            <p class="settings-save-note" style="text-align:left;margin-top:6px;" data-i18n="onboard.profile.ageNote">만 나이를 숫자로 적어주세요. 나이에 따라 받을 수 있는 혜택이 달라요.</p>
           </div>
         </div>
 
@@ -866,11 +864,9 @@
             <button data-value="남성" onclick="setProfileField('gender','남성')" data-i18n="settings.male">남성</button>
             <button data-value="여성" onclick="setProfileField('gender','여성')" data-i18n="settings.female">여성</button>
           </div>
-          <div class="segmented" id="profileAgeGroupSettings" style="margin-bottom:10px;">
-            <button data-value="50" onclick="setProfileField('age',50)" data-i18n="onboard.profile.age50">50대 이하</button>
-            <button data-value="60" onclick="setProfileField('age',60)" data-i18n="onboard.profile.age60">60대</button>
-            <button data-value="70" onclick="setProfileField('age',70)" data-i18n="onboard.profile.age70">70대</button>
-            <button data-value="80" onclick="setProfileField('age',80)" data-i18n="onboard.profile.age80">80대 이상</button>
+          <div class="field-row">
+            <label for="profileAgeSettings" data-i18n="onboard.profile.ageLabel">나이</label>
+            <input type="number" id="profileAgeSettings" inputmode="numeric" min="1" max="120" placeholder="예: 73" data-i18n-placeholder="onboard.profile.agePlaceholder" oninput="setProfileAge(this.value)" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
           </div>
           <div class="field-row">
             <label for="profileRegionSettings" data-i18n="settings.regionLabel">사시는 지역</label>

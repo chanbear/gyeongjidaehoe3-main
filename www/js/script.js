@@ -1467,8 +1467,8 @@ const I18N = {
     'onboard.greet.voice': '안녕하세요. AI 디지털 도우미입니다. 실제 화면을 보여드리며 사용 방법을 간단히 안내해드릴게요.',
     'onboard.profile.title': '몇 가지만<br>알려주시겠어요?',
     'onboard.profile.desc': '입력하신 정보는 이 기기와 안전한 서버에만 저장되고,<br>더 알맞은 설명을 드리는 데만 사용돼요.<br>원하지 않으면 건너뛰어도 됩니다.',
-    'onboard.profile.genderLabel': '성별', 'onboard.profile.ageLabel': '연령대',
-    'onboard.profile.age50': '50대 이하', 'onboard.profile.age60': '60대', 'onboard.profile.age70': '70대', 'onboard.profile.age80': '80대 이상',
+    'onboard.profile.genderLabel': '성별', 'onboard.profile.ageLabel': '나이',
+    'onboard.profile.agePlaceholder': '예: 73', 'onboard.profile.ageNote': '만 나이를 숫자로 적어주세요. 나이에 따라 받을 수 있는 혜택이 달라요.',
     'skipConfirm.title': '튜토리얼을 건너뛸까요?', 'skipConfirm.keep': '계속 보기',
     'onboard.profile.useLocation': '내 현재 위치 입력하기',
     'onboard.profile.regionNote': '시/군/구까지 자세히 적어주시면 더 알맞은 정보를 드릴 수 있어요.',
@@ -1554,8 +1554,8 @@ const I18N = {
     'onboard.greet.voice': '您好。我是AI数字助手。我会通过实际画面简单介绍使用方法。',
     'onboard.profile.title': '请告诉我<br>几项信息好吗？',
     'onboard.profile.desc': '您输入的信息只保存在本设备和安全的服务器中，<br>仅用于提供更合适的说明。<br>不想输入的话也可以跳过。',
-    'onboard.profile.genderLabel': '性别', 'onboard.profile.ageLabel': '年龄段',
-    'onboard.profile.age50': '50多岁及以下', 'onboard.profile.age60': '60多岁', 'onboard.profile.age70': '70多岁', 'onboard.profile.age80': '80岁以上',
+    'onboard.profile.genderLabel': '性别', 'onboard.profile.ageLabel': '年龄',
+    'onboard.profile.agePlaceholder': '例: 73', 'onboard.profile.ageNote': '请填写周岁数字。可享受的福利会因年龄而异。',
     'skipConfirm.title': '要跳过教程吗？', 'skipConfirm.keep': '继续观看',
     'onboard.profile.useLocation': '输入我的当前位置',
     'onboard.profile.regionNote': '详细填写到市/郡/区，可以为您提供更合适的信息。',
@@ -1641,8 +1641,8 @@ const I18N = {
     'onboard.greet.voice': 'Xin chào. Tôi là trợ lý số AI. Tôi sẽ hướng dẫn cách sử dụng đơn giản qua màn hình thực tế.',
     'onboard.profile.title': 'Cho tôi biết<br>một vài thông tin nhé?',
     'onboard.profile.desc': 'Thông tin bạn nhập chỉ được lưu trên thiết bị này và máy chủ an toàn,<br>chỉ dùng để đưa ra giải thích phù hợp hơn.<br>Nếu không muốn, bạn có thể bỏ qua.',
-    'onboard.profile.genderLabel': 'Giới tính', 'onboard.profile.ageLabel': 'Độ tuổi',
-    'onboard.profile.age50': '50 trở xuống', 'onboard.profile.age60': '60–69', 'onboard.profile.age70': '70–79', 'onboard.profile.age80': '80 trở lên',
+    'onboard.profile.genderLabel': 'Giới tính', 'onboard.profile.ageLabel': 'Tuổi',
+    'onboard.profile.agePlaceholder': 'VD: 73', 'onboard.profile.ageNote': 'Hãy nhập tuổi bằng số. Quyền lợi được hưởng khác nhau tùy theo tuổi.',
     'skipConfirm.title': 'Bỏ qua hướng dẫn?', 'skipConfirm.keep': 'Tiếp tục xem',
     'onboard.profile.useLocation': 'Nhập vị trí hiện tại của tôi',
     'onboard.profile.regionNote': 'Nếu ghi rõ đến quận/huyện, chúng tôi có thể cung cấp thông tin phù hợp hơn.',
@@ -1728,8 +1728,8 @@ const I18N = {
     'onboard.greet.voice': 'สวัสดีค่ะ ฉันคือผู้ช่วยดิจิทัล AI จะแนะนำวิธีใช้งานง่ายๆ ผ่านหน้าจอจริง',
     'onboard.profile.title': 'ขอข้อมูล<br>สักเล็กน้อยได้ไหมคะ?',
     'onboard.profile.desc': 'ข้อมูลที่กรอกจะถูกเก็บไว้ในเครื่องนี้และเซิร์ฟเวอร์ที่ปลอดภัยเท่านั้น<br>ใช้เพื่อให้คำอธิบายที่เหมาะสมยิ่งขึ้นเท่านั้น<br>หากไม่ต้องการก็สามารถข้ามได้',
-    'onboard.profile.genderLabel': 'เพศ', 'onboard.profile.ageLabel': 'ช่วงอายุ',
-    'onboard.profile.age50': '50 ปีหรือต่ำกว่า', 'onboard.profile.age60': '60–69 ปี', 'onboard.profile.age70': '70–79 ปี', 'onboard.profile.age80': '80 ปีขึ้นไป',
+    'onboard.profile.genderLabel': 'เพศ', 'onboard.profile.ageLabel': 'อายุ',
+    'onboard.profile.agePlaceholder': 'เช่น 73', 'onboard.profile.ageNote': 'กรุณากรอกอายุเป็นตัวเลข สิทธิประโยชน์ที่ได้รับจะต่างกันตามอายุ',
     'skipConfirm.title': 'ข้ามบทแนะนำหรือไม่?', 'skipConfirm.keep': 'ดูต่อ',
     'onboard.profile.useLocation': 'กรอกตำแหน่งปัจจุบันของฉัน',
     'onboard.profile.regionNote': 'หากระบุถึงระดับอำเภอ/เขต จะช่วยให้เราให้ข้อมูลที่เหมาะสมยิ่งขึ้น',
@@ -1815,8 +1815,8 @@ const I18N = {
     'onboard.greet.voice': 'Salom. Men AI raqamli yordamchiman. Haqiqiy ekranlar orqali foydalanish usulini qisqacha tushuntiraman.',
     'onboard.profile.title': "Bir nechta<br>ma'lumot bera olasizmi?",
     'onboard.profile.desc': "Kiritgan ma'lumotingiz faqat shu qurilma va xavfsiz serverda saqlanadi,<br>faqat sizga mos tushuntirish berish uchun ishlatiladi.<br>Xohlamasangiz o'tkazib yuborishingiz mumkin.",
-    'onboard.profile.genderLabel': 'Jinsi', 'onboard.profile.ageLabel': 'Yosh guruhi',
-    'onboard.profile.age50': '50 va undan kichik', 'onboard.profile.age60': '60–69', 'onboard.profile.age70': '70–79', 'onboard.profile.age80': '80 va undan katta',
+    'onboard.profile.genderLabel': 'Jinsi', 'onboard.profile.ageLabel': 'Yosh',
+    'onboard.profile.agePlaceholder': 'Masalan: 73', 'onboard.profile.ageNote': "Yoshingizni raqam bilan kiriting. Yoshga qarab olinadigan imtiyozlar farq qiladi.",
     'skipConfirm.title': 'Qoʻllanma oʻtkazib yuborilsinmi?', 'skipConfirm.keep': 'Davom etish',
     'onboard.profile.useLocation': 'Joriy joylashuvimni kiritish',
     'onboard.profile.regionNote': "Tuman/shahargacha aniq yozsangiz, sizga mosroq ma'lumot bera olamiz.",
@@ -1912,8 +1912,18 @@ function setProfileField(field, value){
   queueProfileSave();
 }
 
-/** 저장된 나이를 연령대 버튼 값(50/60/70/80) 중 하나로 맞춘다.
- *  예전 버전에서 한 살 단위로 저장된 값(예: 73)이나 서버에서 받은 값도 해당 연령대로 흡수한다. */
+/** 나이 직접 입력: 만 나이를 그대로 저장한다(기초연금 65세처럼 혜택 기준이 한 살 단위라 반올림하지 않는다).
+ *  빈 칸이면 "입력 안 함"으로 두고, 숫자가 아니거나 범위를 벗어나면 저장하지 않는다(입력 중인 값을 되돌리지 않기 위해 화면은 건드리지 않음). */
+function setProfileAge(raw){
+  const text = String(raw == null ? '' : raw).trim();
+  if (text === '') { setProfileField('age', ''); return; }
+  const n = Number(text);
+  if (!Number.isInteger(n) || n < 1 || n > 120) return;
+  setProfileField('age', n);
+}
+
+/** 인사말 등 표시용으로 나이를 연령대(50/60/70/80)로 묶는다.
+ *  저장값은 만 나이 그대로이고, 이 함수는 "70대 어르신"처럼 부드럽게 부를 때만 쓴다. */
 function toAgeBand(age){
   const n = Number(age);
   if (!n) return 50;
@@ -1983,9 +1993,9 @@ function setValueIfChanged(el, value){
 function syncProfileUI(){
   syncToggleGroupString('profileGenderGroup', appState.profile.gender);
   syncToggleGroupString('profileGenderGroupSettings', appState.profile.gender);
-  const ageBand = String(toAgeBand(appState.profile.age));
-  syncToggleGroupString('profileAgeGroup', ageBand);
-  syncToggleGroupString('profileAgeGroupSettings', ageBand);
+  const ageText = appState.profile.age ? String(appState.profile.age) : '';
+  setValueIfChanged(document.getElementById('profileAge'), ageText);
+  setValueIfChanged(document.getElementById('profileAgeSettings'), ageText);
   setValueIfChanged(document.getElementById('profileName'), appState.profile.name);
   setValueIfChanged(document.getElementById('profileNameSettings'), appState.profile.name);
   setValueIfChanged(document.getElementById('profileRegion'), appState.profile.region);
