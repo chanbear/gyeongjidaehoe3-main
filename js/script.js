@@ -1198,6 +1198,36 @@ function dataUrlToBase64(dataUrl){
   return match ? { mediaType: match[1], base64: match[2] } : null;
 }
 
+/* ---- 업로드 전 사진 줄이기 ----
+   요즘 휴대폰 사진은 원본 그대로 base64로 바꾸면 수 MB이고, 중계 서버가 큰 본문을 거부해
+   ("Request Entity Too Large") 분석이 실패한다. 글자를 읽는 데는 긴 변 1600px 이면 충분하므로
+   보내기 전에 줄이고 JPEG로 다시 인코딩한다. 원본 화면 미리보기에는 영향을 주지 않는다. */
+const UPLOAD_MAX_SIDE = 1600;
+const UPLOAD_JPEG_QUALITY = 0.82;
+
+function preparePhotoForUpload(src){
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, UPLOAD_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+        const w = Math.max(1, Math.round(img.naturalWidth * scale));
+        const h = Math.max(1, Math.round(img.naturalHeight * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(dataUrlToBase64(canvas.toDataURL('image/jpeg', UPLOAD_JPEG_QUALITY)));
+      } catch (err) {
+        // 캔버스가 막힌 경우(교차 출처 등)에는 원본 그대로라도 보내본다
+        resolve(dataUrlToBase64(src));
+      }
+    };
+    img.onerror = () => resolve(dataUrlToBase64(src));
+    img.src = src;
+  });
+}
+
 /** AI 분석 자체가 실패했을 때(서버 오류, API 크레딧 부족 등) 공통 화면으로 보내고, "다시 시도" 버튼이 원래 화면으로 돌아가도록 기억해둔다 */
 let aiErrorRetryScreen = 'screen-home';
 function goToAiError(retryScreen, isOffline){
@@ -1232,9 +1262,10 @@ function retryAiError(){
 /** 사진 한 장(문자열) 또는 여러 장(배열)을 받아 분석한다. */
 async function analyzeDocument(input){
   const dataUrls = Array.isArray(input) ? input : [input];
-  const parsedList = dataUrls.map(dataUrlToBase64).filter(Boolean);
-  if (parsedList.length === 0) { goTo('screen-doc-error'); return; }
   if (!navigator.onLine) { goToAiError('screen-doc-choice', true); return; }
+  // 원본 그대로 보내면 본문이 수 MB가 되어 중계 서버가 거부한다. 보내기 전에 줄인다.
+  const parsedList = (await Promise.all(dataUrls.map(preparePhotoForUpload))).filter(Boolean);
+  if (parsedList.length === 0) { goTo('screen-doc-error'); return; }
 
   try {
     const res = await fetch(AI_WORKER_URL + '/analyze-doc', {
@@ -1242,9 +1273,6 @@ async function analyzeDocument(input){
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         images: parsedList.map(p => ({ data: p.base64, mediaType: p.mediaType })),
-        // 아직 배포되지 않은 Worker(단일 image 만 읽음)와도 통하도록 첫 장을 함께 보낸다
-        image: parsedList[0].base64,
-        mediaType: parsedList[0].mediaType,
         profile: appState.profile,
       })
     });

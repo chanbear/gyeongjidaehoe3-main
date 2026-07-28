@@ -163,17 +163,34 @@ async function runAnalysis(env, content, schema = ANALYSIS_SCHEMA) {
     },
     body: JSON.stringify({
       model: 'claude-opus-4-8',
-      max_tokens: 1024,
+      // 문서 분석은 문서마다 12개 필드를 채우고 여러 개로 나뉠 수도 있어 1024로는 응답이 잘린다.
+      // 잘리면 JSON 파싱이 깨져 "분석에 실패했습니다"로 떨어지므로 넉넉히 잡는다.
+      max_tokens: 4096,
       output_config: { format: { type: 'json_schema', schema } },
       messages: [{ role: 'user', content }],
     }),
   });
 
-  const data = await proxied.json();
+  // 본문이 너무 크면 중계 서버가 JSON 이 아닌 평문("Request Entity Too Large")을 돌려준다.
+  // 그대로 .json() 하면 엉뚱한 파싱 오류가 나므로 먼저 본문을 읽고 판별한다.
+  const rawBody = await proxied.text();
+  let data;
+  try {
+    data = JSON.parse(rawBody);
+  } catch {
+    if (proxied.status === 413 || /entity too large/i.test(rawBody)) {
+      throw new Error('사진 용량이 너무 큽니다. 더 작게 찍거나 한 번에 보내는 장수를 줄여주세요.');
+    }
+    throw new Error(`중계 서버 응답을 이해하지 못했습니다 (${proxied.status}) ${rawBody.slice(0, 120)}`);
+  }
   if (!proxied.ok) throw new Error(`${proxied.status} ${JSON.stringify(data)}`);
 
   const textBlock = (data.content || []).find((b) => b.type === 'text');
   if (!textBlock) throw new Error('AI 응답을 이해하지 못했습니다.');
+  // max_tokens 에 걸려 잘리면 JSON 이 깨진다. 원인을 알 수 있게 구분해서 알려준다.
+  if (data.stop_reason === 'max_tokens') {
+    throw new Error('AI 응답이 너무 길어 잘렸습니다. (stop_reason=max_tokens)');
+  }
   return JSON.parse(textBlock.text);
 }
 
