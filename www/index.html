@@ -153,7 +153,13 @@
           <button class="dashboard-more-btn" onclick="openHistory()" data-i18n="home.viewAll">전체 보기</button>
         </div>
 
-        <!-- 정보 카드(알아두면 좋은 정보 / 우리 지역 정보)는 screen-info 탭으로 옮겼다 -->
+        <!-- 정보 요약: 전체 목록은 정보 탭(screen-info)에 있고, 여기서는 앞의 2개만 보여준 뒤 "더보기"로 넘긴다.
+             홈이 다시 길어지지 않도록 항목 수를 늘리지 말 것(HOME_INFO_PREVIEW_COUNT). -->
+        <div class="dashboard-card" id="homeInfoCard" style="display:none;">
+          <div class="dashboard-card-title" id="homeInfoTitle"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-info"></use></svg><span data-i18n="home.publicInfoDefault">알아두면 좋은 정보</span></div>
+          <div class="group" id="homeInfoList" style="background:#fff;"></div>
+          <button class="dashboard-more-btn" onclick="goTo('screen-info')" data-i18n="home.infoMore">정보 더보기</button>
+        </div>
 
         <!-- 다가오는 일정 -->
         <div class="upcoming-schedule" id="upcomingSchedule" style="display:none;">

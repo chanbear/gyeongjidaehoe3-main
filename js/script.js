@@ -258,6 +258,7 @@ function formatNow(){
 function renderHomeDashboard(){
   renderTodayTasks();
   renderUpcomingSchedule();
+  renderHomeInfoCard();
 }
 
 /** 정보 탭: 홈에 있던 읽을거리를 이쪽으로 옮겼다.
@@ -1491,6 +1492,7 @@ const I18N = {
     'home.viewAll': '전체 보기',
     'home.noTasksToday': '오늘 할 일이 없습니다.',
     'home.publicInfoDefault': '알아두면 좋은 정보',
+    'home.infoMore': '정보 더보기',
     'home.disclaimer': '본 서비스는 AI 분석 결과로 참고용이며,<br>중요 문서는 전문가와 상담하시기 바랍니다.',
     'nav.home': '홈', 'nav.info': '정보', 'nav.help': '도움', 'nav.history': '기록', 'nav.settings': '설정',
     'info.sectionTitle': '알아두면 좋은 정보',
@@ -1582,6 +1584,7 @@ const I18N = {
     'home.viewAll': '查看全部',
     'home.noTasksToday': '今天没有要做的事。',
     'home.publicInfoDefault': '需要了解的信息',
+    'home.infoMore': '查看更多信息',
     'home.disclaimer': '本服务为AI分析结果，仅供参考，<br>重要文件请咨询专业人士。',
     'nav.home': '主页', 'nav.info': '信息', 'nav.help': '帮助', 'nav.history': '记录', 'nav.settings': '设置',
     'info.sectionTitle': '需要了解的信息',
@@ -1673,6 +1676,7 @@ const I18N = {
     'home.viewAll': 'Xem tất cả',
     'home.noTasksToday': 'Hôm nay không có việc cần làm.',
     'home.publicInfoDefault': 'Thông tin nên biết',
+    'home.infoMore': 'Xem thêm thông tin',
     'home.disclaimer': 'Dịch vụ này chỉ mang tính tham khảo (kết quả phân tích AI),<br>hãy hỏi chuyên gia với tài liệu quan trọng.',
     'nav.home': 'Trang chủ', 'nav.info': 'Thông tin', 'nav.help': 'Trợ giúp', 'nav.history': 'Lịch sử', 'nav.settings': 'Cài đặt',
     'info.sectionTitle': 'Thông tin nên biết',
@@ -1764,6 +1768,7 @@ const I18N = {
     'home.viewAll': 'ดูทั้งหมด',
     'home.noTasksToday': 'วันนี้ไม่มีสิ่งที่ต้องทำ',
     'home.publicInfoDefault': 'ข้อมูลที่ควรรู้',
+    'home.infoMore': 'ดูข้อมูลเพิ่มเติม',
     'home.disclaimer': 'บริการนี้เป็นผลวิเคราะห์จาก AI เพื่อการอ้างอิงเท่านั้น<br>เอกสารสำคัญกรุณาปรึกษาผู้เชี่ยวชาญ',
     'nav.home': 'หน้าแรก', 'nav.info': 'ข้อมูล', 'nav.help': 'ช่วยเหลือ', 'nav.history': 'ประวัติ', 'nav.settings': 'ตั้งค่า',
     'info.sectionTitle': 'ข้อมูลที่ควรรู้',
@@ -1855,6 +1860,7 @@ const I18N = {
     'home.viewAll': "Barchasini ko'rish",
     'home.noTasksToday': "Bugun bajarilishi kerak bo'lgan vazifa yo'q.",
     'home.publicInfoDefault': "Bilish foydali ma'lumotlar",
+    'home.infoMore': "Ko'proq ma'lumot",
     'home.disclaimer': "Bu xizmat AI tahlili natijasi bo'lib, faqat ma'lumot uchundir.<br>Muhim hujjatlar uchun mutaxassisga murojaat qiling.",
     'nav.home': 'Bosh sahifa', 'nav.info': "Ma'lumot", 'nav.help': 'Yordam', 'nav.history': 'Tarix', 'nav.settings': 'Sozlamalar',
     'info.sectionTitle': "Bilish foydali ma'lumotlar",
@@ -1987,6 +1993,7 @@ function setProfileField(field, value){
   saveState();
   syncProfileUI();
   renderPublicInfoCard();
+  renderHomeInfoCard(); // 인사말이 이름·나이를 따라가므로 홈 요약 카드도 같이 갱신한다
   if (field === 'region') queueRegionInfoRefresh();
   queueProfileSave();
 }
@@ -2058,6 +2065,7 @@ async function loadProfileFromServer(){
       saveState();
       syncProfileUI();
       renderPublicInfoCard();
+      renderHomeInfoCard();
     }
   } catch (err) {
     console.warn('프로필 서버 불러오기 실패:', err);
@@ -2089,24 +2097,42 @@ const PUBLIC_INFO_ITEMS = [
   { id: 'voicephishing', title: '보이스피싱 예방', desc: '의심스러운 전화나 문자는 118로 바로 신고할 수 있어요' }
 ];
 
-function renderPublicInfoCard(){
-  const card = document.getElementById('publicInfoCard');
-  if (!card) return;
-  const list = document.getElementById('publicInfoList');
-  const titleEl = document.getElementById('publicInfoTitle');
-
+/** 프로필이 있으면 "○○님을 위한 정보"처럼 인사말을 맞춰준다(지역별 실데이터가 아니라 호칭만 맞춤). */
+function publicInfoGreeting(){
   const { name, gender, age } = appState.profile;
   const who = name ? `${name}님` : (age ? `${toAgeBand(age)}대${gender ? ' ' + gender : ''} 어르신` : '');
-  const greeting = who ? `${who}을 위한 정보` : t('home.publicInfoDefault');
-  titleEl.innerHTML = `<svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-info"></use></svg>${escapeHtml(greeting)}`;
+  return who ? `${who}을 위한 정보` : t('home.publicInfoDefault');
+}
 
-  list.innerHTML = PUBLIC_INFO_ITEMS.map(item => `
+function publicInfoRowsHtml(items){
+  return items.map(item => `
     <div class="row" onclick="goTo('screen-info-${item.id}')" role="button" tabindex="0">
       <div class="icon-chip accent"><svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg></div>
       <div class="text"><div class="t1">${escapeHtml(item.title)}</div><div class="t2">${escapeHtml(item.desc)}</div></div>
       <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
     </div>
   `).join('');
+}
+
+/** 정보 탭(screen-info)의 전체 목록 */
+function renderPublicInfoCard(){
+  const card = document.getElementById('publicInfoCard');
+  if (!card) return;
+  document.getElementById('publicInfoTitle').innerHTML =
+    `<svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-info"></use></svg>${escapeHtml(publicInfoGreeting())}`;
+  document.getElementById('publicInfoList').innerHTML = publicInfoRowsHtml(PUBLIC_INFO_ITEMS);
+  card.style.display = 'block';
+}
+
+/** 홈의 정보 요약 카드: 앞의 2개만 보여주고 나머지는 "더보기"로 정보 탭에 넘긴다.
+ *  홈이 다시 길어지는 것을 막기 위한 상한이므로 이 숫자를 늘리지 말 것. */
+const HOME_INFO_PREVIEW_COUNT = 2;
+function renderHomeInfoCard(){
+  const card = document.getElementById('homeInfoCard');
+  if (!card) return;
+  document.getElementById('homeInfoTitle').innerHTML =
+    `<svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-info"></use></svg>${escapeHtml(publicInfoGreeting())}`;
+  document.getElementById('homeInfoList').innerHTML = publicInfoRowsHtml(PUBLIC_INFO_ITEMS.slice(0, HOME_INFO_PREVIEW_COUNT));
   card.style.display = 'block';
 }
 
