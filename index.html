@@ -627,17 +627,17 @@
       <!-- 실사용: 문서 결과 (사진 + 요약) -->
       <!-- data-voice는 실제 분석 결과가 나온 뒤 renderDocResult()가 동적으로 채워 넣는다(고정 문구를 넣지 않음) -->
       <section class="screen" id="screen-result-doc">
-        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg>분석 결과</span><button class="gear-btn" onclick="goTo('screen-settings')" aria-label="설정"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg></button></div>
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg><span data-i18n="result.docTitle">분석 결과</span></span><button class="gear-btn" onclick="goTo('screen-settings')" aria-label="설정"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg></button></div>
         <div class="result-card success">
           <div class="seal"><svg viewBox="0 0 24 24"><use href="#ic-check"></use></svg></div>
           <span class="badge">정상 · 조치가 필요해요</span>
           <div class="headline">올해 안에 건강검진을 받으셔야 합니다.</div>
         </div>
-        <button class="voice-pill block" data-replay><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg>큰 소리로 읽어주기</button>
+        <button class="voice-pill block" data-replay><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="result.readAloud">큰 소리로 읽어주기</span></button>
 
         <div class="doc-info-card">
-          <span class="pill-badge">문서 종류</span>
-          <div class="doc-preview-label"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-camera"></use></svg>사진 보기</div>
+          <span class="pill-badge" data-i18n="result.docKind">문서 종류</span>
+          <div class="doc-preview-label"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-camera"></use></svg><span data-i18n="result.viewPhoto">사진 보기</span></div>
           <div class="doc-preview">
             <div id="docPreviewContent" style="background:#fff;padding:16px;font-size:11px;line-height:1.55;color:#333;border-bottom:1px solid #eee;">
               <div style="font-size:13px;font-weight:700;text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #ddd;">국민건강보험공단</div>
@@ -649,20 +649,20 @@
             </div>
           </div>
           <div class="view-toggle">
-            <button class="active" data-view="easy" onclick="setDocView('easy')">쉬운 설명</button>
-            <button data-view="original" onclick="setDocView('original')">원문 보기</button>
+            <button class="active" data-view="easy" onclick="setDocView('easy')" data-i18n="result.viewEasy">쉬운 설명</button>
+            <button data-view="original" onclick="setDocView('original')" data-i18n="result.viewOriginal">원문 보기</button>
           </div>
           <div class="doc-summary" id="docEasyView" style="box-shadow:none;padding:14px 0 0;">
-            <h3>⚪ AI가 정리한 내용</h3>
+            <h3 data-i18n="result.aiSummaryTitle">⚪ AI가 정리한 내용</h3>
             <p>올해 안에 <strong>건강검진</strong>을 받으셔야 합니다. 가까운 검진기관에 예약하시고, 신분증을 준비해주세요.</p>
           </div>
           <div class="doc-summary" id="docOriginalView" style="display:none;box-shadow:none;padding:14px 0 0;">
-            <h3><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-doc"></use></svg>원문</h3>
+            <h3><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-doc"></use></svg><span data-i18n="result.originalTitle">원문</span></h3>
             <p>건강검진 대상자 안내 / 대상: 만 40세 이상 / 기간: 2026.1.1~12.31 / 방법: 가까운 검진기관 예약 / 미수검 시 건강보험료 할증</p>
           </div>
         </div>
 
-        <div class="section-label">해야 할 일</div>
+        <div class="section-label" data-i18n="result.todoLabel">해야 할 일</div>
         <div class="checklist todo-list">
           <div class="checklist-row">
             <label><input type="checkbox" class="schedule-check" data-schedule="건강검진 예약하기" data-source="건강검진 안내 문서" data-location="국민건강보험공단"> 예약하기</label>
@@ -675,21 +675,21 @@
         </div>
 
         <div class="auto-actions" id="docAutoActions" style="display:none;">
-          <a class="auto-action-btn" id="docActionPhone" href="tel:" style="display:none;"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg>전화하기</a>
-          <button class="auto-action-btn" id="docActionWebsite" style="display:none;"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-globe"></use></svg>홈페이지</button>
-          <button class="auto-action-btn" id="docActionMap" style="display:none;"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-pin"></use></svg>길찾기</button>
+          <a class="auto-action-btn" id="docActionPhone" href="tel:" style="display:none;"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg><span data-i18n="result.actionPhone">전화하기</span></a>
+          <button class="auto-action-btn" id="docActionWebsite" style="display:none;"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-globe"></use></svg><span data-i18n="result.actionWebsite">홈페이지</span></button>
+          <button class="auto-action-btn" id="docActionMap" style="display:none;"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-pin"></use></svg><span data-i18n="result.actionMap">길찾기</span></button>
         </div>
 
         <div class="share-box">
-          <h3><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-share"></use></svg>공유하기</h3>
+          <h3><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-share"></use></svg><span data-i18n="result.shareTitle">공유하기</span></h3>
           <div class="share-buttons">
-            <button class="share-btn" onclick="shareViaSms(currentDocShareText())"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-chat"></use></svg>문자</button>
-            <button class="share-btn" onclick="shareViaKakao(currentDocShareText())">💛 카카오톡</button>
-            <button class="share-btn" onclick="shareViaCopy(currentDocShareText())"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-clipboard"></use></svg>복사하기</button>
+            <button class="share-btn" onclick="shareViaSms(currentDocShareText())"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-chat"></use></svg><span data-i18n="result.shareSms">문자</span></button>
+            <button class="share-btn" onclick="shareViaKakao(currentDocShareText())" data-i18n="result.shareKakao">💛 카카오톡</button>
+            <button class="share-btn" onclick="shareViaCopy(currentDocShareText())"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-clipboard"></use></svg><span data-i18n="result.shareCopy">복사하기</span></button>
           </div>
         </div>
 
-        <button class="primary-btn" onclick="finishDocResult()">확인 완료</button>
+        <button class="primary-btn" onclick="finishDocResult()" data-i18n="result.docConfirm">확인 완료</button>
       </section>
 
       <!-- 실사용: 문자 - 휴대폰 홈 -->
@@ -779,33 +779,33 @@
       </section>
 
       <!-- 실사용: 문자 결과 -->
-      <section class="screen" id="screen-result-text" data-voice="이 문자는 위험할 수 있습니다. 링크를 누르거나 개인정보를 입력하지 마세요.">
-        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg>진위 판별 결과</span><button class="gear-btn" onclick="goTo('screen-settings')" aria-label="설정"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg></button></div>
+      <section class="screen" id="screen-result-text" data-voice="이 문자는 위험할 수 있습니다. 링크를 누르거나 개인정보를 입력하지 마세요." data-voice-i18n="result.textVoice">
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg><span data-i18n="result.textTitle">진위 판별 결과</span></span><button class="gear-btn" onclick="goTo('screen-settings')" aria-label="설정"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg></button></div>
         <div class="result-card danger">
           <div class="seal"><svg viewBox="0 0 24 24"><use href="#ic-alert"></use></svg></div>
-          <span class="danger-pill">⚠ 위험 감지</span>
+          <span class="danger-pill" data-i18n="result.dangerPill">⚠ 위험 감지</span>
           <span class="badge">위험 · 응답하지 마세요</span>
           <div class="headline">이 문자는 위험할 수 있어요.</div>
           <div class="subtext">공공기관은 문자로 계좌번호나 링크 클릭을 요구하지 않습니다. 절대 누르지 마세요.</div>
         </div>
-        <button class="voice-pill block" data-replay><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg>음성으로 듣기</button>
+        <button class="voice-pill block" data-replay><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="result.listenVoice">음성으로 듣기</span></button>
 
-        <div class="section-label">지금 바로 대처하세요</div>
+        <div class="section-label" data-i18n="result.actNowLabel">지금 바로 대처하세요</div>
         <div class="todo-list">
-          <div class="checklist-row"><label style="cursor:default;">상대방이 요구하는 계좌번호나 비밀번호를 절대 말하지 마세요.</label></div>
-          <div class="checklist-row"><label style="cursor:default;">가족이나 가까운 지인에게 지금 상황을 꼭 알리세요.</label></div>
+          <div class="checklist-row"><label style="cursor:default;" data-i18n="result.textTip1">상대방이 요구하는 계좌번호나 비밀번호를 절대 말하지 마세요.</label></div>
+          <div class="checklist-row"><label style="cursor:default;" data-i18n="result.textTip2">가족이나 가까운 지인에게 지금 상황을 꼭 알리세요.</label></div>
         </div>
 
-        <button class="guardian-btn" onclick="notifyGuardian()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-bell"></use></svg>보호자에게 알림 보내기</button>
+        <button class="guardian-btn" onclick="notifyGuardian()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-bell"></use></svg><span data-i18n="result.notifyGuardian">보호자에게 알림 보내기</span></button>
         <p class="guardian-note" id="guardianNoteText"></p>
         <div class="action-row">
-          <a class="secondary-btn" href="tel:118"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg>118 신고(경찰청 상담)</a>
-          <button class="secondary-btn" onclick="callGuardian()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg>가족에게 전화</button>
+          <a class="secondary-btn" href="tel:118"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg><span data-i18n="result.report118">118 신고(경찰청 상담)</span></a>
+          <button class="secondary-btn" onclick="callGuardian()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg><span data-i18n="result.callFamily">가족에게 전화</span></button>
         </div>
-        <button class="secondary-btn" style="margin-top:10px;" onclick="goTo('screen-sms-phone')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-chat"></use></svg>다른 문자 확인하기</button>
-        <p class="settings-save-note" style="margin-top:14px;">본 판별은 인공지능 분석 결과이므로 법적 효력이 없습니다.<br>의심스러운 경우 반드시 관계 기관에 직접 문의하세요.</p>
-        <button class="primary-btn" style="margin-top:14px;" onclick="finishSmsResult()">확인했습니다</button>
-        <button class="practice-again-box" style="margin-top:12px;" onclick="goTo('screen-greet')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-refresh"></use></svg>연습 다시 하기</button>
+        <button class="secondary-btn" style="margin-top:10px;" onclick="goTo('screen-sms-phone')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-chat"></use></svg><span data-i18n="result.checkAnotherSms">다른 문자 확인하기</span></button>
+        <p class="settings-save-note" style="margin-top:14px;" data-i18n="result.legalNote">본 판별은 인공지능 분석 결과이므로 법적 효력이 없습니다.<br>의심스러운 경우 반드시 관계 기관에 직접 문의하세요.</p>
+        <button class="primary-btn" style="margin-top:14px;" onclick="finishSmsResult()" data-i18n="result.textConfirm">확인했습니다</button>
+        <button class="practice-again-box" style="margin-top:12px;" onclick="goTo('screen-greet')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-refresh"></use></svg><span data-i18n="result.practiceAgain">연습 다시 하기</span></button>
       </section>
 
       <!-- 기존 메시지 내역 / 일정 -->
