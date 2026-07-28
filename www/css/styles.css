@@ -257,11 +257,14 @@
   .history-section{ margin-bottom:20px; }
   .history-section h2{ font-size:calc(17px * var(--scale)); font-weight:700; color:var(--ink-soft); margin:0 0 10px; }
   .history-item{
+    display:flex; align-items:center; gap:10px; cursor:pointer;
     padding:14px; background:var(--bg-app); border:1px solid var(--line);
     border-radius:var(--radius-md); margin-bottom:8px; font-size:calc(16px * var(--scale)); line-height:1.5;
   }
+  .history-item .hi-body{ flex:1; min-width:0; }
   .history-item .hi-title{ font-weight:700; margin-bottom:4px; }
   .history-item .hi-meta{ font-size:calc(13px * var(--scale)); color:var(--ink-faint); }
+  .history-item .chev{ width:16px; height:16px; color:var(--ink-faint); flex-shrink:0; }
   .schedule-item{
     display:flex; align-items:center; gap:10px; padding:14px;
     background:var(--accent-soft); border:1px solid var(--accent); border-radius:var(--radius-md);

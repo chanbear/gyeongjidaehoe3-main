@@ -651,8 +651,14 @@ function toggleTaskDone(id){
  *  항목 하나가 작은 객체라 localStorage 용량에는 여유가 있다. */
 const HISTORY_LIMIT = 100;
 
+/** 분석 결과 중 다시 열어볼 때 필요한 것만 골라 기록에 저장한다.
+ *  사진 자체는 저장하지 않는다 - 기록을 최대 100건까지 쌓는데 사진(수백 KB씩)을 다 넣으면
+ *  localStorage 용량을 금방 넘긴다. 다시 볼 때는 "사진은 다시 보여드릴 수 없어요"로 안내한다. */
+const ANALYSIS_STORE_KEYS = ['status', 'headline', 'summary', 'checklist', 'phone', 'website', 'mapQuery', 'category', 'amount', 'dueDate', 'issuer'];
+
 /** 분석 기록 추가.
- *  extra 에 문서에서 읽어낸 값(amount/dueDate/category/issuer)을 함께 넘기면 통계에 쓰인다.
+ *  extra 에 AI 분석 결과 전체(status/headline/summary/checklist/...)를 넘기면
+ *  기록에서 다시 열어볼 수 있고(openHistoryEntry), 문서라면 amount/dueDate도 통계에 쓰인다.
  *  ts(밀리초)는 정렬·그래프용이다 — time 은 "7/29 14:30" 같은 표시용 문자열이라 정렬에 쓸 수 없다.
  *  extra 없이 호출하던 기존 코드와 예전에 저장된 기록({title, result, time}만 있는 항목)도 그대로 동작한다. */
 function addHistory(title, result, extra){
@@ -660,6 +666,12 @@ function addHistory(title, result, extra){
   if (exists) { saveState(); return; }
   const entry = { title, result, time: formatNow(), ts: Date.now() };
   if (extra && typeof extra === 'object') {
+    const analysis = {};
+    for (const k of ANALYSIS_STORE_KEYS) {
+      if (extra[k] !== undefined && extra[k] !== null && extra[k] !== '') analysis[k] = extra[k];
+    }
+    if (Object.keys(analysis).length) entry.analysis = analysis;
+
     const amount = Number(extra.amount);
     if (Number.isFinite(amount) && amount > 0) entry.amount = amount;
     if (/^\d{4}-\d{2}-\d{2}$/.test(String(extra.dueDate || ''))) entry.dueDate = extra.dueDate;
@@ -670,6 +682,28 @@ function addHistory(title, result, extra){
   if (appState.history.length > HISTORY_LIMIT) appState.history.length = HISTORY_LIMIT;
   saveState();
   // 홈의 최근 기록 카드는 기록 탭으로 옮겨졌다(renderHistory가 전체 목록을 그린다).
+}
+
+/** 기록을 눌러 그때의 분석 결과를 다시 연다.
+ *  예전에 저장된 기록(이 기능이 생기기 전이라 analysis가 없는 항목)은 원문을 저장해두지 않았으므로
+ *  다시 볼 수 없다고 솔직하게 안내한다 - 없는 내용을 지어내 보여주지 않는다. */
+function openHistoryEntry(index){
+  const h = appState.history[index];
+  if (!h) return;
+  if (!h.analysis) { speak(t('history.noDetail')); return; }
+
+  const isSms = h.title.startsWith('💬');
+  lastCapturedPhoto = null; // 사진은 저장해두지 않으므로 다시 보여줄 수 없다
+  if (isSms) {
+    lastSmsAnalysis = h.analysis;
+    goTo('screen-result-text');
+  } else {
+    lastDocAnalysis = h.analysis;
+    docAnalyses = [h.analysis];
+    docAnalysisIndex = 0;
+    historyPreviewMode = true; // applyDocPreview()가 사진 대신 안내 문구를 보여주도록
+    goTo('screen-result-doc');
+  }
 }
 
 /** 기록 하나의 시각을 밀리초로. 예전 기록에는 ts 가 없으므로 time 문자열에서 최대한 복원한다.
@@ -693,8 +727,16 @@ function renderHistory(){
   if (appState.history.length === 0) {
     hList.innerHTML = '<div class="empty-state">아직 분석한 기록이 없습니다.<br>문서 찍기나 문자 보기를 이용해보세요.</div>';
   } else {
-    hList.innerHTML = appState.history.map(h =>
-      `<div class="history-item"><div class="hi-title">${escapeHtml(h.title)}</div><div class="hi-meta">${escapeHtml(h.result)} · ${escapeHtml(h.time)}</div></div>`
+    // 항목을 누르면 openHistoryEntry()가 그때의 분석 결과를 다시 보여준다.
+    // analysis가 없는(이 기능 이전에 저장된) 기록도 눌러지되, 안에서 "다시 볼 수 없다"고 안내한다.
+    hList.innerHTML = appState.history.map((h, i) => `
+      <div class="history-item" onclick="openHistoryEntry(${i})" role="button" tabindex="0">
+        <div class="hi-body">
+          <div class="hi-title">${escapeHtml(h.title)}</div>
+          <div class="hi-meta">${escapeHtml(h.result)} · ${escapeHtml(h.time)}</div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+      </div>`
     ).join('');
   }
   if (appState.schedule.length === 0) {
@@ -821,7 +863,8 @@ function finishSmsResult(){
   // (사진 분석 finishDocResult()는 실제 문서를 찍은 것이므로 튜토리얼 중에도 그대로 기록한다.)
   if (lastSmsAnalysis && !coachActive) {
     const badge = statusBadgeMap[lastSmsAnalysis.status] || statusBadgeMap.normal;
-    addHistory('💬 ' + (lastSmsAnalysis.headline || '문자 분석'), badge.text);
+    // lastSmsAnalysis를 함께 넘겨야 기록에서 다시 열어볼 수 있다(예전에는 제목만 남기고 버렸다)
+    addHistory('💬 ' + (lastSmsAnalysis.headline || '문자 분석'), badge.text, lastSmsAnalysis);
     // 예전에는 여기서 '보호자 알림 발송 (자동)' 기록을 남겼지만, 실제로 문자를 보내는 코드가 없어
     // 하지도 않은 일을 기록에 남기는 셈이었다. 브라우저/웹뷰는 사용자의 조작 없이 문자 앱을 열 수 없어
     // 자동 발송 자체가 불가능하므로, 기록은 notifyGuardian()에서 사용자가 실제로 버튼을 눌러
@@ -1061,6 +1104,8 @@ const AI_WORKER_URL = 'https://ondam-ai.kke88084.workers.dev';
 let lastCapturedPhoto = null;
 let lastDocAnalysis = null;
 let docPreviewDefaultHTML = '';
+/** openHistoryEntry()가 켜두는 1회용 플래그. applyDocPreview()가 다음 한 번 읽고 스스로 끈다. */
+let historyPreviewMode = false;
 
 /** 네이티브 앱(APK)에서만 Camera 플러그인이 존재. 웹/PWA에서는 null. */
 function getCameraPlugin(){
@@ -1159,11 +1204,18 @@ function cancelPendingPhotos(){
 function capturePhoto(){ return pickPhoto(true, 'environment'); }
 function pickFromGallery(){ return pickPhoto(false, null); }
 
-/** 실제로 찍거나 고른 사진이 있으면 결과 화면에 보여주고, 없으면(연습 등) 기본 예시로 되돌림 */
+/** 실제로 찍거나 고른 사진이 있으면 결과 화면에 보여주고,
+ *  기록을 다시 열어본 경우(사진을 저장해두지 않음)에는 안내 문구를,
+ *  그 외(연습 등 사진이 아예 없는 경우)에는 기본 예시로 되돌린다. */
 function applyDocPreview(){
   const el = document.getElementById('docPreviewContent');
+  const isHistoryPreview = historyPreviewMode;
+  historyPreviewMode = false; // 다음 화면 진입에 영향이 남지 않도록 한 번 읽고 바로 끈다
   if (lastCapturedPhoto) {
     el.innerHTML = `<img src="${lastCapturedPhoto}" style="width:100%;display:block;">`;
+  } else if (isHistoryPreview) {
+    // history.noPhoto는 <br>이 섞인 번역 문구라 escapeHtml로 감싸면 안 된다(다른 data-i18n 문구와 같은 방식)
+    el.innerHTML = `<div style="padding:28px 16px;text-align:center;color:var(--ink-faint);font-size:13px;">${t('history.noPhoto')}</div>`;
   } else if (docPreviewDefaultHTML) {
     el.innerHTML = docPreviewDefaultHTML;
   }
@@ -1750,6 +1802,8 @@ const I18N = {
     'ask.failed': '지금은 답변을 드리기 어려워요. 잠시 후 다시 물어봐 주세요.',
     'ask.offline': '인터넷 연결을 확인해주세요.',
     'ask.notInDocument': '※ 이 문서에 적힌 내용은 아니에요. 정확한 것은 해당 기관에 확인해주세요.',
+    'history.noDetail': '이 기록은 예전 방식으로 저장되어 다시 볼 수 없어요.',
+    'history.noPhoto': '이 기록의 사진은 다시 보여드릴 수 없어요.<br>아래 내용은 그때 분석한 결과 그대로예요.',
     'docCollect.title': '찍은 사진',
     'docCollect.count': '{n}장을 찍으셨어요.',
     'docCollect.hint': '여러 장을 찍으셔도 됩니다. 같은 문서의 앞뒤든, 서로 다른 문서든 알아서 구분해 드려요.',
@@ -1941,6 +1995,8 @@ const I18N = {
     'ask.failed': '现在难以给出答复。请稍后再问。',
     'ask.offline': '请检查网络连接。',
     'ask.notInDocument': '※ 这不是文件上写的内容。准确信息请向相关机构确认。',
+    'history.noDetail': '这条记录是以旧方式保存的，无法再次查看详情。',
+    'history.noPhoto': '无法再次显示这条记录的照片。<br>以下内容是当时分析的结果。',
     'docCollect.title': '已拍摄的照片',
     'docCollect.count': '已拍摄{n}张。',
     'docCollect.hint': '可以拍多张。无论是同一份文件的正反面，还是不同的文件，我们都会自动区分。',
@@ -2132,6 +2188,8 @@ const I18N = {
     'ask.failed': 'Hiện chưa thể trả lời. Xin hỏi lại sau ít phút.',
     'ask.offline': 'Xin kiểm tra kết nối mạng.',
     'ask.notInDocument': '※ Đây không phải nội dung ghi trong tài liệu. Xin xác nhận chính xác với cơ quan liên quan.',
+    'history.noDetail': 'Bản ghi này được lưu theo cách cũ nên không thể xem lại chi tiết.',
+    'history.noPhoto': 'Không thể hiển thị lại ảnh của bản ghi này.<br>Nội dung dưới đây là kết quả phân tích lúc đó.',
     'docCollect.title': 'Ảnh đã chụp',
     'docCollect.count': 'Bạn đã chụp {n} ảnh.',
     'docCollect.hint': 'Bạn có thể chụp nhiều ảnh. Dù là mặt trước sau của cùng một tài liệu hay các tài liệu khác nhau, chúng tôi sẽ tự phân biệt.',
@@ -2323,6 +2381,8 @@ const I18N = {
     'ask.failed': 'ตอนนี้ยังตอบไม่ได้ กรุณาถามใหม่ภายหลัง',
     'ask.offline': 'กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต',
     'ask.notInDocument': '※ ไม่ใช่เนื้อหาที่เขียนในเอกสาร กรุณาตรวจสอบกับหน่วยงานที่เกี่ยวข้อง',
+    'history.noDetail': 'บันทึกนี้ถูกบันทึกด้วยวิธีเดิม จึงไม่สามารถดูรายละเอียดอีกครั้งได้',
+    'history.noPhoto': 'ไม่สามารถแสดงรูปภาพของบันทึกนี้อีกครั้งได้<br>เนื้อหาด้านล่างคือผลการวิเคราะห์ในตอนนั้น',
     'docCollect.title': 'รูปที่ถ่ายแล้ว',
     'docCollect.count': 'ถ่ายไปแล้ว {n} รูป',
     'docCollect.hint': 'ถ่ายได้หลายรูป ไม่ว่าจะเป็นด้านหน้าหลังของเอกสารเดียวกัน หรือเอกสารคนละฉบับ เราจะแยกให้เอง',
@@ -2514,6 +2574,8 @@ const I18N = {
     'ask.failed': 'Hozir javob berish qiyin. Birozdan so‘ng qayta so‘rang.',
     'ask.offline': 'Internet aloqasini tekshiring.',
     'ask.notInDocument': '※ Bu hujjatda yozilgan narsa emas. Aniq ma’lumotni tegishli idoradan tekshiring.',
+    'history.noDetail': 'Bu yozuv eski usulda saqlangani uchun qayta ko\'rib bo\'lmaydi.',
+    'history.noPhoto': 'Bu yozuvning suratini qayta ko\'rsatib bo\'lmaydi.<br>Quyidagi mazmun o\'sha paytdagi tahlil natijasi.',
     'docCollect.title': 'Olingan suratlar',
     'docCollect.count': '{n} ta surat oldingiz.',
     'docCollect.hint': 'Bir nechta surat olishingiz mumkin. Bir hujjatning old-orqasi ham, turli hujjatlar ham bo\'lsa, o\'zimiz ajratamiz.',
