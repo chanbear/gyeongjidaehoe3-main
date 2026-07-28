@@ -596,7 +596,9 @@
 .stat-hero-value{ font-size:calc(34px * var(--scale)); font-weight:800; letter-spacing:-.03em; color:var(--ink); line-height:1.15; }
 .stat-hero-sub{ font-size:calc(14px * var(--scale)); color:var(--ink-soft); margin-top:6px; }
 .chart-box{ background:var(--bg-app); border:1.5px solid var(--line); border-radius:var(--radius-md); padding:14px 10px 8px; }
-.chart-box svg{ width:100%; height:auto; display:block; }
+/* viewBox 비율이 고정이라 폭이 넓어지면 세로도 같이 커진다.
+   폰에서는 문제없지만 데스크톱 브라우저로 열면 화면을 다 잡아먹어서 상한을 둔다. */
+.chart-box svg{ width:100%; max-width:420px; height:auto; display:block; margin:0 auto; }
 /* 눈금·격자는 뒤로 물러나고 데이터가 앞에 오도록 */
 .chart-grid{ stroke:var(--line); stroke-width:1; }
 .chart-axis-text{ fill:var(--ink-faint); font-size:11px; font-weight:600; }
