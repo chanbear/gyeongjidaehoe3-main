@@ -170,6 +170,7 @@ function goTo(id){
 
   if (id === 'screen-home') renderHomeDashboard();
   if (id === 'screen-info') renderInfoTab();
+  if (id === 'screen-stats') renderStats();
   if (id === 'screen-settings') syncSettingsUI();
   if (id === 'screen-profile') syncProfileUI();
   if (id === 'screen-history') renderHistory();
@@ -257,6 +258,7 @@ function formatNow(){
 function renderHomeDashboard(){
   renderTodayTasks();
   renderUpcomingSchedule();
+  renderHomeDueCard();
   renderHomeInfoCard();
 }
 
@@ -643,14 +645,44 @@ function toggleTaskDone(id){
   if (document.getElementById('screen-history').classList.contains('active')) renderHistory();
 }
 
-/** 최근 기록(최대 10개) 추가 */
-function addHistory(title, result){
+/** 통계(월별 합계·누적 그래프)를 그리려면 기록이 어느 정도 쌓여 있어야 해서 상한을 늘렸다.
+ *  항목 하나가 작은 객체라 localStorage 용량에는 여유가 있다. */
+const HISTORY_LIMIT = 100;
+
+/** 분석 기록 추가.
+ *  extra 에 문서에서 읽어낸 값(amount/dueDate/category/issuer)을 함께 넘기면 통계에 쓰인다.
+ *  ts(밀리초)는 정렬·그래프용이다 — time 은 "7/29 14:30" 같은 표시용 문자열이라 정렬에 쓸 수 없다.
+ *  extra 없이 호출하던 기존 코드와 예전에 저장된 기록({title, result, time}만 있는 항목)도 그대로 동작한다. */
+function addHistory(title, result, extra){
   const exists = appState.history.some(h => h.title === title);
   if (exists) { saveState(); return; }
-  appState.history.unshift({ title, result, time: formatNow() });
-  if (appState.history.length > 10) appState.history.length = 10;
+  const entry = { title, result, time: formatNow(), ts: Date.now() };
+  if (extra && typeof extra === 'object') {
+    const amount = Number(extra.amount);
+    if (Number.isFinite(amount) && amount > 0) entry.amount = amount;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(extra.dueDate || ''))) entry.dueDate = extra.dueDate;
+    if (extra.category) entry.category = String(extra.category);
+    if (extra.issuer) entry.issuer = String(extra.issuer);
+  }
+  appState.history.unshift(entry);
+  if (appState.history.length > HISTORY_LIMIT) appState.history.length = HISTORY_LIMIT;
   saveState();
   // 홈의 최근 기록 카드는 기록 탭으로 옮겨졌다(renderHistory가 전체 목록을 그린다).
+}
+
+/** 기록 하나의 시각을 밀리초로. 예전 기록에는 ts 가 없으므로 time 문자열에서 최대한 복원한다.
+ *  복원도 안 되면 null 을 돌려주고, 통계는 그런 항목을 건너뛴다(날짜를 지어내지 않는다). */
+function historyTimestamp(h){
+  if (h && Number.isFinite(h.ts)) return h.ts;
+  const m = /^(\d{1,2})\/(\d{1,2})/.exec(String((h && h.time) || ''));
+  if (!m) return null;
+  const now = new Date();
+  const month = Number(m[1]) - 1;
+  // 연도가 없어 올해로 가정하되, 미래가 되면 작년으로 본다
+  let year = now.getFullYear();
+  const guess = new Date(year, month, Number(m[2]));
+  if (guess.getTime() > now.getTime() + 86400000) year -= 1;
+  return new Date(year, month, Number(m[2])).getTime();
 }
 
 function renderHistory(){
@@ -762,7 +794,8 @@ function saveReminder(){
 function finishDocResult(){
   const badge = lastDocAnalysis ? (statusBadgeMap[lastDocAnalysis.status] || statusBadgeMap.normal) : statusBadgeMap.normal;
   const headline = lastDocAnalysis ? (lastDocAnalysis.headline || '문서 분석') : '건강검진 안내';
-  addHistory('📄 ' + headline, badge.text);
+  // 문서에서 읽어낸 값을 기록에 함께 남겨 기한 알림·통계에 쓴다(없으면 addHistory가 알아서 걸러낸다)
+  addHistory('📄 ' + headline, badge.text, lastDocAnalysis || undefined);
   lastCapturedPhoto = null;
   lastDocAnalysis = null;
   goTo('screen-home');
@@ -1578,6 +1611,13 @@ const I18N = {
     'home.noTasksToday': '오늘 할 일이 없습니다.',
     'home.publicInfoDefault': '알아두면 좋은 정보',
     'home.infoMore': '정보 더보기',
+    'home.dueTitle': '곧 내야 할 것',
+    'home.dueMore': '전체 통계 보기',
+    'stats.title': '고지서 통계',
+    'stats.thisMonth': '이번 달 고지서',
+    'stats.cumulative': '달마다 쌓인 금액',
+    'stats.upcoming': '다가오는 납부 기한',
+    'stats.empty': '아직 금액이나 기한이 적힌 문서를 확인한 적이 없어요.<br>고지서를 촬영하면 여기에 모아서 보여드릴게요.',
     'home.disclaimer': '본 서비스는 AI 분석 결과로 참고용이며,<br>중요 문서는 전문가와 상담하시기 바랍니다.',
     'nav.home': '홈', 'nav.info': '정보', 'nav.help': '도움', 'nav.history': '기록', 'nav.settings': '설정',
     'info.sectionTitle': '알아두면 좋은 정보',
@@ -1739,6 +1779,13 @@ const I18N = {
     'home.noTasksToday': '今天没有要做的事。',
     'home.publicInfoDefault': '需要了解的信息',
     'home.infoMore': '查看更多信息',
+    'home.dueTitle': '即将要缴纳的',
+    'home.dueMore': '查看全部统计',
+    'stats.title': '缴费单统计',
+    'stats.thisMonth': '本月缴费单',
+    'stats.cumulative': '每月累计金额',
+    'stats.upcoming': '临近的缴纳期限',
+    'stats.empty': '还没有确认过记有金额或期限的文件。<br>拍摄缴费单后就会汇总显示在这里。',
     'home.disclaimer': '本服务为AI分析结果，仅供参考，<br>重要文件请咨询专业人士。',
     'nav.home': '主页', 'nav.info': '信息', 'nav.help': '帮助', 'nav.history': '记录', 'nav.settings': '设置',
     'info.sectionTitle': '需要了解的信息',
@@ -1900,6 +1947,13 @@ const I18N = {
     'home.noTasksToday': 'Hôm nay không có việc cần làm.',
     'home.publicInfoDefault': 'Thông tin nên biết',
     'home.infoMore': 'Xem thêm thông tin',
+    'home.dueTitle': 'Sắp phải nộp',
+    'home.dueMore': 'Xem toàn bộ thống kê',
+    'stats.title': 'Thống kê hóa đơn',
+    'stats.thisMonth': 'Hóa đơn tháng này',
+    'stats.cumulative': 'Số tiền tích lũy theo tháng',
+    'stats.upcoming': 'Hạn nộp sắp tới',
+    'stats.empty': 'Bạn chưa kiểm tra tài liệu nào có ghi số tiền hay hạn nộp.<br>Hãy chụp hóa đơn, chúng tôi sẽ tổng hợp tại đây.',
     'home.disclaimer': 'Dịch vụ này chỉ mang tính tham khảo (kết quả phân tích AI),<br>hãy hỏi chuyên gia với tài liệu quan trọng.',
     'nav.home': 'Trang chủ', 'nav.info': 'Thông tin', 'nav.help': 'Trợ giúp', 'nav.history': 'Lịch sử', 'nav.settings': 'Cài đặt',
     'info.sectionTitle': 'Thông tin nên biết',
@@ -2061,6 +2115,13 @@ const I18N = {
     'home.noTasksToday': 'วันนี้ไม่มีสิ่งที่ต้องทำ',
     'home.publicInfoDefault': 'ข้อมูลที่ควรรู้',
     'home.infoMore': 'ดูข้อมูลเพิ่มเติม',
+    'home.dueTitle': 'ที่ต้องชำระเร็ว ๆ นี้',
+    'home.dueMore': 'ดูสถิติทั้งหมด',
+    'stats.title': 'สถิติใบแจ้งหนี้',
+    'stats.thisMonth': 'ใบแจ้งหนี้เดือนนี้',
+    'stats.cumulative': 'ยอดสะสมรายเดือน',
+    'stats.upcoming': 'กำหนดชำระที่ใกล้เข้ามา',
+    'stats.empty': 'ยังไม่เคยตรวจสอบเอกสารที่ระบุจำนวนเงินหรือกำหนดชำระ<br>ถ่ายรูปใบแจ้งหนี้แล้วเราจะรวบรวมไว้ที่นี่',
     'home.disclaimer': 'บริการนี้เป็นผลวิเคราะห์จาก AI เพื่อการอ้างอิงเท่านั้น<br>เอกสารสำคัญกรุณาปรึกษาผู้เชี่ยวชาญ',
     'nav.home': 'หน้าแรก', 'nav.info': 'ข้อมูล', 'nav.help': 'ช่วยเหลือ', 'nav.history': 'ประวัติ', 'nav.settings': 'ตั้งค่า',
     'info.sectionTitle': 'ข้อมูลที่ควรรู้',
@@ -2222,6 +2283,13 @@ const I18N = {
     'home.noTasksToday': "Bugun bajarilishi kerak bo'lgan vazifa yo'q.",
     'home.publicInfoDefault': "Bilish foydali ma'lumotlar",
     'home.infoMore': "Ko'proq ma'lumot",
+    'home.dueTitle': 'Tez orada to\'lanadigan',
+    'home.dueMore': 'Barcha statistikani ko\'rish',
+    'stats.title': 'Hisob-kitob statistikasi',
+    'stats.thisMonth': 'Shu oydagi hisoblar',
+    'stats.cumulative': 'Oylar bo\'yicha to\'plangan summa',
+    'stats.upcoming': 'Yaqinlashayotgan to\'lov muddati',
+    'stats.empty': 'Hali summa yoki muddat yozilgan hujjatni tekshirmagansiz.<br>Hisobni suratga olsangiz, shu yerda jamlab ko\'rsatamiz.',
     'home.disclaimer': "Bu xizmat AI tahlili natijasi bo'lib, faqat ma'lumot uchundir.<br>Muhim hujjatlar uchun mutaxassisga murojaat qiling.",
     'nav.home': 'Bosh sahifa', 'nav.info': "Ma'lumot", 'nav.help': 'Yordam', 'nav.history': 'Tarix', 'nav.settings': 'Sozlamalar',
     'info.sectionTitle': "Bilish foydali ma'lumotlar",
@@ -2526,6 +2594,171 @@ const PUBLIC_INFO_ITEMS = [
   { id: 'checkup', title: '무료 건강검진', desc: '만 40세 이상은 국민건강보험공단에서 정기 검진을 받을 수 있어요' },
   { id: 'voicephishing', title: '보이스피싱 예방', desc: '의심스러운 전화나 문자는 118로 바로 신고할 수 있어요' }
 ];
+
+/* ---- 납부 기한 통계 ----
+   기록(appState.history)에 dueDate/amount 가 있는 항목만 대상으로 한다.
+   Worker 배포 전에는 이 값들이 없으므로 관련 카드가 전부 숨겨지고 기존과 동일하게 보인다. */
+
+/** 아직 지나지 않은 기한이 있는 기록을 가까운 순으로 */
+function upcomingDueEntries(){
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return appState.history
+    .filter(h => /^\d{4}-\d{2}-\d{2}$/.test(String(h.dueDate || '')))
+    .map(h => {
+      const [y, mo, d] = h.dueDate.split('-').map(Number);
+      return { ...h, due: new Date(y, mo - 1, d) };
+    })
+    .filter(h => h.due.getTime() >= today.getTime())
+    .sort((a, b) => a.due - b.due);
+}
+
+const HOME_DUE_PREVIEW_COUNT = 2;
+function renderHomeDueCard(){
+  const card = document.getElementById('homeDueCard');
+  if (!card) return;
+  const items = upcomingDueEntries();
+  if (items.length === 0) { card.style.display = 'none'; return; }
+
+  document.getElementById('homeDueList').innerHTML = items.slice(0, HOME_DUE_PREVIEW_COUNT).map(h => {
+    const left = docDueDateLeft(h.dueDate);
+    const amount = formatDocAmount(h.amount);
+    const sub = [formatDocDueDate(h.dueDate), amount].filter(Boolean).join(' · ');
+    return `
+      <div class="row">
+        <div class="icon-chip accent"><svg viewBox="0 0 24 24"><use href="#ic-calendar"></use></svg></div>
+        <div class="text">
+          <div class="t1">${escapeHtml(h.title)}</div>
+          <div class="t2">${escapeHtml(sub)}</div>
+        </div>
+        ${left ? `<span class="due-chip${left.urgent ? ' urgent' : ''}">${escapeHtml(left.text)}</span>` : ''}
+      </div>`;
+  }).join('');
+  card.style.display = 'block';
+}
+
+/* ---- 통계 화면 ----
+   금액이 기록된 항목이 하나도 없으면 그래프·합계를 통째로 숨기고 안내만 보여준다.
+   빈 그래프나 "0원"을 그럴듯하게 보여주지 않기 위함이다. */
+
+/** 금액이 있는 기록을 달별로 묶어 [{key:'2026-07', label:'7월', sum, count}] 로. 오래된 달부터. */
+function monthlyAmountBuckets(){
+  const map = new Map();
+  for (const h of appState.history) {
+    const amount = Number(h.amount);
+    if (!Number.isFinite(amount) || amount <= 0) continue;
+    const ts = historyTimestamp(h);
+    if (ts == null) continue;               // 시각을 모르면 그래프에 올리지 않는다
+    const d = new Date(ts);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const cur = map.get(key) || { key, label: `${d.getMonth() + 1}월`, sum: 0, count: 0 };
+    cur.sum += amount;
+    cur.count += 1;
+    map.set(key, cur);
+  }
+  return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/** 누적 선 그래프를 SVG로 직접 그린다(차트 라이브러리를 새로 들이지 않는다).
+ *  점이 1개뿐이면 선이 그려지지 않으므로 점과 값만 보여준다. */
+function renderStatsChart(buckets){
+  const svg = document.getElementById('statsChart');
+  const desc = document.getElementById('statsChartDesc');
+  if (!svg) return;
+
+  const W = 320, H = 170, padL = 14, padR = 14, padT = 22, padB = 26;
+  let running = 0;
+  const pts = buckets.map(b => { running += b.sum; return { label: b.label, value: running }; });
+  const max = Math.max(...pts.map(p => p.value), 1);
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  const x = (i) => pts.length === 1 ? padL + innerW / 2 : padL + (innerW * i) / (pts.length - 1);
+  const y = (v) => padT + innerH - (innerH * v) / max;
+
+  const parts = [];
+  // 격자 3줄(가로) — 눈금은 뒤로 물러나게
+  for (let g = 0; g <= 2; g++) {
+    const gy = padT + (innerH * g) / 2;
+    parts.push(`<line class="chart-grid" x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}"/>`);
+  }
+  if (pts.length > 1) {
+    const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
+    const area = `${line} L${x(pts.length - 1).toFixed(1)},${padT + innerH} L${x(0).toFixed(1)},${padT + innerH} Z`;
+    parts.push(`<path class="chart-area" d="${area}"/>`);
+    parts.push(`<path class="chart-line" d="${line}"/>`);
+  }
+  pts.forEach((p, i) => {
+    parts.push(`<circle class="chart-dot" cx="${x(i).toFixed(1)}" cy="${y(p.value).toFixed(1)}" r="5"/>`);
+    parts.push(`<text class="chart-axis-text" x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle">${escapeHtml(p.label)}</text>`);
+  });
+  // 값 라벨은 마지막 점에만 (모든 점에 숫자를 붙이면 읽기 어려워진다)
+  if (pts.length) {
+    const last = pts.length - 1;
+    const anchor = pts.length === 1 ? 'middle' : 'end';
+    parts.push(`<text class="chart-label" x="${x(last).toFixed(1)}" y="${(y(pts[last].value) - 10).toFixed(1)}" text-anchor="${anchor}">${escapeHtml(formatDocAmount(pts[last].value))}</text>`);
+  }
+  svg.innerHTML = parts.join('');
+
+  if (desc) {
+    desc.textContent = pts.map(p => `${p.label} 누적 ${formatDocAmount(p.value)}`).join(', ');
+  }
+}
+
+function renderStats(){
+  const buckets = monthlyAmountBuckets();
+  const dueItems = upcomingDueEntries();
+  const hasAmount = buckets.length > 0;
+
+  // 1) 이번 달 합계
+  const now = new Date();
+  const thisKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const thisMonth = buckets.find(b => b.key === thisKey);
+  const monthCard = document.getElementById('statsMonthCard');
+  if (thisMonth) {
+    document.getElementById('statsMonthAmount').textContent = formatDocAmount(thisMonth.sum);
+    document.getElementById('statsMonthCount').textContent = `${thisMonth.count}건`;
+    monthCard.style.display = 'block';
+  } else {
+    monthCard.style.display = 'none';
+  }
+
+  // 2) 전체 누적 선 그래프 + 달별 표
+  const chartSection = document.getElementById('statsChartSection');
+  chartSection.style.display = hasAmount ? 'block' : 'none';
+  if (hasAmount) {
+    renderStatsChart(buckets);
+    let running = 0;
+    document.getElementById('statsMonthList').innerHTML = buckets.map(b => {
+      running += b.sum;
+      return `
+        <div class="row">
+          <div class="text">
+            <div class="t1">${escapeHtml(b.label)} · ${b.count}건</div>
+            <div class="t2">누적 ${escapeHtml(formatDocAmount(running))}</div>
+          </div>
+          <div class="t1" style="flex-shrink:0;font-weight:800;">${escapeHtml(formatDocAmount(b.sum))}</div>
+        </div>`;
+    }).join('');
+  }
+
+  // 3) 다가오는 기한 전체
+  const dueSection = document.getElementById('statsDueSection');
+  dueSection.style.display = dueItems.length ? 'block' : 'none';
+  if (dueItems.length) {
+    document.getElementById('statsDueList').innerHTML = dueItems.map(h => {
+      const left = docDueDateLeft(h.dueDate);
+      const sub = [formatDocDueDate(h.dueDate), formatDocAmount(h.amount)].filter(Boolean).join(' · ');
+      return `
+        <div class="row">
+          <div class="icon-chip accent"><svg viewBox="0 0 24 24"><use href="#ic-calendar"></use></svg></div>
+          <div class="text"><div class="t1">${escapeHtml(h.title)}</div><div class="t2">${escapeHtml(sub)}</div></div>
+          ${left ? `<span class="due-chip${left.urgent ? ' urgent' : ''}">${escapeHtml(left.text)}</span>` : ''}
+        </div>`;
+    }).join('');
+  }
+
+  document.getElementById('statsEmpty').style.display = (hasAmount || dueItems.length) ? 'none' : 'block';
+}
 
 /** 프로필이 있으면 "○○님을 위한 정보"처럼 인사말을 맞춰준다(지역별 실데이터가 아니라 호칭만 맞춤). */
 function publicInfoGreeting(){

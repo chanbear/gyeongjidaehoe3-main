@@ -153,6 +153,14 @@
           <button class="dashboard-more-btn" onclick="openHistory()" data-i18n="home.viewAll">전체 보기</button>
         </div>
 
+        <!-- 다가오는 납부 기한: 기록에 dueDate 가 있는 항목 중 아직 안 지난 것만. 없으면 카드를 숨긴다.
+             합계 금액보다 "언제까지 뭘 내야 하는지"가 실제로 도움이 되므로 홈에 둔다. -->
+        <div class="dashboard-card" id="homeDueCard" style="display:none;">
+          <div class="dashboard-card-title"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-calendar"></use></svg><span data-i18n="home.dueTitle">곧 내야 할 것</span></div>
+          <div class="group" id="homeDueList" style="background:#fff;"></div>
+          <button class="dashboard-more-btn" onclick="goTo('screen-stats')" data-i18n="home.dueMore">전체 통계 보기</button>
+        </div>
+
         <!-- 정보 요약: 전체 목록은 정보 탭(screen-info)에 있고, 여기서는 앞의 2개만 보여준 뒤 "더보기"로 넘긴다.
              홈이 다시 길어지지 않도록 항목 수를 늘리지 말 것(HOME_INFO_PREVIEW_COUNT). -->
         <div class="dashboard-card" id="homeInfoCard" style="display:none;">
@@ -180,6 +188,35 @@
         <!-- 기록·설정 아이콘 버튼과 최근 기록 카드는 하단 네비게이션 바가 대체한다 -->
 
         <div class="disclaimer-banner" data-i18n="home.disclaimer">본 서비스는 AI 분석 결과로 참고용이며,<br>중요 문서는 전문가와 상담하시기 바랍니다.</div>
+      </section>
+
+      <!-- 통계: 이번 달 합계 + 전체 누적 선 그래프 + 다가오는 기한 전체.
+           기록에 금액·기한이 하나도 없으면(=Worker 배포 전) 안내 문구만 보여준다. -->
+      <section class="screen" id="screen-stats" data-voice="지금까지 확인한 고지서의 금액과 납부 기한을 모아서 보여드려요.">
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-list"></use></svg><span data-i18n="stats.title">고지서 통계</span></span><span></span></div>
+
+        <div class="stat-hero" id="statsMonthCard" style="display:none;">
+          <div class="stat-hero-label" data-i18n="stats.thisMonth">이번 달 고지서</div>
+          <div class="stat-hero-value" id="statsMonthAmount"></div>
+          <div class="stat-hero-sub" id="statsMonthCount"></div>
+        </div>
+
+        <div class="section" id="statsChartSection" style="display:none;">
+          <div class="section-label" data-i18n="stats.cumulative">달마다 쌓인 금액</div>
+          <div class="chart-box">
+            <svg id="statsChart" viewBox="0 0 320 170" role="img" aria-labelledby="statsChartDesc"></svg>
+            <p id="statsChartDesc" class="sr-only"></p>
+          </div>
+          <!-- 그래프를 읽기 어려운 분을 위한 표 형태(접근성) -->
+          <div class="group" id="statsMonthList" style="background:#fff;margin-top:10px;"></div>
+        </div>
+
+        <div class="section" id="statsDueSection" style="display:none;">
+          <div class="section-label" data-i18n="stats.upcoming">다가오는 납부 기한</div>
+          <div class="group" id="statsDueList" style="background:#fff;"></div>
+        </div>
+
+        <div class="empty-state" id="statsEmpty" data-i18n="stats.empty">아직 금액이나 기한이 적힌 문서를 확인한 적이 없어요.<br>고지서를 촬영하면 여기에 모아서 보여드릴게요.</div>
       </section>
 
       <!-- 정보 탭: 홈에 있던 읽을거리(전국 공통 정보 + 지역 경로당)를 모아둔 화면 -->

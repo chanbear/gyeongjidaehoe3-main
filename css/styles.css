@@ -535,6 +535,34 @@
   border-radius:999px; padding:6px 12px;
 }
 
+/* ---- 통계 화면 ---- */
+.sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+.stat-hero{
+  background:var(--accent-soft); border-radius:var(--radius-md);
+  padding:20px 18px; margin-bottom:20px; text-align:center;
+}
+.stat-hero-label{ font-size:calc(14px * var(--scale)); font-weight:700; color:var(--accent-strong); margin-bottom:6px; }
+.stat-hero-value{ font-size:calc(34px * var(--scale)); font-weight:800; letter-spacing:-.03em; color:var(--ink); line-height:1.15; }
+.stat-hero-sub{ font-size:calc(14px * var(--scale)); color:var(--ink-soft); margin-top:6px; }
+.chart-box{ background:var(--bg-app); border:1.5px solid var(--line); border-radius:var(--radius-md); padding:14px 10px 8px; }
+.chart-box svg{ width:100%; height:auto; display:block; }
+/* 눈금·격자는 뒤로 물러나고 데이터가 앞에 오도록 */
+.chart-grid{ stroke:var(--line); stroke-width:1; }
+.chart-axis-text{ fill:var(--ink-faint); font-size:11px; font-weight:600; }
+.chart-line{ fill:none; stroke:var(--accent); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.chart-area{ fill:var(--accent); opacity:.10; }
+/* 점은 표면색 링을 둘러 선과 겹쳐도 구분되게 한다 */
+.chart-dot{ fill:var(--accent); stroke:var(--bg-app); stroke-width:2; }
+.chart-label{ fill:var(--ink); font-size:12px; font-weight:800; }
+
+/* 남은 기한 칩 (홈·통계의 목록 오른쪽) */
+.due-chip{
+  flex-shrink:0; font-size:calc(13px * var(--scale)); font-weight:800;
+  background:var(--accent-soft); color:var(--accent-strong);
+  border-radius:999px; padding:6px 11px; white-space:nowrap;
+}
+.due-chip.urgent{ background:var(--danger-soft); color:var(--danger-strong); }
+
 /* ---- 안내 배너 (본 서비스는 참고용) ---- */
 .disclaimer-banner{
   background:var(--sms-bg); border-radius:var(--radius-md); padding:14px 16px;
