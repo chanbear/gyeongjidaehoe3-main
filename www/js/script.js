@@ -854,12 +854,10 @@ function startCoachmark(steps){
   goTo(coachSteps[0].screen); // goTo가 coachOnNavigate를 호출해 1단계를 띄워줌
 }
 
-/** 코치마크 오버레이(스포트라이트+말풍선+왼쪽 카테고리 사이드바)를 한꺼번에 켜고 끈다.
- *  사이드바가 보이는 동안은 body.coach-sidebar-active가 붙어 실제 화면 콘텐츠를 오른쪽으로 밀어준다. */
+/** 코치마크 오버레이(스포트라이트+말풍선)를 한꺼번에 켜고 끈다 */
 function setCoachOverlayVisible(visible){
   const overlay = document.getElementById('coachOverlay');
   if (overlay) overlay.style.display = visible ? 'block' : 'none';
-  document.body.classList.toggle('coach-sidebar-active', visible);
 }
 
 function stopCoachmark(silent){
@@ -1002,40 +1000,6 @@ function positionCoachStep(el, step){
   tip.style.top = putBelow ? (rect.bottom + pad + 10) + 'px' : '';
   tip.style.bottom = putBelow ? '' : (window.innerHeight - rect.top + pad + 10) + 'px';
   tip.style.left = Math.max(12, Math.min(rect.left, window.innerWidth - 300)) + 'px';
-
-  updateCoachSidebar(step.cat);
-}
-
-/** 왼쪽 카테고리 진행률 사이드바: 8개 카테고리 중 지금 단계가 속한 카테고리를 강조하고,
- *  전체 투어(fullCoachSteps)에서 이미 지나온 카테고리는 완료 표시를 해준다 */
-function updateCoachSidebar(activeCat){
-  const sidebar = document.getElementById('coachSidebar');
-  if (!sidebar) return;
-  const isFullTour = coachSteps === firstRunCoachSteps;
-  const currentStep = coachSteps[coachIndex];
-  const passedCats = new Set();
-  if (isFullTour) {
-    for (let i = 0; i < coachIndex; i++) passedCats.add(coachSteps[i].cat);
-  }
-  // 사이드바 항목은 지금 투어에 실제로 들어있는 분류만 순서대로 그린다.
-  // HTML에 분류를 고정해두면 투어 구성을 바꿀 때마다 빈 칸이 남으므로 여기서 만든다.
-  const cats = [];
-  coachSteps.forEach(s => { if (!cats.includes(s.cat)) cats.push(s.cat); });
-  const catsKey = cats.join(',');
-  if (sidebar.dataset.cats !== catsKey) {
-    sidebar.dataset.cats = catsKey;
-    sidebar.innerHTML = cats.map(c => `<div class="coach-sidebar-item" data-cat="${escapeHtml(c)}"></div>`).join('');
-  }
-  cats.forEach(cat => {
-    const item = sidebar.querySelector(`[data-cat="${cat}"]`);
-    if (!item) return;
-    item.textContent = t('coach.cat.' + cat);
-    item.classList.toggle('active', cat === activeCat);
-    item.classList.toggle('done', isFullTour && passedCats.has(cat) && cat !== activeCat);
-  });
-  // 항목별 미니 투어(예: 문서만 체험해보기)에서는 전체 진행 상황이 의미가 없으므로 사이드바를 숨긴다
-  sidebar.style.display = isFullTour ? 'flex' : 'none';
-  document.body.classList.toggle('coach-sidebar-shown', isFullTour);
 }
 
 /* ---------------------------------------------------------
@@ -1514,9 +1478,6 @@ const I18N = {
     'onboard.notice.desc': '지금은 체험판(튜토리얼)이라<br>실제 분석은 제공되지 않을 수 있어요.<br>궁금한 점은 관리자에게 문의하세요.',
     'onboard.notice.next': '다음으로 계속하기',
     'onboard.notice.voice': '지금은 분석이 어려워요. 체험판이라 실제 분석은 제공되지 않을 수 있어요. 궁금한 점은 관리자에게 문의하세요.',
-    'coach.cat.doc': '문서', 'coach.cat.sms': '문자', 'coach.cat.history': '기록', 'coach.cat.info': '정보',
-    'coach.cat.welfare': '복지', 'coach.cat.voice': '음성', 'coach.cat.emergency': '긴급', 'coach.cat.settings': '설정',
-    'coach.cat.help': '안내',
     'coach.moreHelp.title': '여기서 다른 기능도 볼 수 있어요', 'coach.moreHelp.desc': '아래 정보·기록·설정을 눌러 보세요.', 'coach.moreHelp.voice': '아래쪽 메뉴에서 다른 기능도 볼 수 있어요.',
     'coach.next': '다음으로 넘어가기', 'coach.skipTutorial': '튜토리얼 건너뛰기',
     'coach.doc1.title': '문서를 촬영해보세요', 'coach.doc1.desc': '이 카드를 누르면 문서를 찍어 AI에게 분석을 맡길 수 있어요.', 'coach.doc1.voice': '문서 촬영 카드를 눌러보세요.',
@@ -1604,9 +1565,6 @@ const I18N = {
     'onboard.notice.desc': '现在是体验版（教程），<br>可能无法提供实际分析。<br>如有疑问请联系管理员。',
     'onboard.notice.next': '下一步继续',
     'onboard.notice.voice': '现在暂时无法分析。因为是体验版，可能无法提供实际分析。如有疑问请联系管理员。',
-    'coach.cat.doc': '文件', 'coach.cat.sms': '短信', 'coach.cat.history': '记录', 'coach.cat.info': '信息',
-    'coach.cat.welfare': '福利', 'coach.cat.voice': '语音', 'coach.cat.emergency': '紧急', 'coach.cat.settings': '设置',
-    'coach.cat.help': '指引',
     'coach.moreHelp.title': '在这里还能看到其他功能', 'coach.moreHelp.desc': '请点击下方的信息、记录、设置。', 'coach.moreHelp.voice': '在下方菜单中还能看到其他功能。',
     'coach.next': '继续下一步', 'coach.skipTutorial': '跳过教程',
     'coach.doc1.title': '拍摄文件试试看', 'coach.doc1.desc': '点击此卡片可以拍摄文件并交给AI分析。', 'coach.doc1.voice': '请点击拍摄文件卡片。',
@@ -1694,9 +1652,6 @@ const I18N = {
     'onboard.notice.desc': 'Đây là bản dùng thử (hướng dẫn),<br>nên có thể chưa cung cấp phân tích thực tế.<br>Nếu có thắc mắc, hãy liên hệ quản trị viên.',
     'onboard.notice.next': 'Tiếp tục',
     'onboard.notice.voice': 'Hiện tại chưa thể phân tích. Vì đây là bản dùng thử nên có thể chưa cung cấp phân tích thực tế. Nếu có thắc mắc, hãy liên hệ quản trị viên.',
-    'coach.cat.doc': 'Tài liệu', 'coach.cat.sms': 'Tin nhắn', 'coach.cat.history': 'Lịch sử', 'coach.cat.info': 'Thông tin',
-    'coach.cat.welfare': 'Phúc lợi', 'coach.cat.voice': 'Giọng nói', 'coach.cat.emergency': 'Khẩn cấp', 'coach.cat.settings': 'Cài đặt',
-    'coach.cat.help': 'Hướng dẫn',
     'coach.moreHelp.title': 'Bạn có thể xem các chức năng khác ở đây', 'coach.moreHelp.desc': 'Hãy nhấn vào Thông tin, Lịch sử, Cài đặt ở bên dưới.', 'coach.moreHelp.voice': 'Bạn có thể xem các chức năng khác ở menu bên dưới.',
     'coach.next': 'Chuyển sang bước tiếp theo', 'coach.skipTutorial': 'Bỏ qua hướng dẫn',
     'coach.doc1.title': 'Hãy thử chụp tài liệu', 'coach.doc1.desc': 'Nhấn vào thẻ này để chụp tài liệu và nhờ AI phân tích.', 'coach.doc1.voice': 'Hãy nhấn vào thẻ chụp tài liệu.',
@@ -1784,9 +1739,6 @@ const I18N = {
     'onboard.notice.desc': 'ตอนนี้เป็นเวอร์ชันทดลอง (บทเรียน)<br>อาจไม่มีการวิเคราะห์จริงให้<br>หากมีข้อสงสัยกรุณาติดต่อผู้ดูแลระบบ',
     'onboard.notice.next': 'ดำเนินการต่อ',
     'onboard.notice.voice': 'ตอนนี้ยังไม่สามารถวิเคราะห์ได้ เนื่องจากเป็นเวอร์ชันทดลอง อาจไม่มีการวิเคราะห์จริงให้ หากมีข้อสงสัยกรุณาติดต่อผู้ดูแลระบบ',
-    'coach.cat.doc': 'เอกสาร', 'coach.cat.sms': 'ข้อความ', 'coach.cat.history': 'ประวัติ', 'coach.cat.info': 'ข้อมูล',
-    'coach.cat.welfare': 'สวัสดิการ', 'coach.cat.voice': 'เสียง', 'coach.cat.emergency': 'ฉุกเฉิน', 'coach.cat.settings': 'ตั้งค่า',
-    'coach.cat.help': 'คำแนะนำ',
     'coach.moreHelp.title': 'ดูฟังก์ชันอื่นได้ที่นี่', 'coach.moreHelp.desc': 'กดที่ข้อมูล ประวัติ ตั้งค่า ด้านล่างได้เลย', 'coach.moreHelp.voice': 'ดูฟังก์ชันอื่นได้จากเมนูด้านล่าง',
     'coach.next': 'ไปขั้นตอนถัดไป', 'coach.skipTutorial': 'ข้ามบทเรียน',
     'coach.doc1.title': 'ลองถ่ายภาพเอกสารดูสิ', 'coach.doc1.desc': 'กดการ์ดนี้เพื่อถ่ายภาพเอกสารและให้ AI วิเคราะห์', 'coach.doc1.voice': 'กรุณากดการ์ดถ่ายภาพเอกสาร',
@@ -1874,9 +1826,6 @@ const I18N = {
     'onboard.notice.desc': "Hozir sinov versiyasi (qo'llanma) bo'lgani uchun,<br>haqiqiy tahlil taqdim etilmasligi mumkin.<br>Savollaringiz bo'lsa administratorga murojaat qiling.",
     'onboard.notice.next': 'Davom etish',
     'onboard.notice.voice': "Hozircha tahlil qilish qiyin. Sinov versiyasi bo'lgani uchun haqiqiy tahlil taqdim etilmasligi mumkin. Savollaringiz bo'lsa administratorga murojaat qiling.",
-    'coach.cat.doc': 'Hujjat', 'coach.cat.sms': 'SMS', 'coach.cat.history': 'Tarix', 'coach.cat.info': "Ma'lumot",
-    'coach.cat.welfare': "Ijtimoiy ta'minot", 'coach.cat.voice': 'Ovoz', 'coach.cat.emergency': 'Favqulodda', 'coach.cat.settings': 'Sozlamalar',
-    'coach.cat.help': "Qo'llanma",
     'coach.moreHelp.title': "Bu yerda boshqa funksiyalarni ham ko'rasiz", 'coach.moreHelp.desc': "Pastdagi Ma'lumot, Tarix, Sozlamalar tugmalarini bosing.", 'coach.moreHelp.voice': "Pastdagi menyudan boshqa funksiyalarni ham ko'rishingiz mumkin.",
     'coach.next': "Keyingi bosqichga o'tish", 'coach.skipTutorial': "Qo'llanmani o'tkazib yuborish",
     'coach.doc1.title': 'Hujjatni suratga olib ko\'ring', 'coach.doc1.desc': 'Ushbu kartani bosib hujjatni suratga olib AI tahliliga topshirishingiz mumkin.', 'coach.doc1.voice': 'Hujjat suratga olish kartasini bosing.',

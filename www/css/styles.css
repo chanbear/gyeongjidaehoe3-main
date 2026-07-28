@@ -646,19 +646,3 @@ body.has-bottom-nav .emergency-fab{
 }
 .coach-tip-skip{ font-size:calc(13px * var(--scale)); color:var(--ink-faint); padding:0; min-height:auto; }
 
-/* ---- 코치마크 왼쪽 카테고리 진행률 사이드바: 전체 투어(fullCoachSteps) 중에만 표시, 실제 화면 콘텐츠는 오른쪽으로 밀어준다 ---- */
-.coach-sidebar{
-  display:none; flex-direction:column; position:fixed; top:0; left:0; bottom:0; width:64px;
-  background:var(--bg-page); border-right:1px solid var(--line); z-index:1;
-  padding-top:calc(14px + env(safe-area-inset-top)); pointer-events:none;
-}
-.coach-sidebar-item{
-  flex:1; display:flex; align-items:center; justify-content:center; text-align:center;
-  font-size:calc(12px * var(--scale)); font-weight:700; color:var(--ink-faint); line-height:1.3; padding:2px;
-  border-left:3px solid transparent;
-}
-.coach-sidebar-item.active{ color:var(--accent-strong); border-left-color:var(--accent); background:var(--accent-soft); }
-.coach-sidebar-item.done{ color:var(--ink-soft); }
-body.coach-sidebar-active.coach-sidebar-shown .screen.active{
-  left:64px; width:calc(100% - 64px); transition:left .2s ease, width .2s ease;
-}
