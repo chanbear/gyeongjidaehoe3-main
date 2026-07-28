@@ -1,4 +1,4 @@
-/* =========================================================
+﻿/* =========================================================
    AI 디지털 도우미 - script.js
    ---------------------------------------------------------
    구성
@@ -1339,6 +1339,13 @@ function renderSmsResult(){
   const data = lastSmsAnalysis;
   if (!data) return;
 
+  // 화면 진입 시(goTo)의 기본 음성 안내는 이 함수보다 먼저 실행되므로, 실제 판별 결과를
+  // data-voice에 넣어두고 여기서 다시 읽어준다("다시 듣기" 버튼도 이 속성을 그대로 사용함).
+  // 예전에는 data-voice가 "위험할 수 있습니다"로 고정돼 있어 안전한 문자에도 위험하다고 읽었다.
+  const voiceText = [data.headline, data.summary].filter(Boolean).join('. ');
+  document.getElementById('screen-result-text').setAttribute('data-voice', voiceText);
+  speak(voiceText);
+
   applyResultHero(document.querySelector('#screen-result-text .result-card'), data);
 }
 
@@ -1623,7 +1630,6 @@ const I18N = {
     'result.checkAnotherSms': '다른 문자 확인하기',
     'result.legalNote': '본 판별은 인공지능 분석 결과이므로 법적 효력이 없습니다.<br>의심스러운 경우 반드시 관계 기관에 직접 문의하세요.',
     'result.textConfirm': '확인했습니다', 'result.practiceAgain': '연습 다시 하기',
-    'result.textVoice': '이 문자는 위험할 수 있습니다. 링크를 누르거나 개인정보를 입력하지 마세요.',
     'sms.statusTime': '오후 2:34', 'sms.phoneHome': '휴대폰 홈',
     'sms.appPhone': '전화', 'sms.appSms': '💬 문자', 'sms.appCamera': '카메라',
     'sms.phoneCaption': '👆 💬 문자 앱을 눌러주세요', 'sms.openSmsApp': '문자 앱 열기',
@@ -1784,7 +1790,6 @@ const I18N = {
     'result.checkAnotherSms': '确认其他短信',
     'result.legalNote': '本判别为人工智能分析结果，不具有法律效力。<br>如有可疑之处，请务必直接向相关机构咨询。',
     'result.textConfirm': '我知道了', 'result.practiceAgain': '重新练习',
-    'result.textVoice': '这条短信可能有危险。请不要点击链接或输入个人信息。',
     'sms.statusTime': '下午 2:34', 'sms.phoneHome': '手机主屏幕',
     'sms.appPhone': '电话', 'sms.appSms': '💬 短信', 'sms.appCamera': '相机',
     'sms.phoneCaption': '👆 请点击💬短信应用', 'sms.openSmsApp': '打开短信应用',
@@ -1945,7 +1950,6 @@ const I18N = {
     'result.checkAnotherSms': 'Kiểm tra tin nhắn khác',
     'result.legalNote': 'Kết quả này là phân tích của trí tuệ nhân tạo nên không có hiệu lực pháp lý.<br>Nếu thấy đáng ngờ, hãy trực tiếp hỏi cơ quan liên quan.',
     'result.textConfirm': 'Tôi đã xem', 'result.practiceAgain': 'Luyện tập lại',
-    'result.textVoice': 'Tin nhắn này có thể nguy hiểm. Đừng nhấn vào liên kết hay nhập thông tin cá nhân.',
     'sms.statusTime': '2:34 chiều', 'sms.phoneHome': 'Màn hình chính điện thoại',
     'sms.appPhone': 'Điện thoại', 'sms.appSms': '💬 Tin nhắn', 'sms.appCamera': 'Máy ảnh',
     'sms.phoneCaption': '👆 Hãy nhấn vào ứng dụng 💬 Tin nhắn', 'sms.openSmsApp': 'Mở ứng dụng tin nhắn',
@@ -2106,7 +2110,6 @@ const I18N = {
     'result.checkAnotherSms': 'ตรวจสอบข้อความอื่น',
     'result.legalNote': 'ผลการตัดสินนี้เป็นผลวิเคราะห์จากปัญญาประดิษฐ์ จึงไม่มีผลทางกฎหมาย<br>หากสงสัย กรุณาสอบถามหน่วยงานที่เกี่ยวข้องโดยตรง',
     'result.textConfirm': 'รับทราบแล้ว', 'result.practiceAgain': 'ฝึกอีกครั้ง',
-    'result.textVoice': 'ข้อความนี้อาจเป็นอันตราย กรุณาอย่ากดลิงก์หรือกรอกข้อมูลส่วนตัว',
     'sms.statusTime': '14:34 น.', 'sms.phoneHome': 'หน้าจอหลักโทรศัพท์',
     'sms.appPhone': 'โทรศัพท์', 'sms.appSms': '💬 ข้อความ', 'sms.appCamera': 'กล้อง',
     'sms.phoneCaption': '👆 กรุณากดแอป 💬 ข้อความ', 'sms.openSmsApp': 'เปิดแอปข้อความ',
@@ -2267,7 +2270,6 @@ const I18N = {
     'result.checkAnotherSms': 'Boshqa SMS ni tekshirish',
     'result.legalNote': "Ushbu xulosa sun'iy intellekt tahlili bo'lgani uchun yuridik kuchga ega emas.<br>Shubha tug'ilsa, albatta tegishli idoraga o'zingiz murojaat qiling.",
     'result.textConfirm': 'Tanishib chiqdim', 'result.practiceAgain': 'Qaytadan mashq qilish',
-    'result.textVoice': "Bu SMS xavfli bo'lishi mumkin. Havolani bosmang va shaxsiy ma'lumotlaringizni kiritmang.",
     'sms.statusTime': '14:34', 'sms.phoneHome': 'Telefon bosh ekrani',
     'sms.appPhone': 'Telefon', 'sms.appSms': '💬 SMS', 'sms.appCamera': 'Kamera',
     'sms.phoneCaption': '👆 💬 SMS ilovasini bosing', 'sms.openSmsApp': 'SMS ilovasini ochish',

@@ -779,7 +779,9 @@
       </section>
 
       <!-- 실사용: 문자 결과 -->
-      <section class="screen" id="screen-result-text" data-voice="이 문자는 위험할 수 있습니다. 링크를 누르거나 개인정보를 입력하지 마세요." data-voice-i18n="result.textVoice">
+      <!-- data-voice를 고정해두면 안전으로 판별된 문자에도 "위험합니다"라고 읽어버린다.
+           screen-result-doc과 마찬가지로 속성을 비워두고 renderSmsResult()가 실제 판별 결과로 채운다. -->
+      <section class="screen" id="screen-result-text">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg><span data-i18n="result.textTitle">진위 판별 결과</span></span><button class="gear-btn" onclick="goTo('screen-settings')" aria-label="설정"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg></button></div>
         <div class="result-card danger">
           <div class="seal"><svg viewBox="0 0 24 24"><use href="#ic-alert"></use></svg></div>
