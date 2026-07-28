@@ -179,8 +179,7 @@ function goTo(id){
   if (id === 'screen-loading-text') startLoadingProgress('progressFillLoadText');
   if (id === 'screen-result-text') {
     renderSmsResult();
-    const note = document.getElementById('guardianNoteText');
-    if (note) note.textContent = appState.guardian.name ? '' : '보호자를 등록하면 위험 문자를 바로 알려드릴 수 있어요.';
+    syncGuardianNotifyPrompt();
   }
 
   coachOnNavigate(id);
@@ -777,10 +776,10 @@ function finishSmsResult(){
   if (lastSmsAnalysis && !coachActive) {
     const badge = statusBadgeMap[lastSmsAnalysis.status] || statusBadgeMap.normal;
     addHistory('💬 ' + (lastSmsAnalysis.headline || '문자 분석'), badge.text);
-    if (lastSmsAnalysis.status === 'danger' && appState.guardian.autoNotify && appState.guardian.name) {
-      // 보호자 알림 기록도 위와 같은 이유로 튜토리얼 중에는 남기지 않는다.
-      addHistory('🔔 보호자 알림 발송 (자동)', '⚪ 완료');
-    }
+    // 예전에는 여기서 '보호자 알림 발송 (자동)' 기록을 남겼지만, 실제로 문자를 보내는 코드가 없어
+    // 하지도 않은 일을 기록에 남기는 셈이었다. 브라우저/웹뷰는 사용자의 조작 없이 문자 앱을 열 수 없어
+    // 자동 발송 자체가 불가능하므로, 기록은 notifyGuardian()에서 사용자가 실제로 버튼을 눌러
+    // 문자 앱이 열렸을 때만 남긴다.
   }
   pendingSmsText = '';
   lastSmsAnalysis = null;
@@ -1371,9 +1370,18 @@ function closeEmergencySheet(){
 function guardianPhoneDigits(value){
   return String(value || '').replace(/\D/g, '');
 }
-function showGuardianPhonePrompt(){
+/** 번호를 저장한 뒤에 할 일: 'call'(전화 걸기) 또는 'sms'(보호자에게 알리는 문자 앱 열기) */
+let guardianPhonePromptMode = 'call';
+function showGuardianPhonePrompt(mode){
   const wrap = document.getElementById('guardianPhonePrompt');
   if (!wrap) return;
+  guardianPhonePromptMode = (mode === 'sms') ? 'sms' : 'call';
+  const saveBtn = document.getElementById('guardianPhoneQuickSave');
+  if (saveBtn) {
+    // data-i18n 을 같이 바꿔둬야 나중에 언어를 바꿔도 applyLanguage()가 알맞은 문구로 다시 채운다
+    saveBtn.dataset.i18n = guardianPhonePromptMode === 'sms' ? 'emergency.phoneSaveSms' : 'emergency.phoneSaveCall';
+    saveBtn.textContent = t(saveBtn.dataset.i18n);
+  }
   wrap.style.display = 'block';
   const err = document.getElementById('guardianPhoneQuickError');
   if (err) err.style.display = 'none';
@@ -1385,6 +1393,7 @@ function showGuardianPhonePrompt(){
   speak(t('emergency.phoneAsk'));
 }
 function hideGuardianPhonePrompt(){
+  guardianPhonePromptMode = 'call';   // 다음에 시트를 그냥 열었을 때는 기본값(전화 걸기)으로 돌아간다
   const wrap = document.getElementById('guardianPhonePrompt');
   if (wrap) wrap.style.display = 'none';
   const err = document.getElementById('guardianPhoneQuickError');
@@ -1411,7 +1420,10 @@ function saveGuardianPhoneAndCall(){
   saveState();
   const settingsInput = document.getElementById('guardianPhone');   // 설정 화면에도 같은 번호를 반영
   if (settingsInput) settingsInput.value = phone;
+  const mode = guardianPhonePromptMode;
   closeEmergencySheet();
+  // 보호자에게 알리려다 번호가 없어서 여기까지 온 경우에는 전화가 아니라 문자 앱을 연다
+  if (mode === 'sms') { openGuardianSmsApp(); return; }
   window.location.href = 'tel:' + phone;
 }
 
@@ -1513,12 +1525,20 @@ const I18N = {
     'settings.guardian': '보호자 정보',
     'settings.guardianNameLabel': '보호자 이름', 'settings.guardianNamePlaceholder': '예: 김민수 (아들)',
     'settings.guardianPhoneLabel': '보호자 전화번호', 'settings.guardianPhonePlaceholder': '예: 010-1234-5678',
-    'settings.autoNotify': '🔴 위험 문자 발견 시 자동으로 알림 보내기',
+    'settings.autoNotify': '🔴 위험 문자를 발견하면 보호자에게 알릴지 물어보기',
+    'settings.guardianHowNote': '보호자에게 알릴 때는 이 기기의 문자 앱이 열리고, 내용이 미리 채워집니다. 보내기는 직접 눌러주세요 — 앱이 대신 문자를 보내지는 않습니다.',
     'settings.guardianNote': '모든 설정은 이 기기에 자동 저장되어, 앱을 새로고침해도 유지됩니다.',
+    'guardian.needPhone': '보호자 전화번호가 아직 없어요. 아래에 번호를 적어주세요.',
+    'guardian.smsOpened': '문자 앱을 열었어요. 내용을 확인하고 전송을 눌러주세요.',
+    'guardian.registerHint': '보호자 전화번호를 등록하면 위험한 문자를 바로 알릴 수 있어요.',
+    'guardian.askOnDanger': '위험한 문자예요. 보호자에게 알리시겠어요? 위 버튼을 누르면 문자 앱이 열립니다.',
+    'guardian.historySmsOpen': '🔔 보호자에게 알리기 (문자 앱 열기)',
     'emergency.phoneAsk': '보호자 전화번호를 적어주세요.',
     'emergency.phonePlaceholder': '예: 010-1234-5678',
     'emergency.phoneInvalid': '전화번호가 짧아요. 숫자를 9자리 이상 적어주세요.',
     'emergency.phoneSaveCall': '저장하고 전화걸기',
+    'emergency.phoneSaveSms': '저장하고 문자 앱 열기',
+    'help.settingsGuardian': '보호자 이름·전화번호를 등록하면, 위험한 문자를 확인했을 때 문자 앱을 열어 알릴 수 있어요',
     'settings.language': '언어 설정',
     'settings.languageNote': '경기도 거주 외국인주민 중 비중이 높은 4개 언어를 지원합니다(중국·베트남·태국·우즈베키스탄, 공공통계 기준 상위 국적). 화면 핵심 문구만 번역되며, AI 분석 결과는 정확성을 위해 한국어로 제공됩니다.',
     'settings.support': '고객 지원',
@@ -1598,7 +1618,7 @@ const I18N = {
     'result.actNowLabel': '지금 바로 대처하세요',
     'result.textTip1': '상대방이 요구하는 계좌번호나 비밀번호를 절대 말하지 마세요.',
     'result.textTip2': '가족이나 가까운 지인에게 지금 상황을 꼭 알리세요.',
-    'result.notifyGuardian': '보호자에게 알림 보내기',
+    'result.notifyGuardian': '보호자에게 문자로 알리기',
     'result.report118': '118 신고(경찰청 상담)', 'result.callFamily': '가족에게 전화',
     'result.checkAnotherSms': '다른 문자 확인하기',
     'result.legalNote': '본 판별은 인공지능 분석 결과이므로 법적 효력이 없습니다.<br>의심스러운 경우 반드시 관계 기관에 직접 문의하세요.',
@@ -1666,12 +1686,20 @@ const I18N = {
     'settings.guardian': '监护人信息',
     'settings.guardianNameLabel': '监护人姓名', 'settings.guardianNamePlaceholder': '例：金民洙（儿子）',
     'settings.guardianPhoneLabel': '监护人电话号码', 'settings.guardianPhonePlaceholder': '例：010-1234-5678',
-    'settings.autoNotify': '🔴 发现危险短信时自动发送通知',
+    'settings.autoNotify': '🔴 发现危险短信时询问是否通知监护人',
+    'settings.guardianHowNote': '通知监护人时，会打开本机的短信应用并预先填好内容。发送请您亲自点击 — 本应用不会代替您发送短信。',
     'settings.guardianNote': '所有设置都会自动保存在此设备上，刷新应用后仍会保留。',
+    'guardian.needPhone': '还没有监护人电话号码。请在下方填写号码。',
+    'guardian.smsOpened': '已打开短信应用。请确认内容后点击发送。',
+    'guardian.registerHint': '登记监护人电话号码后，发现危险短信可立即告知。',
+    'guardian.askOnDanger': '这是危险短信。要通知监护人吗？点击上方按钮即可打开短信应用。',
+    'guardian.historySmsOpen': '🔔 通知监护人（打开短信应用）',
     'emergency.phoneAsk': '请填写监护人电话号码。',
     'emergency.phonePlaceholder': '例：010-1234-5678',
     'emergency.phoneInvalid': '号码太短了。请输入至少9位数字。',
     'emergency.phoneSaveCall': '保存并拨打电话',
+    'emergency.phoneSaveSms': '保存并打开短信应用',
+    'help.settingsGuardian': '登记监护人姓名和电话号码后，确认到危险短信时可打开短信应用告知对方',
     'settings.language': '语言设置',
     'settings.languageNote': '支持京畿道外国居民中比例较高的4种语言（中文·越南语·泰语·乌兹别克语，依公共统计数据）。仅翻译核心画面文字，AI分析结果为确保准确性，始终以韩语提供。',
     'settings.support': '客户支持',
@@ -1751,7 +1779,7 @@ const I18N = {
     'result.actNowLabel': '请立即采取措施',
     'result.textTip1': '绝对不要告诉对方账号或密码。',
     'result.textTip2': '请务必把现在的情况告诉家人或身边熟人。',
-    'result.notifyGuardian': '向监护人发送通知',
+    'result.notifyGuardian': '用短信告知监护人',
     'result.report118': '118举报（警察厅咨询）', 'result.callFamily': '给家人打电话',
     'result.checkAnotherSms': '确认其他短信',
     'result.legalNote': '本判别为人工智能分析结果，不具有法律效力。<br>如有可疑之处，请务必直接向相关机构咨询。',
@@ -1819,12 +1847,20 @@ const I18N = {
     'settings.guardian': 'Thông tin người giám hộ',
     'settings.guardianNameLabel': 'Tên người giám hộ', 'settings.guardianNamePlaceholder': 'VD: Kim Min Su (con trai)',
     'settings.guardianPhoneLabel': 'Số điện thoại người giám hộ', 'settings.guardianPhonePlaceholder': 'VD: 010-1234-5678',
-    'settings.autoNotify': '🔴 Tự động gửi thông báo khi phát hiện tin nhắn nguy hiểm',
+    'settings.autoNotify': '🔴 Hỏi có báo cho người giám hộ khi phát hiện tin nhắn nguy hiểm không',
+    'settings.guardianHowNote': 'Khi báo cho người giám hộ, ứng dụng tin nhắn của máy sẽ mở ra với nội dung điền sẵn. Bạn hãy tự bấm gửi — ứng dụng không tự gửi tin nhắn thay bạn.',
     'settings.guardianNote': 'Mọi cài đặt được tự động lưu trên thiết bị này, vẫn giữ nguyên dù tải lại ứng dụng.',
+    'guardian.needPhone': 'Chưa có số điện thoại người giám hộ. Xin nhập số ở bên dưới.',
+    'guardian.smsOpened': 'Đã mở ứng dụng tin nhắn. Xin kiểm tra nội dung rồi bấm gửi.',
+    'guardian.registerHint': 'Đăng ký số điện thoại người giám hộ để báo ngay khi gặp tin nhắn nguy hiểm.',
+    'guardian.askOnDanger': 'Đây là tin nhắn nguy hiểm. Bạn có muốn báo cho người giám hộ không? Bấm nút ở trên để mở ứng dụng tin nhắn.',
+    'guardian.historySmsOpen': '🔔 Báo cho người giám hộ (mở ứng dụng tin nhắn)',
     'emergency.phoneAsk': 'Vui lòng nhập số điện thoại người giám hộ.',
     'emergency.phonePlaceholder': 'VD: 010-1234-5678',
     'emergency.phoneInvalid': 'Số điện thoại quá ngắn. Hãy nhập ít nhất 9 chữ số.',
     'emergency.phoneSaveCall': 'Lưu và gọi ngay',
+    'emergency.phoneSaveSms': 'Lưu và mở ứng dụng tin nhắn',
+    'help.settingsGuardian': 'Đăng ký tên và số điện thoại người giám hộ để có thể mở ứng dụng tin nhắn báo tin khi gặp tin nhắn nguy hiểm',
     'settings.language': 'Cài đặt ngôn ngữ',
     'settings.languageNote': 'Hỗ trợ 4 ngôn ngữ có tỷ lệ cư dân nước ngoài cao ở Gyeonggi (Trung·Việt·Thái·Uzbek, theo thống kê công). Chỉ dịch các cụm từ chính trên màn hình, kết quả phân tích AI luôn bằng tiếng Hàn để đảm bảo chính xác.',
     'settings.support': 'Hỗ trợ khách hàng',
@@ -1904,7 +1940,7 @@ const I18N = {
     'result.actNowLabel': 'Hãy xử lý ngay bây giờ',
     'result.textTip1': 'Tuyệt đối không nói số tài khoản hay mật khẩu mà đối phương yêu cầu.',
     'result.textTip2': 'Hãy nhớ báo tình hình hiện tại cho gia đình hoặc người thân quen.',
-    'result.notifyGuardian': 'Gửi thông báo cho người giám hộ',
+    'result.notifyGuardian': 'Báo cho người giám hộ bằng tin nhắn',
     'result.report118': 'Báo 118 (tư vấn Cảnh sát)', 'result.callFamily': 'Gọi cho gia đình',
     'result.checkAnotherSms': 'Kiểm tra tin nhắn khác',
     'result.legalNote': 'Kết quả này là phân tích của trí tuệ nhân tạo nên không có hiệu lực pháp lý.<br>Nếu thấy đáng ngờ, hãy trực tiếp hỏi cơ quan liên quan.',
@@ -1972,12 +2008,20 @@ const I18N = {
     'settings.guardian': 'ข้อมูลผู้ปกครอง/ผู้ดูแล',
     'settings.guardianNameLabel': 'ชื่อผู้ดูแล', 'settings.guardianNamePlaceholder': 'เช่น คิมมินซู (ลูกชาย)',
     'settings.guardianPhoneLabel': 'เบอร์โทรผู้ดูแล', 'settings.guardianPhonePlaceholder': 'เช่น 010-1234-5678',
-    'settings.autoNotify': '🔴 ส่งการแจ้งเตือนอัตโนมัติเมื่อพบข้อความอันตราย',
+    'settings.autoNotify': '🔴 ถามว่าจะแจ้งผู้ดูแลหรือไม่เมื่อพบข้อความอันตราย',
+    'settings.guardianHowNote': 'เมื่อแจ้งผู้ดูแล แอปข้อความของเครื่องจะเปิดขึ้นพร้อมเนื้อหาที่กรอกไว้ให้แล้ว กรุณากดส่งด้วยตนเอง — แอปนี้ไม่ได้ส่งข้อความแทนคุณ',
     'settings.guardianNote': 'การตั้งค่าทั้งหมดจะถูกบันทึกอัตโนมัติในเครื่องนี้ และคงอยู่แม้รีเฟรชแอป',
+    'guardian.needPhone': 'ยังไม่มีเบอร์โทรผู้ดูแล กรุณากรอกเบอร์ด้านล่าง',
+    'guardian.smsOpened': 'เปิดแอปข้อความแล้ว กรุณาตรวจสอบเนื้อหาแล้วกดส่ง',
+    'guardian.registerHint': 'ลงทะเบียนเบอร์โทรผู้ดูแลไว้ จะแจ้งได้ทันทีเมื่อพบข้อความอันตราย',
+    'guardian.askOnDanger': 'นี่เป็นข้อความอันตราย ต้องการแจ้งผู้ดูแลไหม กดปุ่มด้านบนเพื่อเปิดแอปข้อความ',
+    'guardian.historySmsOpen': '🔔 แจ้งผู้ดูแล (เปิดแอปข้อความ)',
     'emergency.phoneAsk': 'กรุณากรอกเบอร์โทรผู้ดูแล',
     'emergency.phonePlaceholder': 'เช่น 010-1234-5678',
     'emergency.phoneInvalid': 'เบอร์โทรสั้นเกินไป กรุณากรอกตัวเลขอย่างน้อย 9 หลัก',
     'emergency.phoneSaveCall': 'บันทึกและโทรออก',
+    'emergency.phoneSaveSms': 'บันทึกและเปิดแอปข้อความ',
+    'help.settingsGuardian': 'ลงทะเบียนชื่อและเบอร์โทรผู้ดูแลไว้ เมื่อพบข้อความอันตรายจะเปิดแอปข้อความเพื่อแจ้งได้',
     'settings.language': 'ตั้งค่าภาษา',
     'settings.languageNote': 'รองรับ 4 ภาษาของผู้พำนักต่างชาติที่มีสัดส่วนสูงในคย็องกี (จีน·เวียดนาม·ไทย·อุซเบก ตามสถิติสาธารณะ) แปลเฉพาะข้อความหลักบนหน้าจอ ส่วนผลวิเคราะห์ AI จะเป็นภาษาเกาหลีเสมอเพื่อความถูกต้อง',
     'settings.support': 'ฝ่ายบริการลูกค้า',
@@ -2057,7 +2101,7 @@ const I18N = {
     'result.actNowLabel': 'กรุณารับมือทันที',
     'result.textTip1': 'อย่าบอกเลขบัญชีหรือรหัสผ่านที่อีกฝ่ายขอมาเด็ดขาด',
     'result.textTip2': 'กรุณาแจ้งสถานการณ์นี้ให้ครอบครัวหรือคนใกล้ชิดทราบด้วย',
-    'result.notifyGuardian': 'ส่งการแจ้งเตือนให้ผู้ดูแล',
+    'result.notifyGuardian': 'แจ้งผู้ดูแลทางข้อความ',
     'result.report118': 'แจ้ง 118 (ปรึกษาสำนักงานตำรวจ)', 'result.callFamily': 'โทรหาครอบครัว',
     'result.checkAnotherSms': 'ตรวจสอบข้อความอื่น',
     'result.legalNote': 'ผลการตัดสินนี้เป็นผลวิเคราะห์จากปัญญาประดิษฐ์ จึงไม่มีผลทางกฎหมาย<br>หากสงสัย กรุณาสอบถามหน่วยงานที่เกี่ยวข้องโดยตรง',
@@ -2125,12 +2169,20 @@ const I18N = {
     'settings.guardian': "Vasiy ma'lumotlari",
     'settings.guardianNameLabel': 'Vasiy ismi', 'settings.guardianNamePlaceholder': 'Masalan: Kim Min Su (o’g’li)',
     'settings.guardianPhoneLabel': 'Vasiy telefon raqami', 'settings.guardianPhonePlaceholder': 'Masalan: 010-1234-5678',
-    'settings.autoNotify': "🔴 Xavfli SMS aniqlanganda avtomatik bildirishnoma yuborish",
+    'settings.autoNotify': "🔴 Xavfli SMS aniqlanganda vasiyga xabar berishni so'rash",
+    'settings.guardianHowNote': "Vasiyga xabar berishda shu qurilmadagi SMS ilovasi matni oldindan to'ldirilgan holda ochiladi. Yuborish tugmasini o'zingiz bosing — ilova siz uchun SMS yubormaydi.",
     'settings.guardianNote': "Barcha sozlamalar bu qurilmada avtomatik saqlanadi va ilova qayta yuklansa ham saqlanib qoladi.",
+    'guardian.needPhone': "Vasiyning telefon raqami hali yo'q. Quyiga raqamni yozing.",
+    'guardian.smsOpened': "SMS ilovasi ochildi. Matnni tekshirib, yuborish tugmasini bosing.",
+    'guardian.registerHint': "Vasiyning telefon raqamini kiritsangiz, xavfli SMS haqida darhol xabar bera olasiz.",
+    'guardian.askOnDanger': "Bu xavfli SMS. Vasiyga xabar berasizmi? Yuqoridagi tugmani bossangiz SMS ilovasi ochiladi.",
+    'guardian.historySmsOpen': "🔔 Vasiyga xabar berish (SMS ilovasi ochildi)",
     'emergency.phoneAsk': "Vasiyning telefon raqamini yozing.",
     'emergency.phonePlaceholder': 'Masalan: 010-1234-5678',
     'emergency.phoneInvalid': "Raqam juda qisqa. Kamida 9 ta raqam kiriting.",
     'emergency.phoneSaveCall': "Saqlab, qo'ng'iroq qilish",
+    'emergency.phoneSaveSms': "Saqlab, SMS ilovasini ochish",
+    'help.settingsGuardian': "Vasiyning ismi va telefon raqamini kiritsangiz, xavfli SMS aniqlanganda SMS ilovasini ochib xabar bera olasiz",
     'settings.language': 'Til sozlamalari',
     'settings.languageNote': "Gyeonggi-da yashovchi chet elliklar orasida ko'p uchraydigan 4 tilni qo'llab-quvvatlaydi (xitoy·vetnam·tay·o'zbek, davlat statistikasiga ko'ra). Faqat asosiy ekran matnlari tarjima qilinadi, AI tahlil natijalari aniqlik uchun har doim koreys tilida beriladi.",
     'settings.support': "Mijozlarni qo'llab-quvvatlash",
@@ -2210,7 +2262,7 @@ const I18N = {
     'result.actNowLabel': "Hoziroq chora ko'ring",
     'result.textTip1': "Suhbatdosh so'ragan hisob raqami yoki parolni hech qachon aytmang.",
     'result.textTip2': "Hozirgi vaziyatni oila a'zolaringizga yoki yaqin tanishingizga albatta ayting.",
-    'result.notifyGuardian': 'Vasiyga xabar yuborish',
+    'result.notifyGuardian': 'Vasiyga SMS orqali xabar berish',
     'result.report118': '118 ga xabar berish (Politsiya maslahati)', 'result.callFamily': "Oilaga qo'ng'iroq qilish",
     'result.checkAnotherSms': 'Boshqa SMS ni tekshirish',
     'result.legalNote': "Ushbu xulosa sun'iy intellekt tahlili bo'lgani uchun yuridik kuchga ega emas.<br>Shubha tug'ilsa, albatta tegishli idoraga o'zingiz murojaat qiling.",
@@ -2441,16 +2493,68 @@ function renderHomeInfoCard(){
   card.style.display = 'block';
 }
 
+/* ---- 보호자에게 알리기 ----
+   외부 문자 발송 API(계정·비용 필요)를 쓰지 않고, 문자 확인 흐름(openRealSmsApp)과 똑같이
+   기기의 문자 앱을 sms: 스킴으로 열어 받는 사람과 본문만 미리 채워준다.
+   실제 '전송'은 사용자가 문자 앱에서 직접 누르는 것이므로, 앱은 절대 "보냈습니다"라고 말하지 않는다. */
+
+/** 보호자에게 보낼 문자 본문. AI 원문(summary/checklist)을 그대로 옮기지 않고 판정 + 한 줄 요약만 담는다.
+ *  본문은 보호자가 받아보는 실제 문자 내용이고 AI가 만든 한국어 문장이 섞이므로, 화면 UI와 달리 번역하지 않는다
+ *  (CLAUDE.md 9번 항목: AI 분석 결과는 오역 위험 때문에 항상 한국어로 유지). */
+const GUARDIAN_STATUS_LABEL = { danger: '위험', info: '정보', normal: '정상' };
+function guardianSmsBody(){
+  const lines = ['[온담] 방금 확인한 문자에 대해 알려드립니다.'];
+  if (lastSmsAnalysis) {
+    lines.push('판정: ' + (GUARDIAN_STATUS_LABEL[lastSmsAnalysis.status] || '확인 필요'));
+    const headline = String(lastSmsAnalysis.headline || '').trim();
+    if (headline) lines.push(headline.length > 60 ? headline.slice(0, 60) + '…' : headline);
+  }
+  lines.push('확인 부탁드립니다.');
+  return lines.join('\n');
+}
+
+/** sms: 링크를 만든다. 본문 구분자가 iOS는 '&', 그 외(Android 등)는 '?'라 플랫폼을 보고 고른다.
+ *  본문은 줄바꿈·특수문자가 섞이므로 반드시 encodeURIComponent로 인코딩한다. */
+function buildGuardianSmsHref(phone, body){
+  const number = String(phone || '').replace(/[^0-9+*#]/g, '');
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
+  return 'sms:' + number + (isIOS ? '&' : '?') + 'body=' + encodeURIComponent(body);
+}
+
 function notifyGuardian(){
   const note = document.getElementById('guardianNoteText');
-  if (!appState.guardian.name) {
-    if (note) note.textContent = '먼저 설정에서 보호자 정보를 등록해주세요.';
-    speak('먼저 설정에서 보호자 정보를 등록해주세요.');
+  if (guardianPhoneDigits(appState.guardian.phone).length < 9) {
+    // 설정 화면으로 튕기지 않고, 이미 있는 긴급 도움 시트의 번호 입력 흐름을 그대로 재사용한다.
+    if (note) note.textContent = t('guardian.needPhone');
+    speak(t('guardian.needPhone'));
+    openEmergencySheet();
+    showGuardianPhonePrompt('sms');
     return;
   }
-  if (note) note.textContent = `${appState.guardian.name}님에게 알림을 보냈습니다.`;
-  speak(`${appState.guardian.name}님에게 알림을 보냈습니다.`);
-  addHistory('🔔 보호자 알림 발송', '⚪ 완료');
+  openGuardianSmsApp();
+}
+
+/** 보호자 번호가 확실히 있는 상태에서 문자 앱을 연다(기록도 여기서만 남긴다) */
+function openGuardianSmsApp(){
+  const note = document.getElementById('guardianNoteText');
+  if (note) note.textContent = t('guardian.smsOpened');
+  speak(t('guardian.smsOpened'));
+  addHistory(t('guardian.historySmsOpen'), '⚪ 완료');
+  window.location.href = buildGuardianSmsHref(appState.guardian.phone, guardianSmsBody());
+}
+
+/** 위험 판정 + '알릴지 물어보기' 설정이 켜져 있으면 보호자 알리기 버튼을 눈에 띄게 강조한다.
+ *  브라우저·웹뷰는 사용자의 조작 없이 문자 앱을 열 수 없어 자동 발송은 불가능하므로, 안내까지만 한다. */
+function syncGuardianNotifyPrompt(){
+  const note = document.getElementById('guardianNoteText');
+  const btn = document.querySelector('#screen-result-text .guardian-btn');
+  const hasPhone = guardianPhoneDigits(appState.guardian.phone).length >= 9;
+  const ask = !!(lastSmsAnalysis && lastSmsAnalysis.status === 'danger' && appState.guardian.autoNotify);
+  if (btn) btn.classList.toggle('urgent', ask);
+  if (!note) return;
+  if (!hasPhone) { note.textContent = t('guardian.registerHint'); return; }
+  note.textContent = ask ? t('guardian.askOnDanger') : '';
 }
 
 function callGuardian(){

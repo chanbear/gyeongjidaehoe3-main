@@ -317,6 +317,12 @@
     cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
   }
   .guardian-btn:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
+  /* 위험 판정 + 설정의 "보호자에게 알릴지 물어보기"가 켜져 있을 때만 붙는 강조.
+     자동 발송은 불가능하므로(브라우저는 사용자 조작 없이 문자 앱을 열 수 없음) 눈에 띄게 안내만 한다. */
+  .guardian-btn.urgent{
+    background:var(--danger-soft); color:var(--danger-strong); border-color:var(--danger);
+    box-shadow:0 0 0 4px rgba(227,66,55,0.14);
+  }
   .guardian-note{ font-size:calc(14px * var(--scale)); color:var(--ink-faint); text-align:center; margin-top:8px; line-height:1.5; }
 
   /* ---- 오류 상태 화면 ---- */

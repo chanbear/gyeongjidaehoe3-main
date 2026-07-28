@@ -499,7 +499,7 @@
         <div class="todo-list">
           <div class="checklist-row"><label style="cursor:default;">글자 크기를 보통·크게·아주 크게 중에서 고를 수 있어요</label></div>
           <div class="checklist-row"><label style="cursor:default;">음성 읽기 속도를 바꾸거나 음성 안내를 끌 수 있어요</label></div>
-          <div class="checklist-row"><label style="cursor:default;">보호자 이름·전화번호를 등록하면 위험 문자 발견 시 알림을 보낼 수 있어요</label></div>
+          <div class="checklist-row"><label style="cursor:default;" data-i18n="help.settingsGuardian">보호자 이름·전화번호를 등록하면, 위험한 문자를 확인했을 때 문자 앱을 열어 알릴 수 있어요</label></div>
           <div class="checklist-row"><label style="cursor:default;">화면에 쓰이는 언어를 5개 언어 중에서 고를 수 있어요</label></div>
         </div>
         <button class="primary-btn" onclick="goTo('screen-settings')">설정 화면으로 가기</button>
@@ -796,7 +796,7 @@
           <div class="checklist-row"><label style="cursor:default;" data-i18n="result.textTip2">가족이나 가까운 지인에게 지금 상황을 꼭 알리세요.</label></div>
         </div>
 
-        <button class="guardian-btn" onclick="notifyGuardian()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-bell"></use></svg><span data-i18n="result.notifyGuardian">보호자에게 알림 보내기</span></button>
+        <button class="guardian-btn" onclick="notifyGuardian()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-bell"></use></svg><span data-i18n="result.notifyGuardian">보호자에게 문자로 알리기</span></button>
         <p class="guardian-note" id="guardianNoteText"></p>
         <div class="action-row">
           <a class="secondary-btn" href="tel:118"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg><span data-i18n="result.report118">118 신고(경찰청 상담)</span></a>
@@ -888,12 +888,14 @@
             <input type="tel" id="guardianPhone" placeholder="예: 010-1234-5678" data-i18n-placeholder="settings.guardianPhonePlaceholder" oninput="saveGuardian()">
           </div>
           <div class="toggle-row">
-            <span data-i18n="settings.autoNotify">🔴 위험 문자 발견 시 자동으로 알림 보내기</span>
+            <span data-i18n="settings.autoNotify">🔴 위험 문자를 발견하면 보호자에게 알릴지 물어보기</span>
             <label class="switch">
               <input type="checkbox" id="autoNotifyToggle" onchange="saveGuardian()">
               <span class="track"></span>
             </label>
           </div>
+          <!-- 실제 동작을 그대로 적는다: 앱이 문자를 대신 보내지 않고, 문자 앱을 열어 내용만 채워준다 -->
+          <p class="settings-save-note" data-i18n="settings.guardianHowNote">보호자에게 알릴 때는 이 기기의 문자 앱이 열리고, 내용이 미리 채워집니다. 보내기는 직접 눌러주세요 — 앱이 대신 문자를 보내지는 않습니다.</p>
           <p class="settings-save-note" data-i18n="settings.guardianNote">모든 설정은 이 기기에 자동 저장되어, 앱을 새로고침해도 유지됩니다.</p>
         </div>
 
@@ -968,7 +970,8 @@
                oninput="onGuardianPhoneInput(this)">
       </div>
       <p class="sheet-inline-error" id="guardianPhoneQuickError" style="display:none;" data-i18n="emergency.phoneInvalid">전화번호가 짧아요. 숫자를 9자리 이상 적어주세요.</p>
-      <button class="primary-btn" onclick="saveGuardianPhoneAndCall()" data-i18n="emergency.phoneSaveCall">저장하고 전화걸기</button>
+      <!-- 문구는 showGuardianPhonePrompt(mode)가 상황에 맞게(전화 걸기 / 문자 앱 열기) 바꿔준다 -->
+      <button class="primary-btn" id="guardianPhoneQuickSave" onclick="saveGuardianPhoneAndCall()" data-i18n="emergency.phoneSaveCall">저장하고 전화걸기</button>
     </div>
     <a class="sheet-btn" href="tel:119"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg>119</a>
     <a class="sheet-btn" href="tel:112"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg>112</a>
