@@ -227,9 +227,19 @@
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     position:relative; overflow:hidden; min-height:280px;
   }
+  /* .doc-mock 은 이제 "흐릿한 사진 예시"(screen-doc-blur-example)에서만 쓰인다.
+     촬영 화면(screen-doc-capture)에서는 가짜 문서 대신 아래 .camera-guide 테두리 안내를 쓴다. */
   .camera-view .doc-mock{
     width:85%; background:#fff; border-radius:8px; padding:20px 16px;
     box-shadow:0 4px 20px rgba(0,0,0,0.3); font-size:calc(11px * var(--scale)); line-height:1.5; color:#333;
+  }
+  .camera-view .camera-guide{
+    flex:1 1 auto; width:80%; min-height:170px; box-sizing:border-box; padding:18px; margin:18px 0 10px;
+    border:3px dashed rgba(255,255,255,0.65); border-radius:12px;
+    display:flex; align-items:center; justify-content:center; text-align:center;
+  }
+  .camera-view .camera-guide span{
+    font-size:calc(16px * var(--scale)); font-weight:600; line-height:1.55; color:rgba(255,255,255,0.92);
   }
   .camera-view .doc-mock .doc-title{ font-size:calc(13px * var(--scale)); font-weight:700; text-align:center; margin-bottom:10px; border-bottom:1px solid #ddd; padding-bottom:8px; }
   .camera-shutter{

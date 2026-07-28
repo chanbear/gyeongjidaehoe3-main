@@ -578,13 +578,9 @@
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-doc-choice')">← 뒤로</button><span></span></div>
         <p class="step-label">🔵 진행 중</p>
         <div class="camera-view">
-          <div class="doc-mock">
-            <div class="doc-title">국민건강보험공단</div>
-            <p>건강검진 대상자 안내<br><br>
-            ○ 대상: 만 40세 이상<br>
-            ○ 기간: 2026. 1. 1 ~ 12. 31<br>
-            ○ 방법: 가까운 검진기관 예약<br><br>
-            ※ 미수검 시 건강보험료 할증</p>
+          <!-- 실제 카메라 미리보기가 아니므로 가짜 문서를 그리지 않고, 촬영 자세만 안내하는 테두리 가이드를 보여준다 -->
+          <div class="camera-guide">
+            <span>문서를 화면 가운데<br>오도록 맞춰주세요</span>
           </div>
           <div class="camera-shutter" onclick="capturePhoto()" role="button" tabindex="0" aria-label="촬영하기"></div>
         </div>
