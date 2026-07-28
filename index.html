@@ -53,6 +53,7 @@
     <symbol id="ic-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="10" r="1.6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M21 16l-5.5-5.5L9 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="ic-paste" viewBox="0 0 24 24"><rect x="7" y="4" width="10" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 2h4v3h-4z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 12h5M12 9.5v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="ic-textsize" viewBox="0 0 24 24"><path d="M3 17L7.5 6l4.5 11M4.3 13.5h6.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 17l2.8-6.5L19.6 17M14.9 14.7h3.8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 20.5a8 8 0 0 1 16 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="ic-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
   </defs>
 </svg>
@@ -117,24 +118,36 @@
 
 
       <!-- 홈 화면 -->
-      <section class="screen" id="screen-home" data-voice="무엇을 도와드릴까요? 문서 찍기 또는 문자 보기를 선택해주세요.">
+      <section class="screen" id="screen-home" data-voice="무엇을 도와드릴까요? AI 문서 분석하기를 눌러 시작해보세요.">
         <div class="topbar">
           <button class="gear-btn" data-replay aria-label="음성으로 안내받기" style="background:var(--accent-soft);color:var(--accent-strong);"><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg></button>
           <div class="wordmark"><svg class="mark" viewBox="0 0 24 24"><use href="#ic-shield"></use></svg><span>온담</span></div>
           <span class="spacer"></span>
         </div>
 
+        <!-- 인사 카드: 왼쪽은 프로필 사진(로컬에만 저장, 서버로 보내지 않음), 오른쪽은 음성 지원 on/off.
+             설정 화면의 음성 안내 스위치(voiceEnabledToggle)와 같은 상태를 공유한다(toggleVoice/syncVoiceEnabledToggles). -->
+        <div class="home-greet-row">
+          <button type="button" class="home-avatar" id="homeAvatarBtn" onclick="pickAvatarPhoto()" aria-label="프로필 사진 설정">
+            <svg class="home-avatar-icon" viewBox="0 0 24 24"><use href="#ic-user"></use></svg>
+            <span class="home-avatar-badge"><svg viewBox="0 0 24 24"><use href="#ic-camera"></use></svg></span>
+          </button>
+          <div class="home-greet-text">
+            <div class="home-greet-name" id="homeGreetName"></div>
+            <div class="home-greet-sub" data-i18n="home.assistantActive">온담 비서가 활성화되었습니다</div>
+          </div>
+          <label class="switch" aria-label="음성 지원 켜고 끄기">
+            <input type="checkbox" class="voice-enabled-toggle" checked onchange="toggleVoice(this)">
+            <span class="track"></span>
+          </label>
+        </div>
+
         <div class="large-title" data-i18n="home.sectionTitle">무엇을 도와드릴까요?</div>
 
         <div class="section">
-          <div class="feature-card" onclick="goTo('screen-doc-choice')" role="button" tabindex="0">
+          <div class="feature-card ai-analyze-card" onclick="goTo('screen-doc-choice')" role="button" tabindex="0">
             <div class="fc-icon"><svg viewBox="0 0 24 24"><use href="#ic-doc"></use></svg></div>
-            <div class="fc-text"><div class="fc-title" data-i18n="home.docTitle">문서 촬영</div><div class="fc-desc" data-i18n="home.docDesc">문서를 찍으면 내용을 요약해 드려요</div></div>
-            <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
-          </div>
-          <div class="feature-card" onclick="goTo('screen-sms-phone')" role="button" tabindex="0">
-            <div class="fc-icon soft"><svg viewBox="0 0 24 24"><use href="#ic-chat"></use></svg></div>
-            <div class="fc-text"><div class="fc-title" data-i18n="home.smsTitle">문자 내용 요약</div><div class="fc-desc" data-i18n="home.smsDesc">문자 내용이 진짜인지 구분하고 요약해 드려요</div></div>
+            <div class="fc-text"><div class="fc-title" data-i18n="home.aiAnalyzeTitle">AI 문서 분석하기</div><div class="fc-desc" data-i18n="home.aiAnalyzeDesc">사진 촬영하기·사진 불러오기·문자 내용 불러오기 중에서 골라 AI가 분석해드려요</div></div>
             <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
           </div>
           <div class="feature-card" onclick="goTo('screen-welfare-nearby')" role="button" tabindex="0">
@@ -581,23 +594,28 @@
       </section>
 
       <!-- 문서 찍기: 사진/갤러리 선택 -->
-      <section class="screen" id="screen-doc-choice" data-voice="분석하고 싶은 공문서를 촬영하거나 사진첩에서 불러와 주세요." data-voice-i18n="docChoice.voice">
-        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg><span data-i18n="docChoice.title">문서 업로드</span></span><button class="gear-btn" onclick="goTo('screen-settings')" aria-label="설정"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg></button></div>
+      <section class="screen" id="screen-doc-choice" data-voice="사진 촬영하기, 사진 불러오기, 문자 내용 불러오기 중에서 골라주세요." data-voice-i18n="docChoice.voice">
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg><span data-i18n="docChoice.title">AI 분석하기</span></span><button class="gear-btn" onclick="goTo('screen-settings')" aria-label="설정"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg></button></div>
 
         <div class="hero-card">
           <div class="hero-icon"><svg viewBox="0 0 24 24"><use href="#ic-doc"></use></svg></div>
-          <p class="desc" data-i18n="docChoice.desc">분석하고 싶은 공문서를 촬영하거나<br>사진첩에서 불러와 주세요.<br>내용을 쉽게 설명해 드립니다.</p>
+          <p class="desc" data-i18n="docChoice.desc">분석하고 싶은 문서를 촬영하거나 사진첩에서 불러오세요.<br>문자 내용도 불러와 확인할 수 있어요.</p>
         </div>
         <button class="voice-pill block" data-replay><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="docChoice.voicePill">음성 안내 다시 듣기</span></button>
 
         <div class="feature-card" onclick="goTo('screen-doc-capture')" role="button" tabindex="0">
           <div class="fc-icon"><svg viewBox="0 0 24 24"><use href="#ic-camera"></use></svg></div>
-          <div class="fc-text"><div class="fc-title" data-i18n="docChoice.cameraTitle">직접 촬영하기</div><div class="fc-desc" data-i18n="docChoice.cameraDesc">카메라로 문서를 찍습니다</div></div>
+          <div class="fc-text"><div class="fc-title" data-i18n="docChoice.cameraTitle">사진 촬영하기</div><div class="fc-desc" data-i18n="docChoice.cameraDesc">카메라로 문서를 찍습니다</div></div>
           <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
         </div>
         <div class="feature-card" onclick="pickFromGallery()" role="button" tabindex="0">
           <div class="fc-icon soft"><svg viewBox="0 0 24 24"><use href="#ic-image"></use></svg></div>
-          <div class="fc-text"><div class="fc-title" data-i18n="docChoice.galleryTitle">앨범에서 가져오기</div><div class="fc-desc" data-i18n="docChoice.galleryDesc">저장된 사진을 불러옵니다</div></div>
+          <div class="fc-text"><div class="fc-title" data-i18n="docChoice.galleryTitle">사진 불러오기</div><div class="fc-desc" data-i18n="docChoice.galleryDesc">저장된 사진을 불러옵니다</div></div>
+          <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+        </div>
+        <div class="feature-card" onclick="goTo('screen-sms-phone')" role="button" tabindex="0">
+          <div class="fc-icon soft"><svg viewBox="0 0 24 24"><use href="#ic-chat"></use></svg></div>
+          <div class="fc-text"><div class="fc-title" data-i18n="docChoice.smsTitle">문자 내용 불러오기</div><div class="fc-desc" data-i18n="docChoice.smsDesc">문자 앱에서 문자를 복사해 불러옵니다</div></div>
           <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
         </div>
 
@@ -947,7 +965,7 @@
           <div class="toggle-row" style="margin-top:12px;">
             <span><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="settings.voiceEnable">음성 안내 사용하기</span></span>
             <label class="switch">
-              <input type="checkbox" id="voiceEnabledToggle" checked onchange="toggleVoice()">
+              <input type="checkbox" id="voiceEnabledToggle" class="voice-enabled-toggle" checked onchange="toggleVoice(this)">
               <span class="track"></span>
             </label>
           </div>

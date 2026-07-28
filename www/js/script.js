@@ -26,6 +26,9 @@ const appState = {
   settings: { fontScale: 1, voiceRate: 1, voiceEnabled: true, language: 'ko' }, // 접근성 설정
   guardian: { name: '', phone: '', autoNotify: false },
   profile: { name: '', gender: '', age: 50, region: '' }, // 맞춤 안내용(선택 사항): AI 분석 요청에 참고 정보로만 함께 전달됨
+  avatarPhoto: '', // 홈 화면에 보여줄 프로필 사진(선택 사항). profile과 분리해두는 이유: profile은
+                    // saveProfileToServer()가 그대로 서버(D1)로 보내는데, 사진은 순전히 이 기기에서만
+                    // 쓰는 것이라 서버로 전송되면 안 된다.
   onboardingDone: false // 인사→프로필→튜토리얼을 한 번이라도 끝냈는지. true면 다음 실행부터 홈에서 시작한다
 };
 
@@ -44,6 +47,7 @@ function saveState(){
       settings: appState.settings,
       guardian: appState.guardian,
       profile: appState.profile,
+      avatarPhoto: appState.avatarPhoto,
       onboardingDone: appState.onboardingDone
     }));
   } catch (err) {
@@ -62,6 +66,7 @@ function loadState(){
     if (saved.settings) appState.settings = Object.assign(appState.settings, saved.settings);
     if (saved.guardian) appState.guardian = Object.assign(appState.guardian, saved.guardian);
     if (saved.profile) appState.profile = Object.assign(appState.profile, saved.profile);
+    if (saved.avatarPhoto) appState.avatarPhoto = saved.avatarPhoto;
     if (saved.onboardingDone) appState.onboardingDone = true;
   } catch (err) {
     console.warn('불러오기 실패:', err);
@@ -74,11 +79,18 @@ function loadState(){
 function loadVoices(){ voices = window.speechSynthesis ? speechSynthesis.getVoices() : []; }
 if (window.speechSynthesis) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
 
-function toggleVoice(){
-  const toggle = document.getElementById('voiceEnabledToggle');
-  appState.settings.voiceEnabled = toggle.checked;
-  if (!toggle.checked && window.speechSynthesis) speechSynthesis.cancel();
+/** 음성 지원 on/off 스위치는 홈 화면과 설정 화면 두 곳에 있다(voice-enabled-toggle 클래스로 묶임).
+ *  el을 넘기면 그 스위치가 지금 누른 것이고, 나머지 스위치도 같은 상태로 맞춘다. */
+function toggleVoice(el){
+  const checked = el ? el.checked : !appState.settings.voiceEnabled;
+  appState.settings.voiceEnabled = checked;
+  syncVoiceEnabledToggles();
+  if (!checked && window.speechSynthesis) speechSynthesis.cancel();
   saveState();
+}
+
+function syncVoiceEnabledToggles(){
+  document.querySelectorAll('.voice-enabled-toggle').forEach(t => { t.checked = appState.settings.voiceEnabled; });
 }
 
 /** 번역된 문구(온보딩/튜토리얼)를 읽어줄 때만 언어별 TTS lang을 쓰고, 그 외(AI 분석 결과 등 항상 한국어인 문구)는 기본값(한국어)을 유지한다 */
@@ -262,6 +274,21 @@ function renderHomeDashboard(){
   renderUpcomingSchedule();
   renderHomeDueCard();
   renderHomeInfoCard();
+  renderHomeGreet();
+  renderAvatarPhoto();
+}
+
+/** 홈 인사 카드의 이름 부분("OOO님" / "70대 어르신" / 기본값) */
+function homeGreetName(){
+  const { name, gender, age } = appState.profile;
+  if (name) return name + '님';
+  if (age) return `${toAgeBand(age)}대${gender ? ' ' + gender : ''} 어르신`;
+  return t('home.greetDefault');
+}
+
+function renderHomeGreet(){
+  const el = document.getElementById('homeGreetName');
+  if (el) el.textContent = homeGreetName();
 }
 
 /** 정보 탭: 홈에 있던 읽을거리를 이쪽으로 옮겼다.
@@ -890,7 +917,8 @@ const fullCoachSteps = [
   { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-doc-choice"]', cat: 'doc', key: 'doc1' },
   { screen: 'screen-doc-choice', target: '#screen-doc-choice .feature-card[onclick*="screen-doc-capture"]', cat: 'doc', key: 'doc2' },
   { screen: 'screen-doc-capture', target: '#screen-doc-capture .camera-shutter', cat: 'doc', key: 'doc3', advance: 'click' },
-  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-sms-phone"]', cat: 'sms', key: 'sms1' },
+  // 문자 확인 입구가 홈에서 'AI 문서 분석하기' 화면(screen-doc-choice) 안으로 옮겨져 이 단계도 그리로 옮겼다.
+  { screen: 'screen-doc-choice', target: '#screen-doc-choice .feature-card[onclick*="screen-sms-phone"]', cat: 'sms', key: 'sms1' },
   { screen: 'screen-sms-phone', target: '#screen-sms-phone .app-icon.msg', cat: 'sms', key: 'sms2' },
   { screen: 'screen-tutorial-sms-mock', target: '#screen-tutorial-sms-mock .compose-box', cat: 'sms', key: 'sms3' },
   { screen: 'screen-sms-switch', target: '#screen-sms-switch .primary-btn', cat: 'sms', key: 'sms4' },
@@ -1203,6 +1231,62 @@ function cancelPendingPhotos(){
 }
 function capturePhoto(){ return pickPhoto(true, 'environment'); }
 function pickFromGallery(){ return pickPhoto(false, null); }
+
+/* ---- 홈 화면 프로필 사진 ----
+   문서 사진과 달리 서버로 보내지 않고 이 기기에만 작은 크기로 저장한다(appState.avatarPhoto). */
+const AVATAR_MAX_SIDE = 320;
+
+/** 원본 사진을 정사각형에 가깝게 줄여 작은 data URL로 만든다. 캔버스가 막히면(교차 출처 등) 원본을 그대로 돌려준다. */
+function prepareAvatarPhoto(src){
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, AVATAR_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+        const w = Math.max(1, Math.round(img.naturalWidth * scale));
+        const h = Math.max(1, Math.round(img.naturalHeight * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      } catch (err) {
+        resolve(src);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+async function pickAvatarPhoto(){
+  const Camera = getCameraPlugin();
+  let raw = null;
+  try {
+    if (Camera) {
+      const { results } = await Camera.chooseFromGallery({ quality: 80 });
+      if (!results || !results.length) return;
+      raw = results[0].webPath;
+    } else {
+      raw = await pickWebPhoto(null);
+      if (!raw) return;
+    }
+  } catch (err) {
+    return; // 사용자가 선택을 취소한 경우 등: 그대로 둔다
+  }
+  const prepared = await prepareAvatarPhoto(raw);
+  if (!prepared) return;
+  appState.avatarPhoto = prepared;
+  saveState();
+  renderAvatarPhoto();
+}
+
+function renderAvatarPhoto(){
+  document.querySelectorAll('.home-avatar').forEach(el => {
+    el.classList.toggle('has-photo', !!appState.avatarPhoto);
+    el.style.backgroundImage = appState.avatarPhoto ? `url("${appState.avatarPhoto}")` : '';
+  });
+}
 
 /** 실제로 찍거나 고른 사진이 있으면 결과 화면에 보여주고,
  *  기록을 다시 열어본 경우(사진을 저장해두지 않음)에는 안내 문구를,
@@ -1775,10 +1859,10 @@ function saveGuardian(){
 const I18N = {
   ko: {
     'home.sectionTitle': '무엇을 도와드릴까요?',
-    'home.docTitle': '문서 촬영',
-    'home.docDesc': '문서를 찍으면 내용을 요약해 드려요',
-    'home.smsTitle': '문자 내용 요약',
-    'home.smsDesc': '문자 내용이 진짜인지 구분하고 요약해 드려요',
+    'home.assistantActive': '온담 비서가 활성화되었습니다',
+    'home.greetDefault': '어르신',
+    'home.aiAnalyzeTitle': 'AI 문서 분석하기',
+    'home.aiAnalyzeDesc': '사진 촬영하기·사진 불러오기·문자 내용 불러오기 중에서 골라 AI가 분석해드려요',
     'home.welfareTitle': '주변 복지센터·경로당 찾기',
     'home.welfareDesc': '내 위치 주변 복지센터·경로당 위치를 알려드려요',
     'home.todayTasks': '오늘 해야 할 일',
@@ -1881,7 +1965,7 @@ const I18N = {
     'coach.doc1.title': '문서를 촬영해보세요', 'coach.doc1.desc': '이 카드를 누르면 문서를 찍어 AI에게 분석을 맡길 수 있어요.', 'coach.doc1.voice': '문서 촬영 카드를 눌러보세요.',
     'coach.doc2.title': '직접 촬영해볼게요', 'coach.doc2.desc': '카메라로 문서를 찍어보세요.', 'coach.doc2.voice': '직접 촬영하기를 눌러보세요.',
     'coach.doc3.title': '촬영 버튼을 눌러주세요', 'coach.doc3.desc': '문서가 화면 가운데 오도록 맞추고 눌러주세요.', 'coach.doc3.voice': '촬영 버튼을 눌러주세요.',
-    'coach.sms1.title': '문자도 확인해보세요', 'coach.sms1.desc': '받은 문자가 안전한지도 확인할 수 있어요.', 'coach.sms1.voice': '문자 내용 요약 카드를 눌러보세요.',
+    'coach.sms1.title': '문자도 확인해보세요', 'coach.sms1.desc': '받은 문자가 안전한지도 여기서 확인할 수 있어요.', 'coach.sms1.voice': '문자 내용 불러오기 카드를 눌러보세요.',
     'coach.sms2.title': '문자 앱을 눌러보세요', 'coach.sms2.desc': '문자 앱을 열어볼게요.', 'coach.sms2.voice': '문자 앱을 눌러보세요.',
     'coach.sms3.title': '문자를 길게 눌러 복사해보세요', 'coach.sms3.desc': '실제로는 확인하고 싶은 문자를 길게 눌러 복사하면 돼요.', 'coach.sms3.voice': '문자를 길게 눌러 복사해보세요.',
     'coach.sms4.title': '다시 이 앱으로 돌아와주세요', 'coach.sms4.desc': '복사했다면 이 버튼을 눌러 앱으로 돌아오세요.', 'coach.sms4.voice': '앱 열기 버튼을 눌러주세요.',
@@ -1905,15 +1989,16 @@ const I18N = {
     'coach.finish.title': '이제 홈으로 돌아가면 끝이에요', 'coach.finish.desc': '← 홈으로 버튼을 눌러 안내를 마쳐요.', 'coach.finish.voice': '홈으로 버튼을 눌러 안내를 마쳐요.',
     'coach.language.title': '언어도 바꿀 수 있어요', 'coach.language.desc': '중국어·베트남어·태국어·우즈베크어 중에서 골라보세요. 다 고르셨으면 다음으로 넘어가세요.', 'coach.language.voice': '언어 설정을 눌러보세요. 다 고르셨으면 다음으로 눌러 넘어가세요.',
     'common.home': '← 홈으로', 'common.back': '← 뒤로',
-    'docChoice.title': '문서 업로드',
-    'docChoice.desc': '분석하고 싶은 공문서를 촬영하거나<br>사진첩에서 불러와 주세요.<br>내용을 쉽게 설명해 드립니다.',
+    'docChoice.title': 'AI 분석하기',
+    'docChoice.desc': '분석하고 싶은 문서를 촬영하거나 사진첩에서 불러오세요.<br>문자 내용도 불러와 확인할 수 있어요.',
     'docChoice.voicePill': '음성 안내 다시 듣기',
-    'docChoice.cameraTitle': '직접 촬영하기', 'docChoice.cameraDesc': '카메라로 문서를 찍습니다',
-    'docChoice.galleryTitle': '앨범에서 가져오기', 'docChoice.galleryDesc': '저장된 사진을 불러옵니다',
+    'docChoice.cameraTitle': '사진 촬영하기', 'docChoice.cameraDesc': '카메라로 문서를 찍습니다',
+    'docChoice.galleryTitle': '사진 불러오기', 'docChoice.galleryDesc': '저장된 사진을 불러옵니다',
+    'docChoice.smsTitle': '문자 내용 불러오기', 'docChoice.smsDesc': '문자 앱에서 문자를 복사해 불러옵니다',
     'docChoice.tipTitle': '꼭 확인해 주세요!',
     'docChoice.tip1': '문서의 글자가 선명하게 보이도록 촬영해 주세요.',
     'docChoice.tip2': '빛 반사가 적은 밝은 곳에서 촬영하면 더 정확합니다.',
-    'docChoice.voice': '분석하고 싶은 공문서를 촬영하거나 사진첩에서 불러와 주세요.',
+    'docChoice.voice': '사진 촬영하기, 사진 불러오기, 문자 내용 불러오기 중에서 골라주세요.',
     'docCapture.inProgress': '🔵 진행 중',
     'docCapture.guide': '문서를 화면 가운데<br>오도록 맞춰주세요',
     'docCapture.caption': '👆 촬영 버튼을 눌러주세요',
@@ -1968,10 +2053,10 @@ const I18N = {
   },
   zh: {
     'home.sectionTitle': '需要什么帮助？',
-    'home.docTitle': '拍摄文件',
-    'home.docDesc': '拍摄文件后为您总结内容',
-    'home.smsTitle': '短信内容摘要',
-    'home.smsDesc': '判断短信真伪并为您总结',
+    'home.assistantActive': '온담 助手已启用',
+    'home.greetDefault': '您好',
+    'home.aiAnalyzeTitle': 'AI文件分析',
+    'home.aiAnalyzeDesc': '可选择拍摄照片、导入照片或导入短信内容，由AI为您分析',
     'home.welfareTitle': '附近福利中心·老人活动中心',
     'home.welfareDesc': '为您查找所在位置附近的福利中心、老人活动中心',
     'home.todayTasks': '今天要做的事',
@@ -2074,7 +2159,7 @@ const I18N = {
     'coach.doc1.title': '拍摄文件试试看', 'coach.doc1.desc': '点击此卡片可以拍摄文件并交给AI分析。', 'coach.doc1.voice': '请点击拍摄文件卡片。',
     'coach.doc2.title': '直接拍摄一下', 'coach.doc2.desc': '用相机拍摄文件吧。', 'coach.doc2.voice': '请点击直接拍摄。',
     'coach.doc3.title': '请按拍摄按钮', 'coach.doc3.desc': '将文件对准屏幕中央后按下按钮。', 'coach.doc3.voice': '请按拍摄按钮。',
-    'coach.sms1.title': '短信也可以确认', 'coach.sms1.desc': '也可以确认收到的短信是否安全。', 'coach.sms1.voice': '请点击短信内容摘要卡片。',
+    'coach.sms1.title': '短信也可以确认', 'coach.sms1.desc': '也可以在这里确认收到的短信是否安全。', 'coach.sms1.voice': '请点击导入短信内容卡片。',
     'coach.sms2.title': '请点击短信应用', 'coach.sms2.desc': '我们来打开短信应用。', 'coach.sms2.voice': '请点击短信应用。',
     'coach.sms3.title': '长按短信复制试试看', 'coach.sms3.desc': '实际使用时，长按想确认的短信即可复制。', 'coach.sms3.voice': '请长按短信进行复制。',
     'coach.sms4.title': '请再回到本应用', 'coach.sms4.desc': '复制完成后，请点击此按钮返回应用。', 'coach.sms4.voice': '请点击打开应用按钮。',
@@ -2098,15 +2183,16 @@ const I18N = {
     'coach.finish.title': '现在回到首页就结束了', 'coach.finish.desc': '请点击←返回首页按钮结束指引。', 'coach.finish.voice': '请点击返回首页按钮结束指引。',
     'coach.language.title': '语言也可以更改', 'coach.language.desc': '请在中文·越南语·泰语·乌兹别克语中选择。选好后请点击下一步。', 'coach.language.voice': '请点击语言设置。选好后请点击下一步继续。',
     'common.home': '← 返回主页', 'common.back': '← 返回',
-    'docChoice.title': '上传文件',
-    'docChoice.desc': '请拍摄想要分析的公文，<br>或从相册中选择。<br>我们会为您简单说明内容。',
+    'docChoice.title': 'AI分析',
+    'docChoice.desc': '请拍摄想要分析的文件，或从相册中选择。<br>也可以导入短信内容进行确认。',
     'docChoice.voicePill': '重新收听语音讲解',
-    'docChoice.cameraTitle': '直接拍摄', 'docChoice.cameraDesc': '用相机拍摄文件',
-    'docChoice.galleryTitle': '从相册选择', 'docChoice.galleryDesc': '载入已保存的照片',
+    'docChoice.cameraTitle': '拍摄照片', 'docChoice.cameraDesc': '用相机拍摄文件',
+    'docChoice.galleryTitle': '导入照片', 'docChoice.galleryDesc': '载入已保存的照片',
+    'docChoice.smsTitle': '导入短信内容', 'docChoice.smsDesc': '从短信应用复制短信后导入',
     'docChoice.tipTitle': '请务必确认！',
     'docChoice.tip1': '请拍摄时让文件上的字清晰可见。',
     'docChoice.tip2': '在反光少的明亮处拍摄会更准确。',
-    'docChoice.voice': '请拍摄想要分析的公文，或从相册中选择。',
+    'docChoice.voice': '请选择拍摄照片、导入照片或导入短信内容。',
     'docCapture.inProgress': '🔵 进行中',
     'docCapture.guide': '请将文件对准<br>屏幕中央',
     'docCapture.caption': '👆 请按拍摄按钮',
@@ -2161,10 +2247,10 @@ const I18N = {
   },
   vi: {
     'home.sectionTitle': 'Bạn cần giúp gì?',
-    'home.docTitle': 'Chụp tài liệu',
-    'home.docDesc': 'Chụp tài liệu để được tóm tắt nội dung',
-    'home.smsTitle': 'Tóm tắt tin nhắn',
-    'home.smsDesc': 'Kiểm tra tin nhắn thật hay giả và tóm tắt',
+    'home.assistantActive': 'Trợ lý 온담 đã được kích hoạt',
+    'home.greetDefault': 'Cô/Chú',
+    'home.aiAnalyzeTitle': 'Phân tích tài liệu bằng AI',
+    'home.aiAnalyzeDesc': 'Chọn chụp ảnh, tải ảnh lên hoặc tải nội dung tin nhắn để AI phân tích',
     'home.welfareTitle': 'Tìm trung tâm phúc lợi và nhà sinh hoạt người cao tuổi',
     'home.welfareDesc': 'Tìm trung tâm phúc lợi, nhà sinh hoạt người cao tuổi gần vị trí của bạn',
     'home.todayTasks': 'Việc cần làm hôm nay',
@@ -2267,7 +2353,7 @@ const I18N = {
     'coach.doc1.title': 'Hãy thử chụp tài liệu', 'coach.doc1.desc': 'Nhấn vào thẻ này để chụp tài liệu và nhờ AI phân tích.', 'coach.doc1.voice': 'Hãy nhấn vào thẻ chụp tài liệu.',
     'coach.doc2.title': 'Chúng ta chụp trực tiếp nhé', 'coach.doc2.desc': 'Hãy chụp tài liệu bằng camera.', 'coach.doc2.voice': 'Hãy nhấn chụp trực tiếp.',
     'coach.doc3.title': 'Hãy nhấn nút chụp', 'coach.doc3.desc': 'Canh tài liệu vào giữa màn hình rồi nhấn nút.', 'coach.doc3.voice': 'Hãy nhấn nút chụp.',
-    'coach.sms1.title': 'Cũng có thể kiểm tra tin nhắn', 'coach.sms1.desc': 'Bạn cũng có thể kiểm tra tin nhắn nhận được có an toàn không.', 'coach.sms1.voice': 'Hãy nhấn vào thẻ tóm tắt nội dung tin nhắn.',
+    'coach.sms1.title': 'Cũng có thể kiểm tra tin nhắn', 'coach.sms1.desc': 'Bạn cũng có thể kiểm tra ở đây xem tin nhắn nhận được có an toàn không.', 'coach.sms1.voice': 'Hãy nhấn vào thẻ tải nội dung tin nhắn.',
     'coach.sms2.title': 'Hãy nhấn vào ứng dụng tin nhắn', 'coach.sms2.desc': 'Chúng ta sẽ mở ứng dụng tin nhắn.', 'coach.sms2.voice': 'Hãy nhấn vào ứng dụng tin nhắn.',
     'coach.sms3.title': 'Hãy thử nhấn giữ tin nhắn để sao chép', 'coach.sms3.desc': 'Trong thực tế, bạn nhấn giữ tin nhắn muốn kiểm tra để sao chép.', 'coach.sms3.voice': 'Hãy nhấn giữ tin nhắn để sao chép.',
     'coach.sms4.title': 'Hãy quay lại ứng dụng này', 'coach.sms4.desc': 'Sau khi sao chép, nhấn nút này để quay lại ứng dụng.', 'coach.sms4.voice': 'Hãy nhấn nút mở ứng dụng.',
@@ -2291,15 +2377,16 @@ const I18N = {
     'coach.finish.title': 'Giờ quay lại trang chủ là xong', 'coach.finish.desc': 'Hãy nhấn nút ← Về trang chủ để kết thúc hướng dẫn.', 'coach.finish.voice': 'Hãy nhấn nút về trang chủ để kết thúc hướng dẫn.',
     'coach.language.title': 'Cũng có thể đổi ngôn ngữ', 'coach.language.desc': 'Hãy chọn giữa tiếng Trung·Việt·Thái·Uzbek. Chọn xong hãy nhấn tiếp theo.', 'coach.language.voice': 'Hãy nhấn cài đặt ngôn ngữ. Chọn xong hãy nhấn tiếp theo.',
     'common.home': '← Trang chủ', 'common.back': '← Quay lại',
-    'docChoice.title': 'Tải tài liệu lên',
-    'docChoice.desc': 'Hãy chụp văn bản công vụ bạn muốn phân tích<br>hoặc chọn từ thư viện ảnh.<br>Chúng tôi sẽ giải thích nội dung một cách dễ hiểu.',
+    'docChoice.title': 'Phân tích AI',
+    'docChoice.desc': 'Hãy chụp tài liệu bạn muốn phân tích hoặc chọn từ thư viện ảnh.<br>Bạn cũng có thể tải nội dung tin nhắn để kiểm tra.',
     'docChoice.voicePill': 'Nghe lại hướng dẫn bằng giọng nói',
-    'docChoice.cameraTitle': 'Tự chụp ảnh', 'docChoice.cameraDesc': 'Chụp tài liệu bằng máy ảnh',
-    'docChoice.galleryTitle': 'Lấy từ thư viện ảnh', 'docChoice.galleryDesc': 'Mở ảnh đã lưu',
+    'docChoice.cameraTitle': 'Chụp ảnh', 'docChoice.cameraDesc': 'Chụp tài liệu bằng máy ảnh',
+    'docChoice.galleryTitle': 'Tải ảnh lên', 'docChoice.galleryDesc': 'Mở ảnh đã lưu',
+    'docChoice.smsTitle': 'Tải nội dung tin nhắn', 'docChoice.smsDesc': 'Sao chép tin nhắn từ ứng dụng tin nhắn rồi tải lên',
     'docChoice.tipTitle': 'Hãy kiểm tra nhé!',
     'docChoice.tip1': 'Hãy chụp sao cho chữ trên tài liệu hiện rõ.',
     'docChoice.tip2': 'Chụp ở nơi sáng và ít bị phản chiếu ánh sáng sẽ chính xác hơn.',
-    'docChoice.voice': 'Hãy chụp văn bản công vụ bạn muốn phân tích hoặc chọn từ thư viện ảnh.',
+    'docChoice.voice': 'Hãy chọn chụp ảnh, tải ảnh lên hoặc tải nội dung tin nhắn.',
     'docCapture.inProgress': '🔵 Đang thực hiện',
     'docCapture.guide': 'Hãy căn tài liệu<br>vào giữa màn hình',
     'docCapture.caption': '👆 Hãy nhấn nút chụp',
@@ -2354,10 +2441,10 @@ const I18N = {
   },
   th: {
     'home.sectionTitle': 'ต้องการความช่วยเหลือเรื่องอะไร?',
-    'home.docTitle': 'ถ่ายภาพเอกสาร',
-    'home.docDesc': 'ถ่ายภาพเอกสารแล้วเราจะสรุปเนื้อหาให้',
-    'home.smsTitle': 'สรุปข้อความ',
-    'home.smsDesc': 'ตรวจสอบว่าข้อความจริงหรือปลอมแล้วสรุปให้',
+    'home.assistantActive': 'ผู้ช่วย 온담 เปิดใช้งานแล้ว',
+    'home.greetDefault': 'คุณลูกค้า',
+    'home.aiAnalyzeTitle': 'วิเคราะห์เอกสารด้วย AI',
+    'home.aiAnalyzeDesc': 'เลือกถ่ายภาพ นำเข้ารูปภาพ หรือนำเข้าข้อความ ให้ AI วิเคราะห์ให้',
     'home.welfareTitle': 'ค้นหาศูนย์สวัสดิการ·ศูนย์ผู้สูงอายุใกล้เคียง',
     'home.welfareDesc': 'แจ้งตำแหน่งศูนย์สวัสดิการ·ศูนย์ผู้สูงอายุใกล้ที่อยู่ของคุณ',
     'home.todayTasks': 'สิ่งที่ต้องทำวันนี้',
@@ -2460,7 +2547,7 @@ const I18N = {
     'coach.doc1.title': 'ลองถ่ายภาพเอกสารดูสิ', 'coach.doc1.desc': 'กดการ์ดนี้เพื่อถ่ายภาพเอกสารและให้ AI วิเคราะห์', 'coach.doc1.voice': 'กรุณากดการ์ดถ่ายภาพเอกสาร',
     'coach.doc2.title': 'ลองถ่ายภาพเองดูนะ', 'coach.doc2.desc': 'ถ่ายภาพเอกสารด้วยกล้อง', 'coach.doc2.voice': 'กรุณากดถ่ายภาพเอง',
     'coach.doc3.title': 'กรุณากดปุ่มถ่ายภาพ', 'coach.doc3.desc': 'จัดเอกสารให้อยู่กลางจอแล้วกดปุ่ม', 'coach.doc3.voice': 'กรุณากดปุ่มถ่ายภาพ',
-    'coach.sms1.title': 'ตรวจสอบข้อความได้เช่นกัน', 'coach.sms1.desc': 'สามารถตรวจสอบได้ว่าข้อความที่ได้รับปลอดภัยหรือไม่', 'coach.sms1.voice': 'กรุณากดการ์ดสรุปข้อความ',
+    'coach.sms1.title': 'ตรวจสอบข้อความได้เช่นกัน', 'coach.sms1.desc': 'สามารถตรวจสอบที่นี่ได้ว่าข้อความที่ได้รับปลอดภัยหรือไม่', 'coach.sms1.voice': 'กรุณากดการ์ดนำเข้าข้อความ',
     'coach.sms2.title': 'กรุณากดแอปข้อความ', 'coach.sms2.desc': 'เราจะเปิดแอปข้อความกัน', 'coach.sms2.voice': 'กรุณากดแอปข้อความ',
     'coach.sms3.title': 'ลองกดค้างที่ข้อความเพื่อคัดลอกดู', 'coach.sms3.desc': 'ในการใช้งานจริง กดค้างที่ข้อความที่ต้องการตรวจสอบเพื่อคัดลอก', 'coach.sms3.voice': 'กรุณากดค้างที่ข้อความเพื่อคัดลอก',
     'coach.sms4.title': 'กรุณากลับมาที่แอปนี้อีกครั้ง', 'coach.sms4.desc': 'เมื่อคัดลอกแล้ว กดปุ่มนี้เพื่อกลับมาที่แอป', 'coach.sms4.voice': 'กรุณากดปุ่มเปิดแอป',
@@ -2484,15 +2571,16 @@ const I18N = {
     'coach.finish.title': 'ตอนนี้กลับหน้าหลักก็จบแล้ว', 'coach.finish.desc': 'กรุณากดปุ่ม ← กลับหน้าหลักเพื่อจบคำแนะนำ', 'coach.finish.voice': 'กรุณากดปุ่มกลับหน้าหลักเพื่อจบคำแนะนำ',
     'coach.language.title': 'เปลี่ยนภาษาได้เช่นกัน', 'coach.language.desc': 'เลือกระหว่างจีน·เวียดนาม·ไทย·อุซเบก เลือกเสร็จแล้วกดถัดไป', 'coach.language.voice': 'กรุณากดตั้งค่าภาษา เลือกเสร็จแล้วกรุณากดถัดไป',
     'common.home': '← หน้าแรก', 'common.back': '← ย้อนกลับ',
-    'docChoice.title': 'อัปโหลดเอกสาร',
-    'docChoice.desc': 'กรุณาถ่ายภาพเอกสารราชการที่ต้องการวิเคราะห์<br>หรือเลือกจากคลังภาพ<br>เราจะอธิบายเนื้อหาให้เข้าใจง่าย',
+    'docChoice.title': 'วิเคราะห์ด้วย AI',
+    'docChoice.desc': 'กรุณาถ่ายภาพเอกสารที่ต้องการวิเคราะห์หรือเลือกจากคลังภาพ<br>สามารถนำเข้าข้อความเพื่อตรวจสอบได้เช่นกัน',
     'docChoice.voicePill': 'ฟังคำแนะนำเสียงอีกครั้ง',
-    'docChoice.cameraTitle': 'ถ่ายภาพเอง', 'docChoice.cameraDesc': 'ถ่ายเอกสารด้วยกล้อง',
-    'docChoice.galleryTitle': 'เลือกจากคลังภาพ', 'docChoice.galleryDesc': 'เปิดรูปภาพที่บันทึกไว้',
+    'docChoice.cameraTitle': 'ถ่ายภาพ', 'docChoice.cameraDesc': 'ถ่ายเอกสารด้วยกล้อง',
+    'docChoice.galleryTitle': 'นำเข้ารูปภาพ', 'docChoice.galleryDesc': 'เปิดรูปภาพที่บันทึกไว้',
+    'docChoice.smsTitle': 'นำเข้าข้อความ', 'docChoice.smsDesc': 'คัดลอกข้อความจากแอปข้อความแล้วนำเข้า',
     'docChoice.tipTitle': 'กรุณาตรวจสอบด้วยนะคะ!',
     'docChoice.tip1': 'กรุณาถ่ายให้ตัวอักษรในเอกสารชัดเจน',
     'docChoice.tip2': 'ถ่ายในที่สว่างและมีแสงสะท้อนน้อยจะแม่นยำกว่า',
-    'docChoice.voice': 'กรุณาถ่ายภาพเอกสารราชการที่ต้องการวิเคราะห์ หรือเลือกจากคลังภาพ',
+    'docChoice.voice': 'กรุณาเลือกถ่ายภาพ นำเข้ารูปภาพ หรือนำเข้าข้อความ',
     'docCapture.inProgress': '🔵 กำลังดำเนินการ',
     'docCapture.guide': 'กรุณาจัดเอกสาร<br>ให้อยู่กลางหน้าจอ',
     'docCapture.caption': '👆 กรุณากดปุ่มถ่ายภาพ',
@@ -2547,10 +2635,10 @@ const I18N = {
   },
   uz: {
     'home.sectionTitle': 'Sizga qanday yordam kerak?',
-    'home.docTitle': 'Hujjatni suratga olish',
-    'home.docDesc': 'Hujjatni suratga olsangiz, mazmunini xulosalab beramiz',
-    'home.smsTitle': 'SMS xulosasi',
-    'home.smsDesc': "SMS xabarining haqiqiyligini tekshirib, xulosa beramiz",
+    'home.assistantActive': "온담 yordamchisi faollashtirildi",
+    'home.greetDefault': 'Foydalanuvchi',
+    'home.aiAnalyzeTitle': "AI bilan hujjat tahlili",
+    'home.aiAnalyzeDesc': "Surat olish, rasm yuklash yoki SMS matnini yuklashni tanlang, AI tahlil qilib beradi",
     'home.welfareTitle': "Yaqin atrofdagi ijtimoiy ta'minot markazlari va keksalar markazini toping",
     'home.welfareDesc': "Joylashuvingiz yaqinidagi ijtimoiy ta'minot markazlari va keksalar markazini ko'rsatamiz",
     'home.todayTasks': 'Bugungi vazifalar',
@@ -2653,7 +2741,7 @@ const I18N = {
     'coach.doc1.title': 'Hujjatni suratga olib ko\'ring', 'coach.doc1.desc': 'Ushbu kartani bosib hujjatni suratga olib AI tahliliga topshirishingiz mumkin.', 'coach.doc1.voice': 'Hujjat suratga olish kartasini bosing.',
     'coach.doc2.title': 'Bevosita suratga olamiz', 'coach.doc2.desc': 'Kamera bilan hujjatni suratga oling.', 'coach.doc2.voice': 'Bevosita suratga olishni bosing.',
     'coach.doc3.title': 'Suratga olish tugmasini bosing', 'coach.doc3.desc': "Hujjatni ekran markaziga to'g'rilab tugmani bosing.", 'coach.doc3.voice': 'Suratga olish tugmasini bosing.',
-    'coach.sms1.title': 'SMS xabarni ham tekshirish mumkin', 'coach.sms1.desc': 'Kelgan SMS xavfsizligini ham tekshirish mumkin.', 'coach.sms1.voice': 'SMS xulosasi kartasini bosing.',
+    'coach.sms1.title': 'SMS xabarni ham tekshirish mumkin', 'coach.sms1.desc': 'Kelgan SMS xavfsizligini shu yerda ham tekshirish mumkin.', 'coach.sms1.voice': "SMS matnini yuklash kartasini bosing.",
     'coach.sms2.title': 'SMS ilovasini bosing', 'coach.sms2.desc': 'SMS ilovasini ochamiz.', 'coach.sms2.voice': 'SMS ilovasini bosing.',
     'coach.sms3.title': 'SMS xabarni bosib turib nusxalab ko\'ring', 'coach.sms3.desc': "Haqiqatda tekshirmoqchi bo'lgan SMS ni bosib turib nusxalash mumkin.", 'coach.sms3.voice': 'SMS ni bosib turib nusxalang.',
     'coach.sms4.title': 'Yana shu ilovaga qaytib keling', 'coach.sms4.desc': "Nusxalagandan so'ng, shu tugmani bosib ilovaga qayting.", 'coach.sms4.voice': 'Ilovani ochish tugmasini bosing.',
@@ -2677,15 +2765,16 @@ const I18N = {
     'coach.finish.title': 'Endi bosh sahifaga qaytsangiz tugaydi', 'coach.finish.desc': "Yo'riqnomani yakunlash uchun ← Bosh sahifaga tugmasini bosing.", 'coach.finish.voice': "Yo'riqnomani yakunlash uchun bosh sahifaga tugmasini bosing.",
     'coach.language.title': 'Tilni ham o\'zgartirish mumkin', 'coach.language.desc': "Xitoy·Vetnam·Tay·O'zbek orasidan tanlang. Tanlab bo'lgach keyingiga o'ting.", 'coach.language.voice': "Til sozlamasini bosing. Tanlab bo'lgach keyingi tugmasini bosing.",
     'common.home': '← Bosh sahifa', 'common.back': '← Orqaga',
-    'docChoice.title': 'Hujjat yuklash',
-    'docChoice.desc': "Tahlil qilmoqchi bo'lgan rasmiy hujjatni suratga oling<br>yoki galereyadan tanlang.<br>Mazmunini sodda tilda tushuntirib beramiz.",
+    'docChoice.title': "AI bilan tahlil qilish",
+    'docChoice.desc': "Tahlil qilmoqchi bo'lgan hujjatni suratga oling yoki galereyadan tanlang.<br>SMS matnini ham yuklab tekshirishingiz mumkin.",
     'docChoice.voicePill': "Ovozli yo'riqnomani qayta eshitish",
-    'docChoice.cameraTitle': "O'zim suratga olish", 'docChoice.cameraDesc': 'Kamera bilan hujjatni suratga olish',
-    'docChoice.galleryTitle': 'Galereyadan tanlash', 'docChoice.galleryDesc': 'Saqlangan rasmni ochish',
+    'docChoice.cameraTitle': "Surat olish", 'docChoice.cameraDesc': 'Kamera bilan hujjatni suratga olish',
+    'docChoice.galleryTitle': "Rasm yuklash", 'docChoice.galleryDesc': 'Saqlangan rasmni ochish',
+    'docChoice.smsTitle': "SMS matnini yuklash", 'docChoice.smsDesc': "SMS ilovasidan xabarni nusxalab yuklang",
     'docChoice.tipTitle': 'Albatta tekshiring!',
     'docChoice.tip1': 'Hujjatdagi harflar aniq ko\'rinadigan qilib suratga oling.',
     'docChoice.tip2': "Yorug' va yorug'lik aks etmaydigan joyda suratga olsangiz aniqroq bo'ladi.",
-    'docChoice.voice': "Tahlil qilmoqchi bo'lgan rasmiy hujjatni suratga oling yoki galereyadan tanlang.",
+    'docChoice.voice': "Surat olish, rasm yuklash yoki SMS matnini yuklashni tanlang.",
     'docCapture.inProgress': '🔵 Bajarilmoqda',
     'docCapture.guide': "Hujjatni ekranning<br>o'rtasiga joylashtiring",
     'docCapture.caption': '👆 Suratga olish tugmasini bosing',
@@ -2772,7 +2861,7 @@ function syncSettingsUI(){
   document.getElementById('guardianName').value = appState.guardian.name;
   document.getElementById('guardianPhone').value = appState.guardian.phone;
   document.getElementById('autoNotifyToggle').checked = appState.guardian.autoNotify;
-  document.getElementById('voiceEnabledToggle').checked = appState.settings.voiceEnabled;
+  syncVoiceEnabledToggles();
   syncProfileUI();
   applyLanguage();
 }
@@ -2792,6 +2881,7 @@ function setProfileField(field, value){
   syncProfileUI();
   renderPublicInfoCard();
   renderHomeInfoCard(); // 인사말이 이름·나이를 따라가므로 홈 요약 카드도 같이 갱신한다
+  renderHomeGreet();    // 홈 인사 카드의 "OOO님"도 마찬가지
   if (field === 'region') queueRegionInfoRefresh();
   queueProfileSave();
 }
