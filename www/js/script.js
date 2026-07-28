@@ -1614,6 +1614,8 @@ const I18N = {
     'home.dueTitle': '곧 내야 할 것',
     'home.dueMore': '전체 통계 보기',
     'stats.title': '고지서 통계',
+    'result.share': '자녀에게 보내기',
+    'result.shareNothing': '보낼 결과가 없어요.',
     'stats.thisMonth': '이번 달 고지서',
     'stats.cumulative': '달마다 쌓인 금액',
     'stats.upcoming': '다가오는 납부 기한',
@@ -1782,6 +1784,8 @@ const I18N = {
     'home.dueTitle': '即将要缴纳的',
     'home.dueMore': '查看全部统计',
     'stats.title': '缴费单统计',
+    'result.share': '发送给子女',
+    'result.shareNothing': '没有可发送的结果。',
     'stats.thisMonth': '本月缴费单',
     'stats.cumulative': '每月累计金额',
     'stats.upcoming': '临近的缴纳期限',
@@ -1950,6 +1954,8 @@ const I18N = {
     'home.dueTitle': 'Sắp phải nộp',
     'home.dueMore': 'Xem toàn bộ thống kê',
     'stats.title': 'Thống kê hóa đơn',
+    'result.share': 'Gửi cho con cái',
+    'result.shareNothing': 'Không có kết quả để gửi.',
     'stats.thisMonth': 'Hóa đơn tháng này',
     'stats.cumulative': 'Số tiền tích lũy theo tháng',
     'stats.upcoming': 'Hạn nộp sắp tới',
@@ -2118,6 +2124,8 @@ const I18N = {
     'home.dueTitle': 'ที่ต้องชำระเร็ว ๆ นี้',
     'home.dueMore': 'ดูสถิติทั้งหมด',
     'stats.title': 'สถิติใบแจ้งหนี้',
+    'result.share': 'ส่งให้ลูกหลาน',
+    'result.shareNothing': 'ไม่มีผลลัพธ์ที่จะส่ง',
     'stats.thisMonth': 'ใบแจ้งหนี้เดือนนี้',
     'stats.cumulative': 'ยอดสะสมรายเดือน',
     'stats.upcoming': 'กำหนดชำระที่ใกล้เข้ามา',
@@ -2286,6 +2294,8 @@ const I18N = {
     'home.dueTitle': 'Tez orada to\'lanadigan',
     'home.dueMore': 'Barcha statistikani ko\'rish',
     'stats.title': 'Hisob-kitob statistikasi',
+    'result.share': 'Farzandlarga yuborish',
+    'result.shareNothing': 'Yuboradigan natija yo\'q.',
     'stats.thisMonth': 'Shu oydagi hisoblar',
     'stats.cumulative': 'Oylar bo\'yicha to\'plangan summa',
     'stats.upcoming': 'Yaqinlashayotgan to\'lov muddati',
@@ -2635,6 +2645,53 @@ function renderHomeDueCard(){
       </div>`;
   }).join('');
   card.style.display = 'block';
+}
+
+/* ---- 분석 결과 공유하기 ----
+   특정 보호자 번호로 보내는 것(notifyGuardian)과 달리, 받는 사람을 정하지 않고
+   기기의 공유 시트를 열어 카카오톡·문자·메일 중에서 고르게 한다.
+   공유 시트를 지원하지 않는 브라우저에서는 문자 앱으로 대체한다. */
+
+/** 공유할 본문. AI가 만든 한국어 문장이 들어가므로 화면 UI와 달리 번역하지 않는다(CLAUDE.md 9번). */
+function buildShareText(kind){
+  const data = kind === 'sms' ? lastSmsAnalysis : lastDocAnalysis;
+  if (!data) return '';
+  const lines = [`[온담] ${kind === 'sms' ? '문자' : '문서'} 확인 결과입니다.`];
+  const label = GUARDIAN_STATUS_LABEL[data.status];
+  if (label) lines.push(`판정: ${label}`);
+  if (data.headline) lines.push(data.headline);
+  if (data.summary) lines.push(data.summary);
+
+  if (kind === 'doc') {
+    const amount = formatDocAmount(data.amount);
+    const due = formatDocDueDate(data.dueDate);
+    if (amount) lines.push(`납부할 금액: ${amount}`);
+    if (due) lines.push(`납부 기한: ${due}`);
+  }
+  if (Array.isArray(data.checklist) && data.checklist.length) {
+    lines.push('해야 할 일:');
+    data.checklist.forEach(item => lines.push(`- ${item}`));
+  }
+  return lines.join('\n');
+}
+
+async function shareResult(kind){
+  const text = buildShareText(kind);
+  if (!text) { speak(t('result.shareNothing')); return; }
+
+  // navigator.share 는 HTTPS + 사용자 조작이 있어야 뜬다. 없거나 취소되면 문자 앱으로 대체.
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: '온담 확인 결과', text });
+      return;
+    } catch (err) {
+      // 사용자가 공유 시트를 닫은 경우(AbortError)는 실패가 아니므로 아무것도 하지 않는다
+      if (err && err.name === 'AbortError') return;
+    }
+  }
+  // 받는 사람을 비워 두면 문자 앱에서 직접 고르게 된다
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+  window.location.href = 'sms:' + (isIOS ? '&' : '?') + 'body=' + encodeURIComponent(text);
 }
 
 /* ---- 통계 화면 ----

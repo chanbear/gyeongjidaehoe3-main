@@ -741,7 +741,8 @@
           </div>
         </div>
 
-        <button class="primary-btn" onclick="finishDocResult()" data-i18n="result.docConfirm">확인 완료</button>
+        <button class="secondary-btn" onclick="shareResult('doc')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-share"></use></svg><span data-i18n="result.share">자녀에게 보내기</span></button>
+        <button class="primary-btn" style="margin-top:12px;" onclick="finishDocResult()" data-i18n="result.docConfirm">확인 완료</button>
       </section>
 
       <!-- 실사용: 문자 - 휴대폰 홈 -->
@@ -856,6 +857,7 @@
           <a class="secondary-btn" href="tel:118"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg><span data-i18n="result.report118">118 신고(경찰청 상담)</span></a>
           <button class="secondary-btn" onclick="callGuardian()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg><span data-i18n="result.callFamily">가족에게 전화</span></button>
         </div>
+        <button class="secondary-btn" style="margin-top:10px;" onclick="shareResult('sms')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-share"></use></svg><span data-i18n="result.share">자녀에게 보내기</span></button>
         <button class="secondary-btn" style="margin-top:10px;" onclick="goTo('screen-sms-phone')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-chat"></use></svg><span data-i18n="result.checkAnotherSms">다른 문자 확인하기</span></button>
         <p class="settings-save-note" style="margin-top:14px;" data-i18n="result.legalNote">본 판별은 인공지능 분석 결과이므로 법적 효력이 없습니다.<br>의심스러운 경우 반드시 관계 기관에 직접 문의하세요.</p>
         <button class="primary-btn" style="margin-top:14px;" onclick="finishSmsResult()" data-i18n="result.textConfirm">확인했습니다</button>
