@@ -582,6 +582,44 @@
 /* 안내(온보딩) 화면에서는 실제 앱 기능인 긴급 도움 버튼을 노출하지 않는다 */
 body.in-onboarding .emergency-fab{ display:none; }
 
+/* ---- 하단 네비게이션 바 ----
+   최상위 4개 탭(홈·정보·기록·설정)에서만 body.has-bottom-nav 로 노출된다.
+   z-index는 긴급 FAB(80)·시트(85)·코치마크(500)보다 아래여야 그것들이 가려지지 않는다. */
+:root{ --bottom-nav-h:64px; }
+
+.bottom-nav{
+  display:none;
+  position:fixed; left:0; right:0; bottom:0; z-index:70;
+  background:rgba(255,255,255,0.96);
+  backdrop-filter:saturate(180%) blur(12px);
+  border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+body.has-bottom-nav .bottom-nav{ display:flex; }
+
+.bottom-nav button{
+  flex:1 1 0; min-width:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+  height:var(--bottom-nav-h);
+  border:0; background:none; cursor:pointer;
+  color:var(--ink-faint);
+  /* 아이콘만 쓰지 않고 글자 라벨을 함께 둔다(디자인 가이드 7순위) */
+  font-size:calc(12px * var(--scale)); font-weight:700;
+  transition:color .15s ease;
+}
+.bottom-nav button svg{ width:24px; height:24px; }
+.bottom-nav button span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.bottom-nav button.is-active{ color:var(--accent-strong); }
+
+/* 네비바가 마지막 콘텐츠를 가리지 않도록 탭 화면에만 아래 여백을 준다 */
+body.has-bottom-nav .screen.active{
+  padding-bottom:calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 24px);
+}
+/* 긴급 FAB도 네비바 위로 올린다 */
+body.has-bottom-nav .emergency-fab{
+  bottom:calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 16px);
+}
+
 /* ---- 튜토리얼: 문자 길게 눌러 복사하기 연습(실제 폰 길게 누르기 시 뜨는 복사 메뉴를 흉내) ---- */
 .tutorial-copy-popup{
   position:absolute; top:-52px; left:50%; transform:translateX(-50%);

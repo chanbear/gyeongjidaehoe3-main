@@ -30,6 +30,7 @@
     <symbol id="ic-check" viewBox="0 0 24 24"><path d="M5 13l4 4 10-10" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="ic-alert" viewBox="0 0 24 24"><path d="M12 3l10 18H2L12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4M12 17h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
     <symbol id="ic-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v6M12 7h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+    <symbol id="ic-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1v-9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
     <symbol id="ic-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 5-3.2 8-7 9-3.8-1-7-4-7-9V6l7-3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="ic-doc" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 3v4h4M9 13h6M9 17h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="ic-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-4 4V5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
@@ -154,19 +155,7 @@
           <button class="dashboard-more-btn" onclick="openHistory()" data-i18n="home.viewAll">전체 보기</button>
         </div>
 
-        <!-- 맞춤 공공 정보 안내 (전국 공통 정보, 프로필 입력 시 인사말만 맞춤화) -->
-        <div class="dashboard-card" id="publicInfoCard" style="display:none;">
-          <div class="dashboard-card-title" id="publicInfoTitle"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-info"></use></svg>알아두면 좋은 정보</div>
-          <div class="group" id="publicInfoList" style="background:#fff;"></div>
-          <p class="settings-save-note" style="margin:8px 0 0;">지역을 입력하지 않아도 보이는 전국 공통 정보이며, 자세한 내용은 관할 주민센터에서 확인하세요.</p>
-        </div>
-
-        <!-- 지역 맞춤 정보 (경기데이터드림 실제 공공데이터: 경로당 현황). 경기도 시/군이 매칭될 때만 표시 -->
-        <div class="dashboard-card" id="regionInfoCard" style="display:none;">
-          <div class="dashboard-card-title" id="regionInfoTitle"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-pin"></use></svg>우리 지역 정보</div>
-          <div class="group" id="regionInfoList" style="background:#fff;"></div>
-          <p class="settings-save-note" style="margin:8px 0 0;">경기데이터드림 공공데이터(경로당 현황) 기준입니다.</p>
-        </div>
+        <!-- 정보 카드(알아두면 좋은 정보 / 우리 지역 정보)는 screen-info 탭으로 옮겼다 -->
 
         <!-- 다가오는 일정 -->
         <div class="upcoming-schedule" id="upcomingSchedule" style="display:none;">
@@ -184,19 +173,37 @@
           </div>
         </div>
 
-        <div class="icon-square-grid">
-          <button class="icon-square-btn" onclick="openHistory()"><svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg><span data-i18n="home.recentRecords">최근 기록</span></button>
-          <button class="icon-square-btn" onclick="goTo('screen-settings')"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg><span data-i18n="home.settings">설정</span></button>
-        </div>
-
-        <div class="section">
-          <div class="section-label" data-i18n="home.recentRecords">최근 기록</div>
-          <div class="group" id="homeRecentList">
-            <div class="row"><div class="text t2" style="color:var(--ink-faint);" data-i18n="home.noRecords">아직 기록이 없습니다</div></div>
-          </div>
-        </div>
+        <!-- 기록·설정 아이콘 버튼과 최근 기록 카드는 하단 네비게이션 바가 대체한다 -->
 
         <div class="disclaimer-banner" data-i18n="home.disclaimer">본 서비스는 AI 분석 결과로 참고용이며,<br>중요 문서는 전문가와 상담하시기 바랍니다.</div>
+      </section>
+
+      <!-- 정보 탭: 홈에 있던 읽을거리(전국 공통 정보 + 지역 경로당)를 모아둔 화면 -->
+      <section class="screen" id="screen-info" data-voice="어르신께 도움이 되는 정보를 모았어요.">
+        <div class="topbar">
+          <button class="gear-btn" data-replay aria-label="음성으로 안내받기" style="background:var(--accent-soft);color:var(--accent-strong);"><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg></button>
+          <div class="wordmark"><svg class="mark" viewBox="0 0 24 24"><use href="#ic-info"></use></svg><span data-i18n="nav.info">정보</span></div>
+          <span class="spacer"></span>
+        </div>
+
+        <div class="large-title" data-i18n="info.sectionTitle">알아두면 좋은 정보</div>
+
+        <!-- 맞춤 공공 정보 안내 (전국 공통 정보, 프로필 입력 시 인사말만 맞춤화) -->
+        <div class="dashboard-card" id="publicInfoCard" style="display:none;">
+          <div class="dashboard-card-title" id="publicInfoTitle"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-info"></use></svg>알아두면 좋은 정보</div>
+          <div class="group" id="publicInfoList" style="background:#fff;"></div>
+          <p class="settings-save-note" style="margin:8px 0 0;">지역을 입력하지 않아도 보이는 전국 공통 정보이며, 자세한 내용은 관할 주민센터에서 확인하세요.</p>
+        </div>
+
+        <!-- 지역 맞춤 정보 (경기데이터드림 실제 공공데이터: 경로당 현황). 경기도 시/군이 매칭될 때만 표시 -->
+        <div class="dashboard-card" id="regionInfoCard" style="display:none;">
+          <div class="dashboard-card-title" id="regionInfoTitle"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-pin"></use></svg>우리 지역 정보</div>
+          <div class="group" id="regionInfoList" style="background:#fff;"></div>
+          <p class="settings-save-note" style="margin:8px 0 0;">경기데이터드림 공공데이터(경로당 현황) 기준입니다.</p>
+        </div>
+
+        <!-- 지역 미입력 등으로 두 카드가 모두 숨겨졌을 때 빈 화면이 되지 않도록 안내한다 -->
+        <div class="empty-state" id="infoEmptyState" style="display:none;" data-i18n="info.empty">표시할 정보를 불러오지 못했어요.<br>설정에서 사시는 지역을 입력하시면 더 많은 정보를 볼 수 있어요.</div>
       </section>
 
       <!-- 주변 복지센터 알아보기: 실제 GPS 위치 + OpenStreetMap Overpass API(API 키 불필요)로 주변 복지시설·주민센터를 찾아 보여준다.
@@ -924,6 +931,23 @@
       </section>
 
     </div>
+
+  <!-- 하단 네비게이션 바: 최상위 4개 탭 화면(홈·정보·기록·설정)에서만 보인다(body.has-bottom-nav).
+       .screen-stack 밖에 하나만 두고 goTo()가 표시/활성 상태를 갱신한다. -->
+  <nav class="bottom-nav" id="bottomNav" aria-label="주요 화면 이동">
+    <button type="button" data-tab="screen-home" onclick="goTo('screen-home')">
+      <svg viewBox="0 0 24 24"><use href="#ic-home"></use></svg><span data-i18n="nav.home">홈</span>
+    </button>
+    <button type="button" data-tab="screen-info" onclick="goTo('screen-info')">
+      <svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg><span data-i18n="nav.info">정보</span>
+    </button>
+    <button type="button" data-tab="screen-history" onclick="goTo('screen-history')">
+      <svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg><span data-i18n="nav.history">기록</span>
+    </button>
+    <button type="button" data-tab="screen-settings" onclick="goTo('screen-settings')">
+      <svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg><span data-i18n="nav.settings">설정</span>
+    </button>
+  </nav>
 
   <!-- 긴급 도움 FAB -->
   <button class="emergency-fab" id="emergencyFab" onclick="openEmergencySheet()" aria-label="긴급 도움"><svg viewBox="0 0 24 24"><use href="#ic-alert"></use></svg>도움</button>

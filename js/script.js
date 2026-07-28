@@ -129,6 +129,20 @@ function stopVoice(){
 /* 안내(온보딩) 화면 동안에는 긴급 도움 FAB을 숨긴다 */
 const onboardScreens = new Set(['screen-greet', 'screen-profile', 'screen-tutorial-ai-notice']);
 
+/* 하단 네비게이션 바를 노출할 최상위 화면. 여기 없는 화면(촬영·로딩·결과 등 흐름 중간)에서는 숨겨서
+   "네비바가 보이면 출발점, 안 보이면 진행 중"이라는 규칙을 만든다. */
+const TAB_SCREENS = new Set(['screen-home', 'screen-info', 'screen-history', 'screen-settings']);
+
+/** 네비바의 활성 탭 표시를 현재 화면에 맞춘다 */
+function syncBottomNav(id){
+  document.querySelectorAll('#bottomNav [data-tab]').forEach(btn => {
+    const on = btn.dataset.tab === id;
+    btn.classList.toggle('is-active', on);
+    if (on) btn.setAttribute('aria-current', 'page');
+    else btn.removeAttribute('aria-current');
+  });
+}
+
 let activeScreenEl = document.querySelector('.screen.active');
 
 function goTo(id){
@@ -141,6 +155,12 @@ function goTo(id){
   if (!coachWillNarrate(id)) speak(screenVoiceText(target), screenVoiceLang(target));
   document.body.classList.toggle('in-onboarding', onboardScreens.has(id));
 
+  // 네비바는 최상위 탭 화면에서만 보인다.
+  // 코치마크 진행 중에도 숨기지 않는다 — 투어의 기록·설정·마무리 단계가 네비바 버튼을 직접 가리키기 때문이다.
+  // 코치마크 오버레이(z-index 500)가 네비바(70)보다 위에 있어 스포트라이트는 정상 동작한다.
+  document.body.classList.toggle('has-bottom-nav', TAB_SCREENS.has(id));
+  syncBottomNav(id);
+
   // 홈에 도달했다는 건 온보딩(인사→프로필→튜토리얼)을 어떤 경로로든 빠져나왔다는 뜻이다.
   // 건너뛰기·튜토리얼 완주 등 경로가 여러 개라 각각에 표시를 다는 대신 도착 지점에서 한 번만 기록한다.
   if (id === 'screen-home' && !appState.onboardingDone) {
@@ -149,6 +169,7 @@ function goTo(id){
   }
 
   if (id === 'screen-home') renderHomeDashboard();
+  if (id === 'screen-info') renderInfoTab();
   if (id === 'screen-settings') syncSettingsUI();
   if (id === 'screen-profile') syncProfileUI();
   if (id === 'screen-history') renderHistory();
@@ -237,9 +258,20 @@ function formatNow(){
 function renderHomeDashboard(){
   renderTodayTasks();
   renderUpcomingSchedule();
-  updateHomeRecent();
+}
+
+/** 정보 탭: 홈에 있던 읽을거리를 이쪽으로 옮겼다.
+ *  두 카드 모두 조건에 안 맞아 숨겨지면(지역 미입력 등) 빈 화면이 되므로 안내 문구를 대신 띄운다. */
+async function renderInfoTab(){
   renderPublicInfoCard();
-  renderRegionInfoCard();
+  await renderRegionInfoCard();
+  const publicCard = document.getElementById('publicInfoCard');
+  const regionCard = document.getElementById('regionInfoCard');
+  const empty = document.getElementById('infoEmptyState');
+  if (!empty) return;
+  const anyVisible = (publicCard && publicCard.style.display !== 'none') ||
+                     (regionCard && regionCard.style.display !== 'none');
+  empty.style.display = anyVisible ? 'none' : 'block';
 }
 
 /** 지역 맞춤 정보(경기데이터드림 경로당 현황 실데이터). 프로필의 지역이 경기도 시/군과 매칭될 때만 표시하고,
@@ -618,21 +650,7 @@ function addHistory(title, result){
   appState.history.unshift({ title, result, time: formatNow() });
   if (appState.history.length > 10) appState.history.length = 10;
   saveState();
-  updateHomeRecent();
-}
-
-function updateHomeRecent(){
-  const el = document.getElementById('homeRecentList');
-  if (appState.history.length === 0) {
-    el.innerHTML = `<div class="row"><div class="text t2" style="color:var(--ink-faint);">${escapeHtml(t('home.noRecords'))}</div></div>`;
-    return;
-  }
-  el.innerHTML = appState.history.slice(0, 3).map(h => `
-    <div class="row">
-      <div class="icon-chip"><svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg></div>
-      <div class="text"><div class="t1">${escapeHtml(h.title)}</div><div class="t2">${escapeHtml(h.result)}</div></div>
-    </div>
-  `).join('');
+  // 홈의 최근 기록 카드는 기록 탭으로 옮겨졌다(renderHistory가 전체 목록을 그린다).
 }
 
 function renderHistory(){
@@ -785,15 +803,15 @@ const fullCoachSteps = [
   { screen: 'screen-sms-paste', target: '#smsPasteInput', cat: 'sms', key: 'sms5', advance: 'input' },
   { screen: 'screen-sms-paste', target: '#screen-sms-paste .primary-btn', cat: 'sms', key: 'sms6' },
   { screen: 'screen-sms-filled', target: '#screen-sms-filled .primary-btn', cat: 'sms', key: 'sms7' },
-  { screen: 'screen-home', target: '#screen-home .icon-square-btn[onclick*="openHistory"]', cat: 'history', key: 'history1' },
+  { screen: 'screen-home', target: '#bottomNav [data-tab="screen-history"]', cat: 'history', key: 'history1' },
   { screen: 'screen-history', target: '#screen-history .nav-btn', cat: 'history', key: 'history2' },
-  { screen: 'screen-home', target: '#publicInfoList .row:first-child', cat: 'info', key: 'info1' },
+  { screen: 'screen-info', target: '#publicInfoList .row:first-child', cat: 'info', key: 'info1' },
   { screen: 'screen-info-pension', target: '#screen-info-pension .primary-btn', cat: 'info', key: 'info2' },
   { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-welfare-nearby"]', cat: 'welfare', key: 'welfare1' },
   { screen: 'screen-welfare-nearby', target: '#screen-welfare-nearby .secondary-btn[onclick*="screen-home"]', cat: 'welfare', key: 'welfare2' },
   { screen: 'screen-home', target: '#screen-home .topbar [data-replay]', cat: 'voice', key: 'voice1', advance: 'click' },
   { screen: 'screen-home', target: '#emergencyFab', cat: 'emergency', key: 'emergency1', skippable: true },
-  { screen: 'screen-home', target: '#screen-home .icon-square-btn[onclick*="screen-settings"]', cat: 'settings', key: 'settingsIntro' },
+  { screen: 'screen-home', target: '#bottomNav [data-tab="screen-settings"]', cat: 'settings', key: 'settingsIntro' },
   { screen: 'screen-settings', target: '#fontScaleGroup', cat: 'settings', key: 'fontsize', skippable: true },
   { screen: 'screen-settings', target: '#voiceRateGroup', cat: 'settings', key: 'rate', skippable: true },
   { screen: 'screen-settings', target: '#guardianName', cat: 'settings', key: 'guardian', skippable: true },
@@ -819,7 +837,7 @@ const settingsMiniCoachSteps = [fullCoachSteps[19], fullCoachSteps[20], fullCoac
  *  빠진 기능(기록·정보·복지·음성·긴급·설정)은 설정 → 사용 방법 안내의 항목별 "체험해보기"로 언제든 볼 수 있다. */
 const firstRunHelpStep = {
   screen: 'screen-home',
-  target: '#screen-home .icon-square-btn[onclick*="screen-settings"]',
+  target: '#bottomNav',
   cat: 'help', key: 'moreHelp', skippable: true
 };
 const firstRunCoachSteps = [...fullCoachSteps.slice(0, 10), firstRunHelpStep];
@@ -1450,10 +1468,10 @@ const I18N = {
     'home.viewAll': '전체 보기',
     'home.noTasksToday': '오늘 할 일이 없습니다.',
     'home.publicInfoDefault': '알아두면 좋은 정보',
-    'home.recentRecords': '최근 기록',
-    'home.settings': '설정',
-    'home.noRecords': '아직 기록이 없습니다',
     'home.disclaimer': '본 서비스는 AI 분석 결과로 참고용이며,<br>중요 문서는 전문가와 상담하시기 바랍니다.',
+    'nav.home': '홈', 'nav.info': '정보', 'nav.history': '기록', 'nav.settings': '설정',
+    'info.sectionTitle': '알아두면 좋은 정보',
+    'info.empty': '표시할 정보를 불러오지 못했어요.<br>설정에서 사시는 지역을 입력하시면 더 많은 정보를 볼 수 있어요.',
     'settings.title': '설정',
     'settings.fontSize': '화면 글자 크기',
     'settings.fontNormal': '보통', 'settings.fontLarge': '크게', 'settings.fontXLarge': '아주 크게',
@@ -1499,7 +1517,7 @@ const I18N = {
     'coach.cat.doc': '문서', 'coach.cat.sms': '문자', 'coach.cat.history': '기록', 'coach.cat.info': '정보',
     'coach.cat.welfare': '복지', 'coach.cat.voice': '음성', 'coach.cat.emergency': '긴급', 'coach.cat.settings': '설정',
     'coach.cat.help': '안내',
-    'coach.moreHelp.title': '나머지 사용법은 여기 있어요', 'coach.moreHelp.desc': '설정 → 사용 방법 안내에서 기록·정보·복지·음성·긴급 사용법을 하나씩 볼 수 있어요.', 'coach.moreHelp.voice': '나머지 사용법은 설정의 사용 방법 안내에서 볼 수 있어요.',
+    'coach.moreHelp.title': '여기서 다른 기능도 볼 수 있어요', 'coach.moreHelp.desc': '아래 정보·기록·설정을 눌러 보세요.', 'coach.moreHelp.voice': '아래쪽 메뉴에서 다른 기능도 볼 수 있어요.',
     'coach.next': '다음으로 넘어가기', 'coach.skipTutorial': '튜토리얼 건너뛰기',
     'coach.doc1.title': '문서를 촬영해보세요', 'coach.doc1.desc': '이 카드를 누르면 문서를 찍어 AI에게 분석을 맡길 수 있어요.', 'coach.doc1.voice': '문서 촬영 카드를 눌러보세요.',
     'coach.doc2.title': '직접 촬영해볼게요', 'coach.doc2.desc': '카메라로 문서를 찍어보세요.', 'coach.doc2.voice': '직접 촬영하기를 눌러보세요.',
@@ -1540,10 +1558,10 @@ const I18N = {
     'home.viewAll': '查看全部',
     'home.noTasksToday': '今天没有要做的事。',
     'home.publicInfoDefault': '需要了解的信息',
-    'home.recentRecords': '最近记录',
-    'home.settings': '设置',
-    'home.noRecords': '还没有记录',
     'home.disclaimer': '本服务为AI分析结果，仅供参考，<br>重要文件请咨询专业人士。',
+    'nav.home': '主页', 'nav.info': '信息', 'nav.history': '记录', 'nav.settings': '设置',
+    'info.sectionTitle': '需要了解的信息',
+    'info.empty': '无法加载要显示的信息。<br>在设置中输入您居住的地区，可以查看更多信息。',
     'settings.title': '设置',
     'settings.fontSize': '屏幕字体大小',
     'settings.fontNormal': '普通', 'settings.fontLarge': '大', 'settings.fontXLarge': '特大',
@@ -1589,7 +1607,7 @@ const I18N = {
     'coach.cat.doc': '文件', 'coach.cat.sms': '短信', 'coach.cat.history': '记录', 'coach.cat.info': '信息',
     'coach.cat.welfare': '福利', 'coach.cat.voice': '语音', 'coach.cat.emergency': '紧急', 'coach.cat.settings': '设置',
     'coach.cat.help': '指引',
-    'coach.moreHelp.title': '其他用法在这里', 'coach.moreHelp.desc': '在设置 → 使用方法指引中，可以逐项查看记录、信息、福利、语音、紧急功能的用法。', 'coach.moreHelp.voice': '其他用法可以在设置的使用方法指引中查看。',
+    'coach.moreHelp.title': '在这里还能看到其他功能', 'coach.moreHelp.desc': '请点击下方的信息、记录、设置。', 'coach.moreHelp.voice': '在下方菜单中还能看到其他功能。',
     'coach.next': '继续下一步', 'coach.skipTutorial': '跳过教程',
     'coach.doc1.title': '拍摄文件试试看', 'coach.doc1.desc': '点击此卡片可以拍摄文件并交给AI分析。', 'coach.doc1.voice': '请点击拍摄文件卡片。',
     'coach.doc2.title': '直接拍摄一下', 'coach.doc2.desc': '用相机拍摄文件吧。', 'coach.doc2.voice': '请点击直接拍摄。',
@@ -1630,10 +1648,10 @@ const I18N = {
     'home.viewAll': 'Xem tất cả',
     'home.noTasksToday': 'Hôm nay không có việc cần làm.',
     'home.publicInfoDefault': 'Thông tin nên biết',
-    'home.recentRecords': 'Lịch sử gần đây',
-    'home.settings': 'Cài đặt',
-    'home.noRecords': 'Chưa có lịch sử nào',
     'home.disclaimer': 'Dịch vụ này chỉ mang tính tham khảo (kết quả phân tích AI),<br>hãy hỏi chuyên gia với tài liệu quan trọng.',
+    'nav.home': 'Trang chủ', 'nav.info': 'Thông tin', 'nav.history': 'Lịch sử', 'nav.settings': 'Cài đặt',
+    'info.sectionTitle': 'Thông tin nên biết',
+    'info.empty': 'Không tải được thông tin để hiển thị.<br>Nhập khu vực bạn đang sống trong Cài đặt để xem thêm thông tin.',
     'settings.title': 'Cài đặt',
     'settings.fontSize': 'Cỡ chữ màn hình',
     'settings.fontNormal': 'Vừa', 'settings.fontLarge': 'Lớn', 'settings.fontXLarge': 'Rất lớn',
@@ -1679,7 +1697,7 @@ const I18N = {
     'coach.cat.doc': 'Tài liệu', 'coach.cat.sms': 'Tin nhắn', 'coach.cat.history': 'Lịch sử', 'coach.cat.info': 'Thông tin',
     'coach.cat.welfare': 'Phúc lợi', 'coach.cat.voice': 'Giọng nói', 'coach.cat.emergency': 'Khẩn cấp', 'coach.cat.settings': 'Cài đặt',
     'coach.cat.help': 'Hướng dẫn',
-    'coach.moreHelp.title': 'Cách dùng các chức năng còn lại ở đây', 'coach.moreHelp.desc': 'Trong Cài đặt → Hướng dẫn sử dụng, bạn có thể xem lần lượt cách dùng Lịch sử, Thông tin, Phúc lợi, Giọng nói và Khẩn cấp.', 'coach.moreHelp.voice': 'Bạn có thể xem cách dùng các chức năng còn lại trong Hướng dẫn sử dụng ở Cài đặt.',
+    'coach.moreHelp.title': 'Bạn có thể xem các chức năng khác ở đây', 'coach.moreHelp.desc': 'Hãy nhấn vào Thông tin, Lịch sử, Cài đặt ở bên dưới.', 'coach.moreHelp.voice': 'Bạn có thể xem các chức năng khác ở menu bên dưới.',
     'coach.next': 'Chuyển sang bước tiếp theo', 'coach.skipTutorial': 'Bỏ qua hướng dẫn',
     'coach.doc1.title': 'Hãy thử chụp tài liệu', 'coach.doc1.desc': 'Nhấn vào thẻ này để chụp tài liệu và nhờ AI phân tích.', 'coach.doc1.voice': 'Hãy nhấn vào thẻ chụp tài liệu.',
     'coach.doc2.title': 'Chúng ta chụp trực tiếp nhé', 'coach.doc2.desc': 'Hãy chụp tài liệu bằng camera.', 'coach.doc2.voice': 'Hãy nhấn chụp trực tiếp.',
@@ -1720,10 +1738,10 @@ const I18N = {
     'home.viewAll': 'ดูทั้งหมด',
     'home.noTasksToday': 'วันนี้ไม่มีสิ่งที่ต้องทำ',
     'home.publicInfoDefault': 'ข้อมูลที่ควรรู้',
-    'home.recentRecords': 'ประวัติล่าสุด',
-    'home.settings': 'ตั้งค่า',
-    'home.noRecords': 'ยังไม่มีประวัติ',
     'home.disclaimer': 'บริการนี้เป็นผลวิเคราะห์จาก AI เพื่อการอ้างอิงเท่านั้น<br>เอกสารสำคัญกรุณาปรึกษาผู้เชี่ยวชาญ',
+    'nav.home': 'หน้าแรก', 'nav.info': 'ข้อมูล', 'nav.history': 'ประวัติ', 'nav.settings': 'ตั้งค่า',
+    'info.sectionTitle': 'ข้อมูลที่ควรรู้',
+    'info.empty': 'ไม่สามารถโหลดข้อมูลที่จะแสดงได้<br>กรอกพื้นที่ที่คุณอาศัยอยู่ในตั้งค่า เพื่อดูข้อมูลเพิ่มเติม',
     'settings.title': 'ตั้งค่า',
     'settings.fontSize': 'ขนาดตัวอักษรหน้าจอ',
     'settings.fontNormal': 'ปกติ', 'settings.fontLarge': 'ใหญ่', 'settings.fontXLarge': 'ใหญ่มาก',
@@ -1769,7 +1787,7 @@ const I18N = {
     'coach.cat.doc': 'เอกสาร', 'coach.cat.sms': 'ข้อความ', 'coach.cat.history': 'ประวัติ', 'coach.cat.info': 'ข้อมูล',
     'coach.cat.welfare': 'สวัสดิการ', 'coach.cat.voice': 'เสียง', 'coach.cat.emergency': 'ฉุกเฉิน', 'coach.cat.settings': 'ตั้งค่า',
     'coach.cat.help': 'คำแนะนำ',
-    'coach.moreHelp.title': 'วิธีใช้ส่วนที่เหลืออยู่ที่นี่', 'coach.moreHelp.desc': 'ในตั้งค่า → คำแนะนำการใช้งาน คุณสามารถดูวิธีใช้ประวัติ ข้อมูล สวัสดิการ เสียง และฉุกเฉินได้ทีละอย่าง', 'coach.moreHelp.voice': 'คุณสามารถดูวิธีใช้ส่วนที่เหลือได้ในคำแนะนำการใช้งานที่ตั้งค่า',
+    'coach.moreHelp.title': 'ดูฟังก์ชันอื่นได้ที่นี่', 'coach.moreHelp.desc': 'กดที่ข้อมูล ประวัติ ตั้งค่า ด้านล่างได้เลย', 'coach.moreHelp.voice': 'ดูฟังก์ชันอื่นได้จากเมนูด้านล่าง',
     'coach.next': 'ไปขั้นตอนถัดไป', 'coach.skipTutorial': 'ข้ามบทเรียน',
     'coach.doc1.title': 'ลองถ่ายภาพเอกสารดูสิ', 'coach.doc1.desc': 'กดการ์ดนี้เพื่อถ่ายภาพเอกสารและให้ AI วิเคราะห์', 'coach.doc1.voice': 'กรุณากดการ์ดถ่ายภาพเอกสาร',
     'coach.doc2.title': 'ลองถ่ายภาพเองดูนะ', 'coach.doc2.desc': 'ถ่ายภาพเอกสารด้วยกล้อง', 'coach.doc2.voice': 'กรุณากดถ่ายภาพเอง',
@@ -1810,10 +1828,10 @@ const I18N = {
     'home.viewAll': "Barchasini ko'rish",
     'home.noTasksToday': "Bugun bajarilishi kerak bo'lgan vazifa yo'q.",
     'home.publicInfoDefault': "Bilish foydali ma'lumotlar",
-    'home.recentRecords': "So'nggi tarix",
-    'home.settings': 'Sozlamalar',
-    'home.noRecords': "Hali tarix yo'q",
     'home.disclaimer': "Bu xizmat AI tahlili natijasi bo'lib, faqat ma'lumot uchundir.<br>Muhim hujjatlar uchun mutaxassisga murojaat qiling.",
+    'nav.home': 'Bosh sahifa', 'nav.info': "Ma'lumot", 'nav.history': 'Tarix', 'nav.settings': 'Sozlamalar',
+    'info.sectionTitle': "Bilish foydali ma'lumotlar",
+    'info.empty': "Ko'rsatiladigan ma'lumotni yuklab bo'lmadi.<br>Sozlamalarda yashash hududingizni kiritsangiz, ko'proq ma'lumot ko'rasiz.",
     'settings.title': 'Sozlamalar',
     'settings.fontSize': "Ekran shrift o'lchami",
     'settings.fontNormal': "Oddiy", 'settings.fontLarge': 'Katta', 'settings.fontXLarge': "Juda katta",
@@ -1859,7 +1877,7 @@ const I18N = {
     'coach.cat.doc': 'Hujjat', 'coach.cat.sms': 'SMS', 'coach.cat.history': 'Tarix', 'coach.cat.info': "Ma'lumot",
     'coach.cat.welfare': "Ijtimoiy ta'minot", 'coach.cat.voice': 'Ovoz', 'coach.cat.emergency': 'Favqulodda', 'coach.cat.settings': 'Sozlamalar',
     'coach.cat.help': "Qo'llanma",
-    'coach.moreHelp.title': 'Qolgan funksiyalardan foydalanish shu yerda', 'coach.moreHelp.desc': "Sozlamalar → Foydalanish bo'yicha qo'llanma bo'limida Tarix, Ma'lumot, Ijtimoiy ta'minot, Ovoz va Favqulodda funksiyalaridan foydalanishni birma-bir ko'rishingiz mumkin.", 'coach.moreHelp.voice': "Qolgan funksiyalardan foydalanishni Sozlamalardagi Foydalanish bo'yicha qo'llanma bo'limida ko'rishingiz mumkin.",
+    'coach.moreHelp.title': "Bu yerda boshqa funksiyalarni ham ko'rasiz", 'coach.moreHelp.desc': "Pastdagi Ma'lumot, Tarix, Sozlamalar tugmalarini bosing.", 'coach.moreHelp.voice': "Pastdagi menyudan boshqa funksiyalarni ham ko'rishingiz mumkin.",
     'coach.next': "Keyingi bosqichga o'tish", 'coach.skipTutorial': "Qo'llanmani o'tkazib yuborish",
     'coach.doc1.title': 'Hujjatni suratga olib ko\'ring', 'coach.doc1.desc': 'Ushbu kartani bosib hujjatni suratga olib AI tahliliga topshirishingiz mumkin.', 'coach.doc1.voice': 'Hujjat suratga olish kartasini bosing.',
     'coach.doc2.title': 'Bevosita suratga olamiz', 'coach.doc2.desc': 'Kamera bilan hujjatni suratga oling.', 'coach.doc2.voice': 'Bevosita suratga olishni bosing.',
