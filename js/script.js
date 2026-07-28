@@ -1617,7 +1617,9 @@ const I18N = {
     'sms.confirm': '확인',
     'sms.pasteVoice': '문자 내용을 길게 눌러 이 칸에 붙여넣어주세요.',
     'sms.filledTitle': '문자 내용이<br>들어왔어요.',
-    'sms.filledVoice': '문자 내용이 잘 들어왔어요. 확인 버튼을 눌러 결과를 확인해보세요.'
+    'sms.filledVoice': '문자 내용이 잘 들어왔어요. 확인 버튼을 눌러 결과를 확인해보세요.',
+    'emergency.title': '긴급 도움', 'emergency.guardian': '보호자',
+    'emergency.howToAgain': '사용법 다시 보기', 'emergency.close': '닫기'
   },
   zh: {
     'home.sectionTitle': '需要什么帮助？',
@@ -1756,7 +1758,9 @@ const I18N = {
     'sms.confirm': '确认',
     'sms.pasteVoice': '请长按短信内容并粘贴到这个框里。',
     'sms.filledTitle': '短信内容<br>已输入。',
-    'sms.filledVoice': '短信内容已经输入好了。请点击确认按钮查看结果。'
+    'sms.filledVoice': '短信内容已经输入好了。请点击确认按钮查看结果。',
+    'emergency.title': '紧急求助', 'emergency.guardian': '监护人',
+    'emergency.howToAgain': '重新查看使用方法', 'emergency.close': '关闭'
   },
   vi: {
     'home.sectionTitle': 'Bạn cần giúp gì?',
@@ -1895,7 +1899,9 @@ const I18N = {
     'sms.confirm': 'Xác nhận',
     'sms.pasteVoice': 'Hãy nhấn giữ nội dung tin nhắn rồi dán vào ô này.',
     'sms.filledTitle': 'Nội dung tin nhắn<br>đã được nhập.',
-    'sms.filledVoice': 'Nội dung tin nhắn đã được nhập tốt. Hãy nhấn nút Xác nhận để xem kết quả.'
+    'sms.filledVoice': 'Nội dung tin nhắn đã được nhập tốt. Hãy nhấn nút Xác nhận để xem kết quả.',
+    'emergency.title': 'Trợ giúp khẩn cấp', 'emergency.guardian': 'Người giám hộ',
+    'emergency.howToAgain': 'Xem lại cách sử dụng', 'emergency.close': 'Đóng'
   },
   th: {
     'home.sectionTitle': 'ต้องการความช่วยเหลือเรื่องอะไร?',
@@ -2034,7 +2040,9 @@ const I18N = {
     'sms.confirm': 'ยืนยัน',
     'sms.pasteVoice': 'กรุณากดค้างที่เนื้อหาข้อความแล้ววางลงในช่องนี้',
     'sms.filledTitle': 'เนื้อหาข้อความ<br>เข้ามาแล้ว',
-    'sms.filledVoice': 'เนื้อหาข้อความเข้ามาเรียบร้อยแล้ว กรุณากดปุ่มยืนยันเพื่อดูผลลัพธ์'
+    'sms.filledVoice': 'เนื้อหาข้อความเข้ามาเรียบร้อยแล้ว กรุณากดปุ่มยืนยันเพื่อดูผลลัพธ์',
+    'emergency.title': 'ขอความช่วยเหลือฉุกเฉิน', 'emergency.guardian': 'ผู้ดูแล',
+    'emergency.howToAgain': 'ดูวิธีใช้งานอีกครั้ง', 'emergency.close': 'ปิด'
   },
   uz: {
     'home.sectionTitle': 'Sizga qanday yordam kerak?',
@@ -2173,7 +2181,9 @@ const I18N = {
     'sms.confirm': 'Tasdiqlash',
     'sms.pasteVoice': 'SMS matnini bosib turib, shu maydonga joylashtiring.',
     'sms.filledTitle': 'SMS matni<br>kiritildi.',
-    'sms.filledVoice': "SMS matni to'g'ri kiritildi. Natijani ko'rish uchun Tasdiqlash tugmasini bosing."
+    'sms.filledVoice': "SMS matni to'g'ri kiritildi. Natijani ko'rish uchun Tasdiqlash tugmasini bosing.",
+    'emergency.title': 'Shoshilinch yordam', 'emergency.guardian': 'Vasiy',
+    'emergency.howToAgain': "Foydalanish yo'riqnomasini qayta ko'rish", 'emergency.close': 'Yopish'
   }
 };
 

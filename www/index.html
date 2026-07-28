@@ -956,8 +956,8 @@
   <!-- 긴급 도움 Bottom Sheet -->
   <div class="sheet-backdrop" id="emergencyBackdrop" style="display:none;" onclick="closeEmergencySheet()"></div>
   <div class="bottom-sheet" id="emergencySheet" style="display:none;">
-    <div class="bottom-sheet-title"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-alert"></use></svg>긴급 도움</div>
-    <button class="sheet-btn" onclick="callGuardianFromSheet()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-family"></use></svg>보호자</button>
+    <div class="bottom-sheet-title"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-alert"></use></svg><span data-i18n="emergency.title">긴급 도움</span></div>
+    <button class="sheet-btn" onclick="callGuardianFromSheet()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-family"></use></svg><span data-i18n="emergency.guardian">보호자</span></button>
     <!-- 보호자 번호가 아직 없을 때만 펼쳐지는 인라인 입력.
          급할 때 설정 화면으로 튕기지 않고, 여기서 번호를 저장하는 즉시 전화를 건다. -->
     <div class="sheet-inline-form" id="guardianPhonePrompt" style="display:none;">
@@ -973,8 +973,8 @@
     <a class="sheet-btn" href="tel:119"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg>119</a>
     <a class="sheet-btn" href="tel:112"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg>112</a>
     <a class="sheet-btn" href="tel:118"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg>118</a>
-    <button class="sheet-btn" onclick="closeEmergencySheet(); goTo('screen-greet');"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-refresh"></use></svg>사용법 다시 보기</button>
-    <button class="sheet-btn sheet-btn-cancel" onclick="closeEmergencySheet()">닫기</button>
+    <button class="sheet-btn" onclick="closeEmergencySheet(); goTo('screen-greet');"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-refresh"></use></svg><span data-i18n="emergency.howToAgain">사용법 다시 보기</span></button>
+    <button class="sheet-btn sheet-btn-cancel" onclick="closeEmergencySheet()" data-i18n="emergency.close">닫기</button>
   </div>
 
   <!-- 일정 알림 설정 모달 -->
