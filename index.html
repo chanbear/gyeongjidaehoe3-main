@@ -952,6 +952,18 @@
   <div class="bottom-sheet" id="emergencySheet" style="display:none;">
     <div class="bottom-sheet-title"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-alert"></use></svg>긴급 도움</div>
     <button class="sheet-btn" onclick="callGuardianFromSheet()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-family"></use></svg>보호자</button>
+    <!-- 보호자 번호가 아직 없을 때만 펼쳐지는 인라인 입력.
+         급할 때 설정 화면으로 튕기지 않고, 여기서 번호를 저장하는 즉시 전화를 건다. -->
+    <div class="sheet-inline-form" id="guardianPhonePrompt" style="display:none;">
+      <div class="field-row">
+        <label for="guardianPhoneQuick" data-i18n="emergency.phoneAsk">보호자 전화번호를 적어주세요.</label>
+        <input type="tel" id="guardianPhoneQuick" inputmode="tel" autocomplete="tel"
+               placeholder="예: 010-1234-5678" data-i18n-placeholder="emergency.phonePlaceholder"
+               oninput="onGuardianPhoneInput(this)">
+      </div>
+      <p class="sheet-inline-error" id="guardianPhoneQuickError" style="display:none;" data-i18n="emergency.phoneInvalid">전화번호가 짧아요. 숫자를 9자리 이상 적어주세요.</p>
+      <button class="primary-btn" onclick="saveGuardianPhoneAndCall()" data-i18n="emergency.phoneSaveCall">저장하고 전화걸기</button>
+    </div>
     <a class="sheet-btn" href="tel:119"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg>119</a>
     <a class="sheet-btn" href="tel:112"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg>112</a>
     <a class="sheet-btn" href="tel:118"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg>118</a>

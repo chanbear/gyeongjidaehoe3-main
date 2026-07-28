@@ -412,6 +412,13 @@
   line-height:58px;
 }
 .sheet-btn-cancel{ background:none; border:none; color:var(--ink-faint); margin-bottom:0; }
+/* 시트 안에서 바로 입력받는 영역(보호자 전화번호 등) */
+.sheet-inline-form{ margin-bottom:10px; }
+.sheet-inline-form .field-row{ margin-bottom:10px; }
+.sheet-inline-form .field-row input[type="tel"]{ width:100%; box-sizing:border-box; }
+.sheet-inline-error{
+  margin:0 0 10px; font-size:calc(15px * var(--scale)); font-weight:700; color:var(--danger-strong);
+}
 .reminder-target{ font-size:calc(15px * var(--scale)); color:var(--ink-soft); text-align:center; margin-bottom:14px; }
 
 /* ---- 음성 컨트롤 ---- */

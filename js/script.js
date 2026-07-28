@@ -1360,8 +1360,62 @@ function openEmergencySheet(){
 function closeEmergencySheet(){
   document.getElementById('emergencyBackdrop').style.display = 'none';
   document.getElementById('emergencySheet').style.display = 'none';
+  hideGuardianPhonePrompt();
 }
+
+/* ---- 긴급 도움 시트 안의 보호자 전화번호 인라인 입력 ----
+   예전에는 번호가 없으면 goTo('screen-settings')로 설정 화면으로 보냈는데,
+   급한 상황에서 설정 화면을 헤매게 만드는 나쁜 흐름이었다.
+   이제는 시트를 닫지 않고 그 자리에서 번호를 받아, 저장과 동시에 전화를 건다. */
+function guardianPhoneDigits(value){
+  return String(value || '').replace(/\D/g, '');
+}
+function showGuardianPhonePrompt(){
+  const wrap = document.getElementById('guardianPhonePrompt');
+  if (!wrap) return;
+  wrap.style.display = 'block';
+  const err = document.getElementById('guardianPhoneQuickError');
+  if (err) err.style.display = 'none';
+  const input = document.getElementById('guardianPhoneQuick');
+  if (input) {
+    input.value = appState.guardian.phone || '';
+    setTimeout(() => { try { input.focus(); } catch (e) {} }, 60);
+  }
+  speak(t('emergency.phoneAsk'));
+}
+function hideGuardianPhonePrompt(){
+  const wrap = document.getElementById('guardianPhonePrompt');
+  if (wrap) wrap.style.display = 'none';
+  const err = document.getElementById('guardianPhoneQuickError');
+  if (err) err.style.display = 'none';
+}
+/** 숫자와 하이픈만 남긴다(어르신이 다른 문자를 눌러도 번호가 망가지지 않도록) */
+function onGuardianPhoneInput(input){
+  const cleaned = String(input.value || '').replace(/[^0-9-]/g, '');
+  if (cleaned !== input.value) input.value = cleaned;
+  const err = document.getElementById('guardianPhoneQuickError');
+  if (err) err.style.display = 'none';
+}
+function saveGuardianPhoneAndCall(){
+  const input = document.getElementById('guardianPhoneQuick');
+  const err = document.getElementById('guardianPhoneQuickError');
+  const phone = String(input ? input.value : '').replace(/[^0-9-]/g, '').trim();
+  if (guardianPhoneDigits(phone).length < 9) {
+    // 숫자가 모자라면 전화를 걸지 않고 화면에 안내만 띄운다(잘못된 번호로 거는 것을 막기 위함)
+    if (err) err.style.display = 'block';
+    speak(t('emergency.phoneInvalid'));
+    return;
+  }
+  appState.guardian.phone = phone;
+  saveState();
+  const settingsInput = document.getElementById('guardianPhone');   // 설정 화면에도 같은 번호를 반영
+  if (settingsInput) settingsInput.value = phone;
+  closeEmergencySheet();
+  window.location.href = 'tel:' + phone;
+}
+
 function callGuardianFromSheet(){
+  if (!appState.guardian.phone) { showGuardianPhonePrompt(); return; }   // 시트를 닫지 않고 그 안에서 입력받는다
   closeEmergencySheet();
   callGuardian();
 }
@@ -1459,6 +1513,10 @@ const I18N = {
     'settings.guardianPhoneLabel': '보호자 전화번호', 'settings.guardianPhonePlaceholder': '예: 010-1234-5678',
     'settings.autoNotify': '🔴 위험 문자 발견 시 자동으로 알림 보내기',
     'settings.guardianNote': '모든 설정은 이 기기에 자동 저장되어, 앱을 새로고침해도 유지됩니다.',
+    'emergency.phoneAsk': '보호자 전화번호를 적어주세요.',
+    'emergency.phonePlaceholder': '예: 010-1234-5678',
+    'emergency.phoneInvalid': '전화번호가 짧아요. 숫자를 9자리 이상 적어주세요.',
+    'emergency.phoneSaveCall': '저장하고 전화걸기',
     'settings.language': '언어 설정',
     'settings.languageNote': '경기도 거주 외국인주민 중 비중이 높은 4개 언어를 지원합니다(중국·베트남·태국·우즈베키스탄, 공공통계 기준 상위 국적). 화면 핵심 문구만 번역되며, AI 분석 결과는 정확성을 위해 한국어로 제공됩니다.',
     'settings.support': '고객 지원',
@@ -1546,6 +1604,10 @@ const I18N = {
     'settings.guardianPhoneLabel': '监护人电话号码', 'settings.guardianPhonePlaceholder': '例：010-1234-5678',
     'settings.autoNotify': '🔴 发现危险短信时自动发送通知',
     'settings.guardianNote': '所有设置都会自动保存在此设备上，刷新应用后仍会保留。',
+    'emergency.phoneAsk': '请填写监护人电话号码。',
+    'emergency.phonePlaceholder': '例：010-1234-5678',
+    'emergency.phoneInvalid': '号码太短了。请输入至少9位数字。',
+    'emergency.phoneSaveCall': '保存并拨打电话',
     'settings.language': '语言设置',
     'settings.languageNote': '支持京畿道外国居民中比例较高的4种语言（中文·越南语·泰语·乌兹别克语，依公共统计数据）。仅翻译核心画面文字，AI分析结果为确保准确性，始终以韩语提供。',
     'settings.support': '客户支持',
@@ -1633,6 +1695,10 @@ const I18N = {
     'settings.guardianPhoneLabel': 'Số điện thoại người giám hộ', 'settings.guardianPhonePlaceholder': 'VD: 010-1234-5678',
     'settings.autoNotify': '🔴 Tự động gửi thông báo khi phát hiện tin nhắn nguy hiểm',
     'settings.guardianNote': 'Mọi cài đặt được tự động lưu trên thiết bị này, vẫn giữ nguyên dù tải lại ứng dụng.',
+    'emergency.phoneAsk': 'Vui lòng nhập số điện thoại người giám hộ.',
+    'emergency.phonePlaceholder': 'VD: 010-1234-5678',
+    'emergency.phoneInvalid': 'Số điện thoại quá ngắn. Hãy nhập ít nhất 9 chữ số.',
+    'emergency.phoneSaveCall': 'Lưu và gọi ngay',
     'settings.language': 'Cài đặt ngôn ngữ',
     'settings.languageNote': 'Hỗ trợ 4 ngôn ngữ có tỷ lệ cư dân nước ngoài cao ở Gyeonggi (Trung·Việt·Thái·Uzbek, theo thống kê công). Chỉ dịch các cụm từ chính trên màn hình, kết quả phân tích AI luôn bằng tiếng Hàn để đảm bảo chính xác.',
     'settings.support': 'Hỗ trợ khách hàng',
@@ -1720,6 +1786,10 @@ const I18N = {
     'settings.guardianPhoneLabel': 'เบอร์โทรผู้ดูแล', 'settings.guardianPhonePlaceholder': 'เช่น 010-1234-5678',
     'settings.autoNotify': '🔴 ส่งการแจ้งเตือนอัตโนมัติเมื่อพบข้อความอันตราย',
     'settings.guardianNote': 'การตั้งค่าทั้งหมดจะถูกบันทึกอัตโนมัติในเครื่องนี้ และคงอยู่แม้รีเฟรชแอป',
+    'emergency.phoneAsk': 'กรุณากรอกเบอร์โทรผู้ดูแล',
+    'emergency.phonePlaceholder': 'เช่น 010-1234-5678',
+    'emergency.phoneInvalid': 'เบอร์โทรสั้นเกินไป กรุณากรอกตัวเลขอย่างน้อย 9 หลัก',
+    'emergency.phoneSaveCall': 'บันทึกและโทรออก',
     'settings.language': 'ตั้งค่าภาษา',
     'settings.languageNote': 'รองรับ 4 ภาษาของผู้พำนักต่างชาติที่มีสัดส่วนสูงในคย็องกี (จีน·เวียดนาม·ไทย·อุซเบก ตามสถิติสาธารณะ) แปลเฉพาะข้อความหลักบนหน้าจอ ส่วนผลวิเคราะห์ AI จะเป็นภาษาเกาหลีเสมอเพื่อความถูกต้อง',
     'settings.support': 'ฝ่ายบริการลูกค้า',
@@ -1807,6 +1877,10 @@ const I18N = {
     'settings.guardianPhoneLabel': 'Vasiy telefon raqami', 'settings.guardianPhonePlaceholder': 'Masalan: 010-1234-5678',
     'settings.autoNotify': "🔴 Xavfli SMS aniqlanganda avtomatik bildirishnoma yuborish",
     'settings.guardianNote': "Barcha sozlamalar bu qurilmada avtomatik saqlanadi va ilova qayta yuklansa ham saqlanib qoladi.",
+    'emergency.phoneAsk': "Vasiyning telefon raqamini yozing.",
+    'emergency.phonePlaceholder': 'Masalan: 010-1234-5678',
+    'emergency.phoneInvalid': "Raqam juda qisqa. Kamida 9 ta raqam kiriting.",
+    'emergency.phoneSaveCall': "Saqlab, qo'ng'iroq qilish",
     'settings.language': 'Til sozlamalari',
     'settings.languageNote': "Gyeonggi-da yashovchi chet elliklar orasida ko'p uchraydigan 4 tilni qo'llab-quvvatlaydi (xitoy·vetnam·tay·o'zbek, davlat statistikasiga ko'ra). Faqat asosiy ekran matnlari tarjima qilinadi, AI tahlil natijalari aniqlik uchun har doim koreys tilida beriladi.",
     'settings.support': "Mijozlarni qo'llab-quvvatlash",
@@ -2050,8 +2124,9 @@ function notifyGuardian(){
 
 function callGuardian(){
   if (!appState.guardian.phone) {
-    speak('설정에서 보호자 전화번호를 먼저 등록해주세요.');
-    goTo('screen-settings');
+    // 설정 화면으로 튕기지 않고, 긴급 도움 시트를 열어 그 안에서 바로 번호를 받는다(저장 즉시 전화 연결)
+    openEmergencySheet();
+    showGuardianPhonePrompt();
     return;
   }
   window.location.href = 'tel:' + appState.guardian.phone;
