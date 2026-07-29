@@ -112,6 +112,32 @@
           </div>
         </div>
 
+        <button class="primary-btn" onclick="goTo('screen-guardian-profile')" data-i18n="onboard.profile.next">다음</button>
+        <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="goTo('screen-guardian-profile')" data-i18n="onboard.skip">건너뛰기</button>
+      </section>
+
+      <!-- 자녀(보호자) 정보 입력 (선택 사항): 긴급 도움·문자 위험 알림에 쓰는 보호자 이름/전화번호를
+           설정 화면에서만 받던 것을, 온보딩에서도 처음부터 받을 수 있게 한 화면.
+           설정 화면의 같은 입력칸과 appState.guardian을 공유한다(syncGuardianUI/setGuardianField). -->
+      <section class="screen" id="screen-guardian-profile" data-voice="급한 일이 있을 때 알릴 자녀나 보호자의 이름과 전화번호를 알려주시겠어요? 원하지 않으면 건너뛰어도 됩니다." data-voice-i18n="onboard.guardian.voice">
+        <div class="topbar"><span></span><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
+        <h1 data-i18n="onboard.guardian.title">자녀(보호자) 정보도<br>알려주시겠어요?</h1>
+        <p class="desc" data-i18n="onboard.guardian.desc">위험한 문자를 받았을 때 자녀에게 바로 알리거나,<br>긴급 도움 버튼으로 전화를 걸 때 사용돼요.<br>원하지 않으면 건너뛰어도 됩니다.</p>
+
+        <div class="settings-section">
+          <h2 data-i18n="settings.guardianNameLabel">보호자 이름</h2>
+          <div class="field-row">
+            <input type="text" id="guardianNameOnboard" placeholder="예: 김민수 (아들)" data-i18n-placeholder="settings.guardianNamePlaceholder" oninput="setGuardianField('name', this.value)" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h2 data-i18n="settings.guardianPhoneLabel">보호자 전화번호</h2>
+          <div class="field-row">
+            <input type="tel" id="guardianPhoneOnboard" placeholder="예: 010-1234-5678" data-i18n-placeholder="settings.guardianPhonePlaceholder" oninput="setGuardianField('phone', this.value)" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+          </div>
+        </div>
+
         <button class="primary-btn" onclick="startCoachmark()" data-i18n="onboard.profile.next">다음</button>
         <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="startCoachmark()" data-i18n="onboard.skip">건너뛰기</button>
       </section>
@@ -349,6 +375,8 @@
         <div class="hero-card">
           <div class="hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#ic-info"></use></svg></div>
           <h1>기초연금 신청 안내</h1>
+          <!-- renderInfoDetailGreet()가 이름/성별/연령대로 채운다. 지역별 실데이터가 아니라 호칭만 맞춤화한다(CLAUDE.md 8번). -->
+          <p class="hero-greet" id="infoPensionGreet"></p>
         </div>
         <div class="doc-info-card">
           <p class="desc" style="margin:0;">만 65세 이상이면서, 소득인정액이 선정 기준액 이하인 어르신께 매달 연금을 지급하는 제도예요. 소득이 적을수록 더 많이 받을 수 있어요.</p>
@@ -372,6 +400,7 @@
         <div class="hero-card">
           <div class="hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#ic-doc"></use></svg></div>
           <h1>무료 건강검진</h1>
+          <p class="hero-greet" id="infoCheckupGreet"></p>
         </div>
         <div class="doc-info-card">
           <p class="desc" style="margin:0;">만 40세 이상이면 국민건강보험공단에서 2년마다 일반건강검진을 무료로 받을 수 있어요. 검진 대상자에게는 우편이나 문자로 안내가 옵니다.</p>
@@ -394,6 +423,7 @@
         <div class="hero-card">
           <div class="hero-icon danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#ic-alert"></use></svg></div>
           <h1>보이스피싱 예방</h1>
+          <p class="hero-greet" id="infoVoicephishingGreet"></p>
         </div>
         <div class="doc-info-card">
           <p class="desc" style="margin:0;">공공기관이나 은행은 절대 전화나 문자로 계좌번호, 비밀번호, 인증번호를 물어보지 않아요. 이런 요청을 받으면 100% 사기입니다.</p>
@@ -705,12 +735,12 @@
       </section>
 
       <!-- 실사용: 문서 로딩 -->
-      <section class="screen" id="screen-loading-doc" data-voice="문서를 읽고 있습니다. 잠시만 기다려주세요.">
+      <section class="screen" id="screen-loading-doc" data-voice="문서를 읽고, 해야 할 일을 그림으로도 준비하고 있습니다. 잠시만 기다려주세요.">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-doc-choice')">← 뒤로</button><span></span></div>
         <p class="step-label"><span class="badge badge-blue" style="font-size:14px;padding:4px 10px;">🔵 진행 중</span></p>
         <div class="progress-wrap">
           <div class="spin" aria-hidden="true"></div>
-          <h1 style="text-align:center;">AI가 문서를 읽고 있습니다</h1>
+          <h1 style="text-align:center;">AI가 문서를 읽고,<br>그림도 함께 준비하고 있습니다</h1>
           <div class="progress-track"><div class="progress-fill" id="progressFillLoadDoc"></div></div>
         </div>
       </section>
@@ -718,13 +748,21 @@
       <!-- 실사용: 문서 결과 (사진 + 요약) -->
       <!-- data-voice는 실제 분석 결과가 나온 뒤 renderDocResult()가 동적으로 채워 넣는다(고정 문구를 넣지 않음) -->
       <section class="screen" id="screen-result-doc">
-        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg><span data-i18n="result.docTitle">분석 결과</span></span><button class="gear-btn" onclick="goTo('screen-settings')" aria-label="설정"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg></button></div>
+        <!-- 홈으로 버튼도 "확인 완료"와 똑같이 finishDocResult()를 거친다 - 예전에는 goTo('screen-home')로 바로 나가서
+             이 버튼을 누르면 방금 본 분석이 기록에 안 남았다. -->
+        <div class="topbar"><button class="nav-btn" onclick="finishDocResult()" data-i18n="common.home">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg><span data-i18n="result.docTitle">분석 결과</span></span><button class="gear-btn" onclick="goTo('screen-settings')" aria-label="설정"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg></button></div>
         <div class="result-card success">
           <div class="seal"><svg viewBox="0 0 24 24"><use href="#ic-check"></use></svg></div>
           <span class="badge">정상 · 조치가 필요해요</span>
           <div class="headline">올해 안에 건강검진을 받으셔야 합니다.</div>
         </div>
         <button class="voice-pill block" data-replay><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="result.readAloud">큰 소리로 읽어주기</span></button>
+
+        <!-- 해야 할 일을 대표하는 일러스트. renderDocResult()가 채우고, 생성에 실패했으면(키 없음 등) 통째로 숨긴다 —
+             지도 렌더링 실패 시 숨기는 것과 같은 원칙(없는 그림을 지어내 보여주지 않음). -->
+        <div class="illustration-card" id="docIllustration" style="display:none;">
+          <img id="docIllustrationImg" alt="">
+        </div>
 
         <!-- 문서가 2개 이상일 때만 나타나는 넘기기 막대(사진을 여러 장 찍어 서로 다른 문서로 판별된 경우) -->
         <div class="doc-pager" id="docPager" style="display:none;"></div>
@@ -837,7 +875,7 @@
 
       <!-- 실사용: 복사 완료 → 앱 전환 -->
       <section class="screen" id="screen-sms-switch" data-voice="복사가 완료됐어요. 이제 AI 디지털 도우미 앱으로 돌아가주세요." data-voice-i18n="sms.switchVoice">
-        <div class="topbar"><span></span><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
         <div class="center-col">
           <div class="icon-circle">
             <svg viewBox="0 0 24 24" fill="none" stroke="#2454e6" stroke-width="2" width="40" height="40"><path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -879,12 +917,12 @@
       </section>
 
       <!-- 실사용: 문자 로딩 -->
-      <section class="screen" id="screen-loading-text" data-voice="문자를 확인하고 있습니다. 잠시만 기다려주세요.">
+      <section class="screen" id="screen-loading-text" data-voice="문자를 확인하고, 해야 할 일을 그림으로도 준비하고 있습니다. 잠시만 기다려주세요.">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-sms-filled')">← 뒤로</button><span></span></div>
         <p class="step-label"><span class="badge badge-blue" style="font-size:14px;padding:4px 10px;">🔵 진행 중</span></p>
         <div class="progress-wrap">
           <div class="spin" aria-hidden="true"></div>
-          <h1 style="text-align:center;">AI가 문자를 확인하고 있습니다</h1>
+          <h1 style="text-align:center;">AI가 문자를 확인하고,<br>그림도 함께 준비하고 있습니다</h1>
           <div class="progress-track"><div class="progress-fill" id="progressFillLoadText"></div></div>
         </div>
       </section>
@@ -893,7 +931,8 @@
       <!-- data-voice를 고정해두면 안전으로 판별된 문자에도 "위험합니다"라고 읽어버린다.
            screen-result-doc과 마찬가지로 속성을 비워두고 renderSmsResult()가 실제 판별 결과로 채운다. -->
       <section class="screen" id="screen-result-text">
-        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg><span data-i18n="result.textTitle">진위 판별 결과</span></span><button class="gear-btn" onclick="goTo('screen-settings')" aria-label="설정"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg></button></div>
+        <!-- "확인했습니다"와 똑같이 finishSmsResult()를 거쳐야 이번 분석이 기록에 남는다(홈으로 버튼으로 바로 나가면 저장되지 않던 문제). -->
+        <div class="topbar"><button class="nav-btn" onclick="finishSmsResult()" data-i18n="common.home">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg><span data-i18n="result.textTitle">진위 판별 결과</span></span><button class="gear-btn" onclick="goTo('screen-settings')" aria-label="설정"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg></button></div>
         <div class="result-card danger">
           <div class="seal"><svg viewBox="0 0 24 24"><use href="#ic-alert"></use></svg></div>
           <span class="danger-pill" data-i18n="result.dangerPill">⚠ 위험 감지</span>
@@ -903,10 +942,17 @@
         </div>
         <button class="voice-pill block" data-replay><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="result.listenVoice">음성으로 듣기</span></button>
 
+        <!-- 해야 할 일을 대표하는 일러스트. renderSmsResult()가 채우고, 생성에 실패했으면 통째로 숨긴다. -->
+        <div class="illustration-card" id="smsIllustration" style="display:none;">
+          <img id="smsIllustrationImg" alt="">
+        </div>
+
         <div class="section-label" data-i18n="result.actNowLabel">지금 바로 대처하세요</div>
-        <div class="todo-list">
-          <div class="checklist-row"><label style="cursor:default;" data-i18n="result.textTip1">상대방이 요구하는 계좌번호나 비밀번호를 절대 말하지 마세요.</label></div>
-          <div class="checklist-row"><label style="cursor:default;" data-i18n="result.textTip2">가족이나 가까운 지인에게 지금 상황을 꼭 알리세요.</label></div>
+        <!-- renderSmsResult()가 이번 분석의 checklist로 채운다. 예전에는 아래 두 문장이 고정 텍스트라
+             문자가 바뀌어도 그대로였다 - 지금은 매번 실제 판별 결과로 다시 그린다. -->
+        <div class="todo-list" id="smsTodoList">
+          <div class="checklist-row"><label style="cursor:default;">상대방이 요구하는 계좌번호나 비밀번호를 절대 말하지 마세요.</label></div>
+          <div class="checklist-row"><label style="cursor:default;">가족이나 가까운 지인에게 지금 상황을 꼭 알리세요.</label></div>
         </div>
 
         <button class="guardian-btn" onclick="notifyGuardian()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-bell"></use></svg><span data-i18n="result.notifyGuardian">보호자에게 문자로 알리기</span></button>
@@ -996,16 +1042,16 @@
           <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-family"></use></svg><span data-i18n="settings.guardian">보호자 정보</span></h2>
           <div class="field-row">
             <label for="guardianName" data-i18n="settings.guardianNameLabel">보호자 이름</label>
-            <input type="text" id="guardianName" placeholder="예: 김민수 (아들)" data-i18n-placeholder="settings.guardianNamePlaceholder" oninput="saveGuardian()">
+            <input type="text" id="guardianName" placeholder="예: 김민수 (아들)" data-i18n-placeholder="settings.guardianNamePlaceholder" oninput="setGuardianField('name', this.value)">
           </div>
           <div class="field-row">
             <label for="guardianPhone" data-i18n="settings.guardianPhoneLabel">보호자 전화번호</label>
-            <input type="tel" id="guardianPhone" placeholder="예: 010-1234-5678" data-i18n-placeholder="settings.guardianPhonePlaceholder" oninput="saveGuardian()">
+            <input type="tel" id="guardianPhone" placeholder="예: 010-1234-5678" data-i18n-placeholder="settings.guardianPhonePlaceholder" oninput="setGuardianField('phone', this.value)">
           </div>
           <div class="toggle-row">
             <span data-i18n="settings.autoNotify">🔴 위험 문자를 발견하면 보호자에게 알릴지 물어보기</span>
             <label class="switch">
-              <input type="checkbox" id="autoNotifyToggle" onchange="saveGuardian()">
+              <input type="checkbox" id="autoNotifyToggle" onchange="setGuardianField('autoNotify', this.checked)">
               <span class="track"></span>
             </label>
           </div>
@@ -1091,7 +1137,9 @@
     <a class="sheet-btn" href="tel:119"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg>119</a>
     <a class="sheet-btn" href="tel:112"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg>112</a>
     <a class="sheet-btn" href="tel:118"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg>118</a>
-    <button class="sheet-btn" onclick="closeEmergencySheet(); goTo('screen-greet');"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-refresh"></use></svg><span data-i18n="emergency.howToAgain">사용법 다시 보기</span></button>
+    <!-- 예전에는 처음 접속 온보딩(screen-greet)으로 보내 늘 처음부터 다시 봐야 했다.
+         지금은 궁금한 기능만 골라 볼 수 있는 사용 방법 안내(screen-help)로 보낸다. -->
+    <button class="sheet-btn" onclick="closeEmergencySheet(); goTo('screen-help');"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-refresh"></use></svg><span data-i18n="emergency.howToAgain">사용법 다시 보기</span></button>
     <button class="sheet-btn sheet-btn-cancel" onclick="closeEmergencySheet()" data-i18n="emergency.close">닫기</button>
   </div>
 

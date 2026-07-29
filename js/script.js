@@ -139,7 +139,7 @@ function stopVoice(){
    4. 화면 전환 + 진행바
    --------------------------------------------------------- */
 /* 안내(온보딩) 화면 동안에는 긴급 도움 FAB을 숨긴다 */
-const onboardScreens = new Set(['screen-greet', 'screen-profile', 'screen-tutorial-ai-notice']);
+const onboardScreens = new Set(['screen-greet', 'screen-profile', 'screen-guardian-profile', 'screen-tutorial-ai-notice']);
 
 /* 하단 네비게이션 바를 노출할 최상위 화면. 여기 없는 화면(촬영·로딩·결과 등 흐름 중간)에서는 숨겨서
    "네비바가 보이면 출발점, 안 보이면 진행 중"이라는 규칙을 만든다. */
@@ -196,6 +196,8 @@ function goTo(id){
     renderSmsResult();
     syncGuardianNotifyPrompt();
   }
+  if (id === 'screen-guardian-profile') syncGuardianUI();
+  if (INFO_DETAIL_GREET_IDS[id]) renderInfoDetailGreet(id);
 
   coachOnNavigate(id);
 }
@@ -1288,6 +1290,18 @@ function renderAvatarPhoto(){
   });
 }
 
+/** 지금 보고 있는 문서(lastDocAnalysis)에 해당하는 사진을 pendingPhotos에서 찾는다.
+ *  Worker가 돌려주는 pages(1부터 시작하는 사진 번호)로 매칭하고, 없으면 문서 순서(docAnalysisIndex)로 대신한다.
+ *  사진이 여러 장이라 문서마다 다른 사진을 봐야 하는데, 예전에는 항상 첫 장(lastCapturedPhoto)만 보여줬다. */
+function docPreviewPhotoForCurrent(){
+  if (!pendingPhotos.length) return null;
+  const pages = lastDocAnalysis && Array.isArray(lastDocAnalysis.pages) ? lastDocAnalysis.pages : null;
+  if (pages && pages.length && pages[0] >= 1 && pages[0] <= pendingPhotos.length) {
+    return pendingPhotos[pages[0] - 1];
+  }
+  return pendingPhotos[docAnalysisIndex] || pendingPhotos[0];
+}
+
 /** 실제로 찍거나 고른 사진이 있으면 결과 화면에 보여주고,
  *  기록을 다시 열어본 경우(사진을 저장해두지 않음)에는 안내 문구를,
  *  그 외(연습 등 사진이 아예 없는 경우)에는 기본 예시로 되돌린다. */
@@ -1295,8 +1309,9 @@ function applyDocPreview(){
   const el = document.getElementById('docPreviewContent');
   const isHistoryPreview = historyPreviewMode;
   historyPreviewMode = false; // 다음 화면 진입에 영향이 남지 않도록 한 번 읽고 바로 끈다
-  if (lastCapturedPhoto) {
-    el.innerHTML = `<img src="${lastCapturedPhoto}" style="width:100%;display:block;">`;
+  const photo = docPreviewPhotoForCurrent();
+  if (photo) {
+    el.innerHTML = `<img src="${photo}" style="width:100%;display:block;">`;
   } else if (isHistoryPreview) {
     // history.noPhoto는 <br>이 섞인 번역 문구라 escapeHtml로 감싸면 안 된다(다른 data-i18n 문구와 같은 방식)
     el.innerHTML = `<div style="padding:28px 16px;text-align:center;color:var(--ink-faint);font-size:13px;">${t('history.noPhoto')}</div>`;
@@ -1313,6 +1328,21 @@ const statusBadgeMap = {
   info:   { cls: 'badge-gray', text: '⚪ 정보', cardClass: 'info', seal: 'ic-info', eyebrow: '정보 · 참고만 하세요' },
   normal: { cls: 'badge-green', text: '🟢 정상', cardClass: 'success', seal: 'ic-check', eyebrow: '정상 · 조치가 필요해요' }
 };
+
+/** 체크리스트를 대표하는 일러스트 카드를 채우거나 숨긴다. Worker가 생성에 실패하면(키 없음 등) illustration이
+ *  없으므로, 이때는 빈 칸을 보여주지 않고 카드를 통째로 숨긴다 - 지도 렌더링 실패와 같은 원칙. */
+function applyIllustration(cardId, imgId, dataUri){
+  const card = document.getElementById(cardId);
+  const img = document.getElementById(imgId);
+  if (!card || !img) return;
+  if (dataUri) {
+    img.src = dataUri;
+    card.style.display = 'block';
+  } else {
+    img.removeAttribute('src');
+    card.style.display = 'none';
+  }
+}
 
 /** 결과 화면(원형 배지 + 큰 타이틀 히어로)에 상태를 반영하는 공통 로직 */
 function applyResultHero(card, data){
@@ -1531,6 +1561,7 @@ function renderDocResult(){
 
   renderDocKeyFacts(data);
   applyResultHero(document.querySelector('#screen-result-doc .result-card'), data);
+  applyIllustration('docIllustration', 'docIllustrationImg', data.illustration);
 
   document.querySelector('#docEasyView p').textContent = data.summary || '';
 
@@ -1614,6 +1645,9 @@ function openRealSmsApp(){
 
 /** 튜토리얼 중에는 실제 문자 앱으로 나가지 않고, 앱 안의 연습 화면(screen-tutorial-sms-mock)을 대신 보여준다 */
 function handleSmsAppOpen(){
+  // 이전에 붙여넣었던 내용이 칸에 그대로 남아있던 문제 — 새 확인을 시작하는 시점에 비워둔다
+  const pasteEl = document.getElementById('smsPasteInput');
+  if (pasteEl) pasteEl.value = '';
   if (coachActive) { goTo('screen-tutorial-sms-mock'); return; }
   openRealSmsApp();
 }
@@ -1693,6 +1727,14 @@ async function analyzeSmsText(text){
 }
 
 /** AI 분석 결과를 문자 결과 화면에 반영. AI가 만든 텍스트이므로 textContent로만 채운다(HTML 삽입 금지) */
+/** 문자가 위험으로 판별되지 않았을 때(정보/정상)를 대비한 일반적인 안내.
+ *  AI가 checklist를 비워 보내면(할 일이 특별히 없는 경우) 여기로 대신 채운다 —
+ *  실제 문자 내용을 지어내지 않고, 늘 맞는 일반 원칙만 담는다. */
+const SMS_DEFAULT_TIPS = [
+  '상대방이 요구하는 계좌번호나 비밀번호를 절대 말하지 마세요.',
+  '가족이나 가까운 지인에게 지금 상황을 꼭 알리세요.'
+];
+
 function renderSmsResult(){
   const data = lastSmsAnalysis;
   if (!data) return;
@@ -1705,6 +1747,24 @@ function renderSmsResult(){
   speak(voiceText);
 
   applyResultHero(document.querySelector('#screen-result-text .result-card'), data);
+  applyIllustration('smsIllustration', 'smsIllustrationImg', data.illustration);
+
+  // "지금 바로 대처하세요" — 예전에는 HTML에 고정된 두 문장이라 분석 결과가 바뀌어도 그대로였다.
+  // AI가 이 문자에 맞춰 알려준 checklist로 채우고, 비어있을 때만 일반 안전 수칙으로 대신한다.
+  const todoEl = document.getElementById('smsTodoList');
+  if (todoEl) {
+    const items = (Array.isArray(data.checklist) && data.checklist.length) ? data.checklist : SMS_DEFAULT_TIPS;
+    todoEl.innerHTML = '';
+    items.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'checklist-row';
+      const label = document.createElement('label');
+      label.style.cursor = 'default';
+      label.textContent = item;
+      row.appendChild(label);
+      todoEl.appendChild(row);
+    });
+  }
 }
 
 /* ---------------------------------------------------------
@@ -1783,8 +1843,7 @@ function saveGuardianPhoneAndCall(){
   }
   appState.guardian.phone = phone;
   saveState();
-  const settingsInput = document.getElementById('guardianPhone');   // 설정 화면에도 같은 번호를 반영
-  if (settingsInput) settingsInput.value = phone;
+  syncGuardianUI();   // 설정·온보딩 화면에도 같은 번호를 반영
   const mode = guardianPhonePromptMode;
   closeEmergencySheet();
   // 보호자에게 알리려다 번호가 없어서 여기까지 온 경우에는 전화가 아니라 문자 앱을 연다
@@ -1845,11 +1904,20 @@ function setVoiceRate(value){
   speak('이 정도 속도로 읽어드릴게요.');
 }
 
-function saveGuardian(){
-  appState.guardian.name = document.getElementById('guardianName').value.trim();
-  appState.guardian.phone = document.getElementById('guardianPhone').value.trim();
-  appState.guardian.autoNotify = document.getElementById('autoNotifyToggle').checked;
+/** 보호자(자녀) 정보: 설정 화면과 온보딩의 "자녀 정보" 화면 두 곳에 같은 값을 반영한다(내 정보와 같은 방식). */
+function syncGuardianUI(){
+  setValueIfChanged(document.getElementById('guardianName'), appState.guardian.name);
+  setValueIfChanged(document.getElementById('guardianNameOnboard'), appState.guardian.name);
+  setValueIfChanged(document.getElementById('guardianPhone'), appState.guardian.phone);
+  setValueIfChanged(document.getElementById('guardianPhoneOnboard'), appState.guardian.phone);
+  const toggle = document.getElementById('autoNotifyToggle');
+  if (toggle) toggle.checked = appState.guardian.autoNotify;
+}
+
+function setGuardianField(field, value){
+  appState.guardian[field] = value;
   saveState();
+  syncGuardianUI();
 }
 
 /* ---------------------------------------------------------
@@ -1956,6 +2024,9 @@ const I18N = {
     'onboard.profile.regionNote': '시/군/구까지 자세히 적어주시면 더 알맞은 정보를 드릴 수 있어요.',
     'onboard.profile.next': '다음',
     'onboard.profile.voice': '이름과 성별, 연령대, 사시는 지역을 알려주시면 더 맞춤형으로 도와드릴 수 있어요. 원하지 않으면 건너뛰어도 됩니다.',
+    'onboard.guardian.title': '자녀(보호자) 정보도<br>알려주시겠어요?',
+    'onboard.guardian.desc': '위험한 문자를 받았을 때 자녀에게 바로 알리거나,<br>긴급 도움 버튼으로 전화를 걸 때 사용돼요.<br>원하지 않으면 건너뛰어도 됩니다.',
+    'onboard.guardian.voice': '급한 일이 있을 때 알릴 자녀나 보호자의 이름과 전화번호를 알려주시겠어요? 원하지 않으면 건너뛰어도 됩니다.',
     'onboard.notice.title': '지금은 분석이 어려워요.',
     'onboard.notice.desc': '지금은 체험판(튜토리얼)이라<br>실제 분석은 제공되지 않을 수 있어요.<br>궁금한 점은 관리자에게 문의하세요.',
     'onboard.notice.next': '다음으로 계속하기',
@@ -2858,9 +2929,7 @@ function setLanguage(lang){
 function syncSettingsUI(){
   syncToggleGroup('fontScaleGroup', 'scale', appState.settings.fontScale);
   syncToggleGroup('voiceRateGroup', 'rate', appState.settings.voiceRate);
-  document.getElementById('guardianName').value = appState.guardian.name;
-  document.getElementById('guardianPhone').value = appState.guardian.phone;
-  document.getElementById('autoNotifyToggle').checked = appState.guardian.autoNotify;
+  syncGuardianUI();
   syncVoiceEnabledToggles();
   syncProfileUI();
   applyLanguage();
@@ -3314,6 +3383,19 @@ function publicInfoGreeting(){
   const { name, gender, age } = appState.profile;
   const who = name ? `${name}님` : (age ? `${toAgeBand(age)}대${gender ? ' ' + gender : ''} 어르신` : '');
   return who ? `${who}을 위한 정보` : t('home.publicInfoDefault');
+}
+
+/** "알아두면 좋은 정보"의 상세 화면(기초연금/건강검진/보이스피싱)마다 있는 인사말 줄을 채운다.
+ *  프로필(이름/성별/연령대)이 바뀌어도 이 화면에 처음 들어올 때 늘 최신 값으로 다시 그린다. */
+const INFO_DETAIL_GREET_IDS = {
+  'screen-info-pension': 'infoPensionGreet',
+  'screen-info-checkup': 'infoCheckupGreet',
+  'screen-info-voicephishing': 'infoVoicephishingGreet'
+};
+function renderInfoDetailGreet(screenId){
+  const elId = INFO_DETAIL_GREET_IDS[screenId];
+  const el = elId && document.getElementById(elId);
+  if (el) el.textContent = publicInfoGreeting();
 }
 
 function publicInfoRowsHtml(items){

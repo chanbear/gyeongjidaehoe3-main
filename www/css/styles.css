@@ -469,9 +469,16 @@
 
 /* 카드류에 은은한 그림자를 더해 목업의 "떠 있는 카드" 느낌을 낸다 */
 .group, .doc-summary, .toggle-row, .history-item, .dashboard-card,
-.doc-info-card, .feature-card, .hero-card, .tip-card, .todo-list{
+.doc-info-card, .feature-card, .hero-card, .tip-card, .todo-list, .illustration-card{
   box-shadow:var(--shadow-card);
 }
+
+/* ---- 해야 할 일을 대표하는 일러스트 카드 (AI 생성 이미지) ---- */
+.illustration-card{
+  border-radius:var(--radius-lg); overflow:hidden; margin-bottom:16px;
+  background:var(--bg-app); border:1px solid var(--line);
+}
+.illustration-card img{ width:100%; max-width:100%; display:block; }
 
 /* ---- 히어로 카드: 홈/문서 업로드 화면 상단 아이콘+안내 문구 박스 ---- */
 .hero-card{
@@ -489,6 +496,9 @@
 .hero-card .hero-icon.success svg{ color:var(--success-strong); }
 .hero-card h1{ font-size:calc(23px * var(--scale)); margin:0 0 8px; }
 .hero-card p.desc{ font-size:calc(16.5px * var(--scale)); margin:0; }
+/* 정보 상세 화면의 맞춤 인사말("OOO님을 위한 정보"). 비어있을 땐 아무것도 안 보이도록 빈 문단이면 자리를 차지하지 않게 한다 */
+.hero-card p.hero-greet{ font-size:calc(14px * var(--scale)); color:var(--ink-faint); margin:0 0 10px; }
+.hero-card p.hero-greet:empty{ display:none; }
 
 /* ---- 안내 음성 다시 듣기 알약 버튼 (목업 "음성으로 안내받기") ---- */
 .voice-pill{

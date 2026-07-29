@@ -37,8 +37,10 @@ const ANALYSIS_SCHEMA = {
     phone: { type: 'string' },
     website: { type: 'string' },
     mapQuery: { type: 'string' },
+    // 체크리스트를 대표하는 일러스트를 그리기 위한 영어 한 문장 설명. generateIllustration()이 그대로 이미지 생성 프롬프트에 넣는다.
+    illustrationPrompt: { type: 'string' },
   },
-  required: ['status', 'headline', 'summary', 'checklist', 'phone', 'website', 'mapQuery'],
+  required: ['status', 'headline', 'summary', 'checklist', 'phone', 'website', 'mapQuery', 'illustrationPrompt'],
   additionalProperties: false,
 };
 
@@ -89,6 +91,7 @@ documents 배열에 문서마다 결과를 하나씩 담고, 각 문서의 pages
 - phone: 문서에 실제로 적힌 문의 전화번호가 있으면 그대로, 없으면 빈 문자열 (지어내지 말 것)
 - website: 문서에 실제로 적힌 공식 홈페이지 주소가 있으면 그대로, 없으면 빈 문자열 (지어내지 말 것)
 - mapQuery: 방문해야 할 기관·장소명이 문서에 있으면 지도 검색에 쓸 이름(예: "국민건강보험공단 OO지사"), 없으면 빈 문자열 (지어내지 말 것)
+- illustrationPrompt: checklist(해야 할 일)를 대표하는 장면을 그리기 위한 영어 한 문장. 실제 기관명·인물을 특정하지 말고 일반적인 장면으로("an elderly Korean person visiting a hospital reception desk" 처럼). checklist가 비어 있으면 headline이 설명하는 상황으로 대신 묘사. status가 "danger"면 상대에게 응답하지 않고 전화를 끊는 등 안전한 대처 장면으로.
 
 - category: 문서 종류를 "고지서"(납부할 돈이 적힌 것), "안내문"(알림·설명), "통지서"(결정·처분 통보), "광고"(홍보물), "기타" 중 하나로
 - amount: 납부해야 할 금액이 문서에 적혀 있으면 숫자만(원 단위, 콤마 없이). 금액이 없거나 확실하지 않으면 0
@@ -97,7 +100,7 @@ documents 배열에 문서마다 결과를 하나씩 담고, 각 문서의 pages
 
 amount·dueDate·issuer는 문서에 실제로 적힌 것만 쓰세요. 추측하거나 계산해서 채우지 말고, 조금이라도 불확실하면 0 또는 빈 문자열로 두세요.
 
-사진이 문서가 아니거나 글자를 읽을 수 없으면 documents 에 결과를 하나만 담고 status는 "info", headline은 "사진을 다시 확인해주세요", summary에 그 이유를 설명하고 checklist는 빈 배열, phone/website/mapQuery/dueDate/issuer도 빈 문자열, category는 "기타", amount는 0, pages 에는 문제가 된 사진 번호를 넣으세요.`;
+사진이 문서가 아니거나 글자를 읽을 수 없으면 documents 에 결과를 하나만 담고 status는 "info", headline은 "사진을 다시 확인해주세요", summary에 그 이유를 설명하고 checklist는 빈 배열, phone/website/mapQuery/dueDate/issuer/illustrationPrompt도 빈 문자열, category는 "기타", amount는 0, pages 에는 문제가 된 사진 번호를 넣으세요.`;
 
 /** 사용자가 설정에서 선택 입력한 성별/연령대/지역(선택 사항). 있으면 설명 톤 참고용으로만 쓰고, 모르는 지역별 기관명·연락처·주소는 절대 지어내지 않도록 명시한다. */
 function buildProfileNote(profile) {
@@ -116,7 +119,8 @@ const SMS_PROMPT = `당신은 고령자를 위한 문자 메시지 분석 도우
 - headline: 문자의 핵심 내용을 한 문장으로, 노인이 이해하기 쉽게
 - summary: 2~3문장으로 쉬운 설명 (전문 용어 없이, 존댓말로). 위험한 문자라면 왜 위험한지, 무엇을 하면 안 되는지도 포함
 - checklist: 사용자가 해야 할 구체적인 행동 목록 (없으면 빈 배열)
-- phone, website, mapQuery: 문자 분석에서는 사용하지 않으니 항상 빈 문자열로 답하세요`;
+- phone, website, mapQuery: 문자 분석에서는 사용하지 않으니 항상 빈 문자열로 답하세요
+- illustrationPrompt: checklist(해야 할 일)를 대표하는 장면을 그리기 위한 영어 한 문장. 실제 인물·기관을 특정하지 말고 일반적인 장면으로. 위험한 문자라면 상대에게 응답하지 않고 전화를 끊거나 가족에게 알리는 등 안전한 대처 장면으로, checklist가 비어 있으면 headline이 설명하는 상황으로 대신 묘사.`;
 
 /* ---- 되묻기(질문하기) ----
    자유 대화가 아니라 "방금 분석한 문서·문자에 대해 되묻기"만 다룬다.
@@ -194,6 +198,38 @@ async function runAnalysis(env, content, schema = ANALYSIS_SCHEMA) {
   return JSON.parse(textBlock.text);
 }
 
+/** 체크리스트를 대표하는 일러스트 1장을 OpenAI Images API(gpt-image-1)로 생성한다.
+ *  키가 없거나 호출이 실패해도 문서/문자 분석 자체는 그대로 성공해야 하므로, 여기서는 절대 throw하지 않고 null만 돌려준다
+ *  (프런트엔드는 illustration이 null이면 그림 영역을 조용히 숨긴다 — 지도 렌더링 실패와 같은 원칙). */
+async function generateIllustration(env, prompt) {
+  if (!env.OPENAI_API_KEY || !prompt || typeof prompt !== 'string') return null;
+  try {
+    const res = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-image-1',
+        prompt: `Warm, simple flat illustration of ${prompt}. Friendly, accessible style for elderly viewers, soft warm colors, no text or letters in the image.`,
+        size: '1024x1024',
+        quality: 'medium',
+      }),
+    });
+    if (!res.ok) {
+      console.warn('일러스트 생성 실패:', res.status, await res.text().catch(() => ''));
+      return null;
+    }
+    const data = await res.json();
+    const b64 = data && data.data && data.data[0] && data.data[0].b64_json;
+    return b64 ? `data:image/png;base64,${b64}` : null;
+  } catch (err) {
+    console.warn('일러스트 생성 중 오류:', err && err.message || err);
+    return null;
+  }
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') {
@@ -237,6 +273,10 @@ export default {
         // 항상 documents 배열로 돌려준다. 앱은 예전 형식(단일 객체)도 읽을 수 있으므로
         // 첫 문서를 최상위에도 펼쳐 두어 배포 시점이 어긋나도 화면이 깨지지 않게 한다.
         const docs = Array.isArray(result.documents) && result.documents.length ? result.documents : [result];
+        // 문서마다 체크리스트를 대표하는 일러스트를 함께 생성한다(실패해도 분석 결과는 그대로 반환).
+        await Promise.all(docs.map(async (doc) => {
+          doc.illustration = await generateIllustration(env, doc.illustrationPrompt);
+        }));
         return json({ ...docs[0], documents: docs }, 200);
       } catch (err) {
         return json({ error: 'AI 분석에 실패했습니다.', detail: String(err && err.message || err) }, 502);
@@ -258,6 +298,7 @@ export default {
         const result = await runAnalysis(env, [
           { type: 'text', text: `${SMS_PROMPT}${buildProfileNote(profile)}\n\n문자 내용:\n${text}` },
         ]);
+        result.illustration = await generateIllustration(env, result.illustrationPrompt);
         return json(result, 200);
       } catch (err) {
         return json({ error: 'AI 분석에 실패했습니다.', detail: String(err && err.message || err) }, 502);
