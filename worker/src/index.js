@@ -24,7 +24,7 @@ export class AnthropicProxy {
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, X-Auth-Token',
 };
 
 const ANALYSIS_SCHEMA = {
@@ -200,6 +200,18 @@ async function sendAligoSms(env, phoneDigits, message) {
   }
 }
 
+/** X-User-Id/X-Auth-Token 헤더가 실제 발급된 토큰과 일치하는 유저인지 확인한다.
+ *  일치하면 유저 id(숫자)를, 아니면 null을 반환한다 — throw하지 않아 호출부가 항상 401 처리로 통일할 수 있다. */
+async function authenticateRequest(env, request) {
+  const userId = Number(request.headers.get('X-User-Id'));
+  const token = request.headers.get('X-Auth-Token');
+  if (!userId || !token) return null;
+  const row = await env.ansim_doumi_db.prepare(
+    `SELECT id FROM users WHERE id = ? AND token = ?`
+  ).bind(userId, token).first();
+  return row ? row.id : null;
+}
+
 const RELAY_URL = 'https://relay-jet-six.vercel.app';
 
 async function runAnalysis(env, content, schema = ANALYSIS_SCHEMA, maxTokens = 4096) {
@@ -284,7 +296,7 @@ export default {
     }
 
     const url = new URL(request.url);
-    const isAllowedGet = request.method === 'GET' && (url.pathname === '/profile' || url.pathname === '/region-info');
+    const isAllowedGet = request.method === 'GET' && (url.pathname === '/state' || url.pathname === '/region-info');
     if (request.method !== 'POST' && !isAllowedGet) {
       return json({ error: 'Not found' }, 404);
     }
@@ -550,44 +562,38 @@ export default {
       }
     }
 
-    /* 로그인이 없으므로 기기별 임의 deviceId로 프로필(이름/성별/연령대/지역)을 D1에 저장한다 */
-    if (url.pathname === '/profile' && request.method === 'POST') {
+    if (url.pathname === '/state' && request.method === 'GET') {
+      const userId = await authenticateRequest(env, request);
+      if (!userId) return json({ error: 'unauthorized' }, 401);
+      try {
+        const row = await env.ansim_doumi_db.prepare(
+          `SELECT state_json FROM user_state WHERE user_id = ?`
+        ).bind(userId).first();
+        return json({ state: row ? JSON.parse(row.state_json) : null }, 200);
+      } catch (err) {
+        return json({ error: '불러오기에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
+    if (url.pathname === '/state' && request.method === 'POST') {
+      const userId = await authenticateRequest(env, request);
+      if (!userId) return json({ error: 'unauthorized' }, 401);
       let body;
       try {
         body = await request.json();
       } catch {
         return json({ error: '잘못된 요청입니다.' }, 400);
       }
-      const { deviceId, name, gender, age, region } = body || {};
-      if (!deviceId || typeof deviceId !== 'string') return json({ error: 'deviceId가 없습니다.' }, 400);
-
       try {
         await env.ansim_doumi_db.prepare(
-          `INSERT INTO profiles (device_id, name, gender, age_band, region, updated_at)
-           VALUES (?, ?, ?, ?, ?, datetime('now'))
-           ON CONFLICT(device_id) DO UPDATE SET
-             name = excluded.name, gender = excluded.gender,
-             age_band = excluded.age_band, region = excluded.region,
-             updated_at = excluded.updated_at`
-        ).bind(deviceId, name || '', gender || '', age ? String(age) : '', region || '').run();
+          `INSERT INTO user_state (user_id, state_json, updated_at)
+           VALUES (?, ?, datetime('now'))
+           ON CONFLICT(user_id) DO UPDATE SET
+             state_json = excluded.state_json, updated_at = excluded.updated_at`
+        ).bind(userId, JSON.stringify(body.state || {})).run();
         return json({ ok: true }, 200);
       } catch (err) {
         return json({ error: '저장에 실패했습니다.', detail: String(err && err.message || err) }, 502);
-      }
-    }
-
-    if (url.pathname === '/profile' && request.method === 'GET') {
-      const deviceId = url.searchParams.get('deviceId');
-      if (!deviceId) return json({ error: 'deviceId가 없습니다.' }, 400);
-
-      try {
-        const row = await env.ansim_doumi_db.prepare(
-          `SELECT name, gender, age_band as age, region FROM profiles WHERE device_id = ?`
-        ).bind(deviceId).first();
-        if (row && row.age) row.age = parseInt(row.age, 10) || null;
-        return json(row || { name: '', gender: '', age: null, region: '' }, 200);
-      } catch (err) {
-        return json({ error: '불러오기에 실패했습니다.', detail: String(err && err.message || err) }, 502);
       }
     }
 
