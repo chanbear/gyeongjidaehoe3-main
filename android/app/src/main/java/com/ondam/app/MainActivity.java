@@ -7,6 +7,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(MessagingLauncherPlugin.class);
+        registerPlugin(SmsReaderPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
