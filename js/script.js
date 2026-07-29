@@ -202,7 +202,7 @@ function stopVoice(){
    4. 화면 전환 + 진행바
    --------------------------------------------------------- */
 /* 안내(온보딩) 화면 동안에는 긴급 도움 FAB을 숨긴다 */
-const onboardScreens = new Set(['screen-greet', 'screen-profile', 'screen-guardian-profile', 'screen-tutorial-ai-notice']);
+const onboardScreens = new Set(['screen-greet', 'screen-signup', 'screen-login', 'screen-reset-pin', 'screen-profile', 'screen-guardian-profile', 'screen-tutorial-ai-notice']);
 
 /* 하단 네비게이션 바를 노출할 최상위 화면. 여기 없는 화면(촬영·로딩·결과 등 흐름 중간)에서는 숨겨서
    "네비바가 보이면 출발점, 안 보이면 진행 중"이라는 규칙을 만든다. */
@@ -3886,26 +3886,31 @@ document.addEventListener('click', (e) => {
   }
 });
 
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
   loadState();
-  translateUiIfNeeded(appState.settings.language); // 저장된 언어가 한국어가 아니면 캐시가 없는 경우에만 조용히 한 번 번역해둔다
+  translateUiIfNeeded(appState.settings.language);
 
   const docPreviewEl = document.getElementById('docPreviewContent');
   if (docPreviewEl) docPreviewDefaultHTML = docPreviewEl.innerHTML;
 
-  // 온보딩을 이미 마친 기기라면 인사 화면을 건너뛰고 홈에서 시작한다.
+  // 로그인 토큰이 있으면 홈에서 시작(서버 상태를 조용히 불러온다), 없으면 인사 화면(회원가입 유도)에서 시작한다.
   // goTo()를 쓰지 않는 이유: 앱을 열자마자 안내 음성이 재생되는 걸 막기 위함(기존 동작 유지).
-  const first = document.getElementById(appState.onboardingDone ? 'screen-home' : 'screen-greet');
+  let firstScreenId = 'screen-greet';
+  if (getAuth()) {
+    const stillValid = await pullStateFromServer();
+    firstScreenId = stillValid ? 'screen-home' : 'screen-login';
+    if (!stillValid) clearAuth();
+  }
+  const first = document.getElementById(firstScreenId);
   if (first !== activeScreenEl) {
     activeScreenEl.classList.remove('active');
     first.classList.add('active');
     activeScreenEl = first;
     document.body.classList.toggle('in-onboarding', onboardScreens.has(first.id));
   }
-  // 이 경로는 goTo()를 우회하므로 네비바 표시도 여기서 직접 맞춰준다(빠뜨리면 첫 화면에서 네비바가 안 보인다)
   document.body.classList.toggle('has-bottom-nav', TAB_SCREENS.has(first.id));
   syncBottomNav(first.id);
-  first.scrollTop = 0; // goTo()와 동일하게 항상 맨 위에서 시작(브라우저의 스크롤 복원 방지)
+  first.scrollTop = 0;
   document.getElementById('liveRegion').textContent = screenVoiceText(first);
 
   document.documentElement.style.setProperty('--scale', appState.settings.fontScale);
@@ -3915,6 +3920,4 @@ window.addEventListener('load', () => {
 
   attachRippleEffect();
   renderHomeDashboard();
-  // 기기별 deviceId 프로필 동기화(loadProfileFromServer)는 계정 로그인 기반 동기화로 대체됐다.
-  // 로그인 상태에서 서버 값을 끌어오는 것(pullStateFromServer)은 태스크 6에서 로그인 화면 흐름에 연결한다.
 });
