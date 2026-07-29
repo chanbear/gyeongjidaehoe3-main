@@ -144,7 +144,7 @@
 
 
       <!-- 홈 화면 -->
-      <section class="screen" id="screen-home" data-voice="무엇을 도와드릴까요? AI 문서 분석하기를 눌러 시작해보세요.">
+      <section class="screen" id="screen-home" data-voice="무엇을 도와드릴까요? 문서 촬영, 문자 내용 요약, 경로당 찾기 중에서 골라보세요.">
         <div class="topbar">
           <button class="gear-btn" data-replay aria-label="음성으로 안내받기" style="background:var(--accent-soft);color:var(--accent-strong);"><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg></button>
           <div class="wordmark"><svg class="mark" viewBox="0 0 24 24"><use href="#ic-shield"></use></svg><span>온담</span></div>
@@ -170,18 +170,35 @@
 
         <div class="large-title" data-i18n="home.sectionTitle">무엇을 도와드릴까요?</div>
 
+        <!-- 홈은 가장 자주 쓰는 핵심 기능 3개만 크게 보여준다. 기록·통계·정보 등 나머지는 "더보기"(screen-more)로 옮겼다. -->
         <div class="section">
-          <div class="feature-card ai-analyze-card" onclick="goTo('screen-doc-choice')" role="button" tabindex="0">
-            <div class="fc-icon"><svg viewBox="0 0 24 24"><use href="#ic-doc"></use></svg></div>
-            <div class="fc-text"><div class="fc-title" data-i18n="home.aiAnalyzeTitle">AI 문서 분석하기</div><div class="fc-desc" data-i18n="home.aiAnalyzeDesc">사진 촬영하기·사진 불러오기·문자 내용 불러오기 중에서 골라 AI가 분석해드려요</div></div>
+          <div class="feature-card home-big-card" onclick="goTo('screen-doc-choice')" role="button" tabindex="0">
+            <div class="fc-icon"><svg viewBox="0 0 24 24"><use href="#ic-camera"></use></svg></div>
+            <div class="fc-text"><div class="fc-title" data-i18n="home.docCaptureTitle">문서 촬영</div><div class="fc-desc" data-i18n="home.docCaptureDesc">사진을 찍거나 불러오면 AI가 쉽게 설명해드려요</div></div>
             <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
           </div>
-          <div class="feature-card" onclick="goTo('screen-welfare-nearby')" role="button" tabindex="0">
+          <div class="feature-card home-big-card" onclick="openSmsCheck()" role="button" tabindex="0">
+            <div class="fc-icon" style="background:var(--accent-strong);"><svg viewBox="0 0 24 24"><use href="#ic-chat"></use></svg></div>
+            <div class="fc-text"><div class="fc-title" data-i18n="home.smsCheckTitle">문자 내용 요약</div><div class="fc-desc" data-i18n="home.smsCheckDesc">받은 문자가 안전한지 AI가 확인해드려요</div></div>
+            <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+          </div>
+          <div class="feature-card home-big-card" onclick="goTo('screen-welfare-nearby')" role="button" tabindex="0">
             <div class="fc-icon" style="background:var(--success-strong);"><svg viewBox="0 0 24 24"><use href="#ic-pin"></use></svg></div>
             <div class="fc-text"><div class="fc-title" data-i18n="home.welfareTitle">주변 복지센터·경로당 찾기</div><div class="fc-desc" data-i18n="home.welfareDesc">내 위치 주변 복지센터·경로당 위치를 알려드려요</div></div>
             <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
           </div>
         </div>
+
+        <button class="dashboard-more-btn" style="margin-top:6px;" onclick="goTo('screen-more')" data-i18n="home.moreMenu">더보기</button>
+
+        <div class="disclaimer-banner" data-i18n="home.disclaimer">본 서비스는 AI 분석 결과로 참고용이며,<br>중요 문서는 전문가와 상담하시기 바랍니다.</div>
+      </section>
+
+      <!-- 더보기: 예전에 홈에 있던 오늘 할 일·통계·정보 요약·다가오는 일정을 모아둔 화면.
+           홈을 핵심 3개 기능만 남기고 단순화하면서 여기로 옮겼다. -->
+      <section class="screen" id="screen-more" data-voice="오늘 해야 할 일과 다가오는 일정, 정보를 모아뒀어요.">
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span></span></div>
+        <h1 class="page-title" data-i18n="home.moreMenu">더보기</h1>
 
         <!-- 오늘 해야 할 일 대시보드 카드 -->
         <div class="dashboard-card">
@@ -193,7 +210,7 @@
         </div>
 
         <!-- 다가오는 납부 기한: 기록에 dueDate 가 있는 항목 중 아직 안 지난 것만. 없으면 카드를 숨긴다.
-             합계 금액보다 "언제까지 뭘 내야 하는지"가 실제로 도움이 되므로 홈에 둔다. -->
+             합계 금액보다 "언제까지 뭘 내야 하는지"가 실제로 도움이 되므로 여기 둔다. -->
         <div class="dashboard-card" id="homeDueCard" style="display:none;">
           <div class="dashboard-card-title"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-calendar"></use></svg><span data-i18n="home.dueTitle">곧 내야 할 것</span></div>
           <div class="group" id="homeDueList" style="background:#fff;"></div>
@@ -201,7 +218,7 @@
         </div>
 
         <!-- 정보 요약: 전체 목록은 정보 탭(screen-info)에 있고, 여기서는 앞의 2개만 보여준 뒤 "더보기"로 넘긴다.
-             홈이 다시 길어지지 않도록 항목 수를 늘리지 말 것(HOME_INFO_PREVIEW_COUNT). -->
+             항목 수를 늘리지 말 것(HOME_INFO_PREVIEW_COUNT). -->
         <div class="dashboard-card" id="homeInfoCard" style="display:none;">
           <div class="dashboard-card-title" id="homeInfoTitle"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-info"></use></svg><span data-i18n="home.publicInfoDefault">알아두면 좋은 정보</span></div>
           <div class="group" id="homeInfoList" style="background:#fff;"></div>
@@ -223,10 +240,6 @@
             <div id="scheduleLaterList"></div>
           </div>
         </div>
-
-        <!-- 기록·설정 아이콘 버튼과 최근 기록 카드는 하단 네비게이션 바가 대체한다 -->
-
-        <div class="disclaimer-banner" data-i18n="home.disclaimer">본 서비스는 AI 분석 결과로 참고용이며,<br>중요 문서는 전문가와 상담하시기 바랍니다.</div>
       </section>
 
       <!-- 되묻기: 방금 확인한 문서·문자에 대해서만 질문한다(자유 대화가 아니다).
@@ -623,12 +636,12 @@
       </section>
 
       <!-- 문서 찍기: 사진/갤러리 선택 -->
-      <section class="screen" id="screen-doc-choice" data-voice="사진 촬영하기, 사진 불러오기, 문자 내용 불러오기 중에서 골라주세요." data-voice-i18n="docChoice.voice">
+      <section class="screen" id="screen-doc-choice" data-voice="사진 촬영하기, 사진 불러오기 중에서 골라주세요." data-voice-i18n="docChoice.voice">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg><span data-i18n="docChoice.title">AI 분석하기</span></span><button class="gear-btn" onclick="goTo('screen-settings')" aria-label="설정"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg></button></div>
 
         <div class="hero-card">
           <div class="hero-icon"><svg viewBox="0 0 24 24"><use href="#ic-doc"></use></svg></div>
-          <p class="desc" data-i18n="docChoice.desc">분석하고 싶은 문서를 촬영하거나 사진첩에서 불러오세요.<br>문자 내용도 불러와 확인할 수 있어요.</p>
+          <p class="desc" data-i18n="docChoice.desc">분석하고 싶은 문서를 촬영하거나 사진첩에서 불러오세요.</p>
         </div>
         <button class="voice-pill block" data-replay><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="docChoice.voicePill">음성 안내 다시 듣기</span></button>
 
@@ -640,11 +653,6 @@
         <div class="feature-card" onclick="pickFromGallery()" role="button" tabindex="0">
           <div class="fc-icon soft"><svg viewBox="0 0 24 24"><use href="#ic-image"></use></svg></div>
           <div class="fc-text"><div class="fc-title" data-i18n="docChoice.galleryTitle">사진 불러오기</div><div class="fc-desc" data-i18n="docChoice.galleryDesc">저장된 사진을 불러옵니다</div></div>
-          <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
-        </div>
-        <div class="feature-card" onclick="openSmsCheck()" role="button" tabindex="0">
-          <div class="fc-icon soft"><svg viewBox="0 0 24 24"><use href="#ic-chat"></use></svg></div>
-          <div class="fc-text"><div class="fc-title" data-i18n="docChoice.smsTitle">문자 내용 불러오기</div><div class="fc-desc" data-i18n="docChoice.smsDesc">최근 받은 문자 중에서 골라 확인합니다</div></div>
           <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
         </div>
 

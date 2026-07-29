@@ -529,6 +529,13 @@
 .feature-card .fc-desc{ font-size:calc(14px * var(--scale)); color:var(--ink-soft); margin-top:2px; line-height:1.4; }
 .feature-card .chev{ width:18px; height:18px; color:var(--ink-faint); flex-shrink:0; }
 
+/* 홈의 핵심 기능 3개(문서 촬영/문자 요약/경로당 찾기)는 다른 화면의 feature-card보다 눈에 띄게 크게 보여준다 */
+.home-big-card{ padding:20px; gap:16px; }
+.home-big-card .fc-icon{ width:56px; height:56px; border-radius:16px; }
+.home-big-card .fc-icon svg{ width:28px; height:28px; }
+.home-big-card .fc-title{ font-size:calc(20px * var(--scale)); }
+.home-big-card .fc-desc{ font-size:calc(14.5px * var(--scale)); }
+
 /* 홈의 'AI 문서 분석하기' 카드: 사진 촬영/사진 불러오기/문자 불러오기 3가지로 가는 단일 진입점이라
    나머지 feature-card보다 눈에 띄게 크고 진하게 강조한다. */
 .ai-analyze-card{
