@@ -1502,14 +1502,22 @@ function showDocAnalysis(index){
   renderDocPager();
 }
 
+/** 문서가 여러 장일 때 이전/다음 화살표로 넘기는 페이지 표시. 숫자(1/2)를 크게 보여줘 몇 번째인지 한눈에 알 수 있게 한다. */
 function renderDocPager(){
   const pager = document.getElementById('docPager');
   if (!pager) return;
   if (docAnalyses.length < 2) { pager.style.display = 'none'; return; }
+  const isFirst = docAnalysisIndex === 0;
+  const isLast = docAnalysisIndex === docAnalyses.length - 1;
   pager.innerHTML = `
-    <div class="pager-label">${escapeHtml(t('result.docCountLabel').replace('{i}', docAnalysisIndex + 1).replace('{n}', docAnalyses.length))}</div>
-    <div class="pager-dots">
-      ${docAnalyses.map((_, i) => `<button type="button" class="pager-dot${i === docAnalysisIndex ? ' is-active' : ''}" onclick="showDocAnalysis(${i})" aria-label="${i + 1}">${i + 1}</button>`).join('')}
+    <div class="pager-arrows">
+      <button type="button" class="pager-arrow-btn" onclick="showDocAnalysis(${docAnalysisIndex - 1})" ${isFirst ? 'disabled' : ''} aria-label="${t('result.docPrev')}">
+        <svg class="inline-icon" viewBox="0 0 24 24" style="transform:scaleX(-1);"><use href="#ic-chevron"></use></svg>
+      </button>
+      <div class="pager-label">${escapeHtml(t('result.docCountLabel').replace('{i}', docAnalysisIndex + 1).replace('{n}', docAnalyses.length))}</div>
+      <button type="button" class="pager-arrow-btn" onclick="showDocAnalysis(${docAnalysisIndex + 1})" ${isLast ? 'disabled' : ''} aria-label="${t('result.docNext')}">
+        <svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+      </button>
     </div>`;
   pager.style.display = 'block';
 }
@@ -2024,6 +2032,7 @@ const I18N = {
     'docCollect.voice': '사진을 더 찍으시거나, 다 찍으셨으면 분석하기를 눌러주세요.',
     'docChoice.photoLimit': '사진은 다섯 장까지 찍으실 수 있어요.',
     'result.docCountLabel': '문서 {i} / {n}',
+    'result.docPrev': '이전 문서', 'result.docNext': '다음 문서',
     'result.shareNothing': '보낼 결과가 없어요.',
     'stats.thisMonth': '이번 달 고지서',
     'stats.cumulative': '달마다 쌓인 금액',
@@ -2215,6 +2224,7 @@ const I18N = {
     'docCollect.voice': '可以继续拍照，拍完后请点击开始分析。',
     'docChoice.photoLimit': '照片最多可以拍五张。',
     'result.docCountLabel': '文件 {i} / {n}',
+    'result.docPrev': '上一份文件', 'result.docNext': '下一份文件',
     'result.shareNothing': '没有可发送的结果。',
     'stats.thisMonth': '本月缴费单',
     'stats.cumulative': '每月累计金额',
@@ -2403,6 +2413,7 @@ const I18N = {
     'docCollect.voice': 'Bạn có thể chụp thêm, hoặc bấm Phân tích khi đã chụp xong.',
     'docChoice.photoLimit': 'Bạn có thể chụp tối đa năm ảnh.',
     'result.docCountLabel': 'Tài liệu {i} / {n}',
+    'result.docPrev': 'Tài liệu trước', 'result.docNext': 'Tài liệu sau',
     'result.shareNothing': 'Không có kết quả để gửi.',
     'stats.thisMonth': 'Hóa đơn tháng này',
     'stats.cumulative': 'Số tiền tích lũy theo tháng',
@@ -2591,6 +2602,7 @@ const I18N = {
     'docCollect.voice': 'ถ่ายเพิ่มได้ หรือถ้าถ่ายครบแล้วกรุณากดวิเคราะห์',
     'docChoice.photoLimit': 'ถ่ายรูปได้สูงสุดห้ารูป',
     'result.docCountLabel': 'เอกสาร {i} / {n}',
+    'result.docPrev': 'เอกสารก่อนหน้า', 'result.docNext': 'เอกสารถัดไป',
     'result.shareNothing': 'ไม่มีผลลัพธ์ที่จะส่ง',
     'stats.thisMonth': 'ใบแจ้งหนี้เดือนนี้',
     'stats.cumulative': 'ยอดสะสมรายเดือน',
@@ -2779,6 +2791,7 @@ const I18N = {
     'docCollect.voice': 'Yana surat olishingiz yoki tugagan bo\'lsa Tahlil qilish tugmasini bosishingiz mumkin.',
     'docChoice.photoLimit': 'Eng ko‘pi bilan besh ta surat olish mumkin.',
     'result.docCountLabel': 'Hujjat {i} / {n}',
+    'result.docPrev': 'Oldingi hujjat', 'result.docNext': 'Keyingi hujjat',
     'result.shareNothing': 'Yuboradigan natija yo\'q.',
     'stats.thisMonth': 'Shu oydagi hisoblar',
     'stats.cumulative': 'Oylar bo\'yicha to\'plangan summa',

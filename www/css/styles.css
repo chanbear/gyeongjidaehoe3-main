@@ -630,14 +630,15 @@
 
 /* 문서가 여러 개일 때 결과를 넘겨 보는 막대 */
 .doc-pager{ margin-bottom:16px; text-align:center; }
-.pager-label{ font-size:calc(14px * var(--scale)); font-weight:700; color:var(--ink-soft); margin-bottom:8px; }
-.pager-dots{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
-.pager-dot{
-  min-width:44px; min-height:44px; border-radius:22px; cursor:pointer;
-  border:2px solid var(--line); background:var(--bg-app); color:var(--ink-soft);
-  font-size:calc(16px * var(--scale)); font-weight:800;
+.pager-label{ font-size:calc(26px * var(--scale)); font-weight:800; color:var(--ink); letter-spacing:-.01em; }
+.pager-arrows{ display:flex; align-items:center; justify-content:center; gap:22px; }
+.pager-arrow-btn{
+  width:48px; height:48px; border-radius:50%; cursor:pointer; flex-shrink:0;
+  border:2px solid var(--line); background:var(--bg-app); color:var(--ink);
+  display:flex; align-items:center; justify-content:center;
 }
-.pager-dot.is-active{ border-color:var(--accent); background:var(--accent-soft); color:var(--accent-strong); }
+.pager-arrow-btn svg{ width:22px; height:22px; }
+.pager-arrow-btn:disabled{ opacity:.35; cursor:default; }
 
 /* ---- 통계 화면 ---- */
 .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
