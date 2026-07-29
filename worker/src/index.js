@@ -155,7 +155,7 @@ function json(data, status) {
 
 const RELAY_URL = 'https://relay-jet-six.vercel.app';
 
-async function runAnalysis(env, content, schema = ANALYSIS_SCHEMA) {
+async function runAnalysis(env, content, schema = ANALYSIS_SCHEMA, maxTokens = 4096) {
   // Cloudflare 데이터센터 IP 대역이 Anthropic API에서 차단되어(리전 무관), Cloudflare 밖의
   // Vercel 중계 서버(relay/)를 거쳐 호출한다. RELAY_SECRET은 이 중계 서버를 아무나 호출해
   // Anthropic 크레딧을 소모하지 못하도록 막는 공유 비밀값이다.
@@ -169,7 +169,7 @@ async function runAnalysis(env, content, schema = ANALYSIS_SCHEMA) {
       model: 'claude-opus-4-8',
       // 문서 분석은 문서마다 12개 필드를 채우고 여러 개로 나뉠 수도 있어 1024로는 응답이 잘린다.
       // 잘리면 JSON 파싱이 깨져 "분석에 실패했습니다"로 떨어지므로 넉넉히 잡는다.
-      max_tokens: 4096,
+      max_tokens: maxTokens,
       output_config: { format: { type: 'json_schema', schema } },
       messages: [{ role: 'user', content }],
     }),
@@ -396,6 +396,52 @@ export default {
       '의왕시', '하남시', '용인시', '파주시', '이천시', '안성시', '김포시', '화성시',
       '광주시', '양주시', '포천시', '여주시', '연천군', '가평군', '양평군'
     ];
+
+    /* 언어 설정: 정적으로 미리 옮겨둔 5개 언어 번역 대신, 화면 문구(I18N.ko)를 실시간으로 번역한다.
+       기기별로 언어당 한 번만 호출하고 결과를 localStorage에 캐시해 재사용한다(js/script.js의
+       translateUiIfNeeded 참고) — 매번 언어를 바꿀 때마다 호출하지 않는다. */
+    const TRANSLATE_LANG_NAMES = { zh: '중국어(간체)', vi: '베트남어', th: '태국어', uz: '우즈베크어' };
+    const TRANSLATE_SCHEMA = {
+      type: 'object',
+      properties: { translations: { type: 'array', items: { type: 'string' } } },
+      required: ['translations'],
+      additionalProperties: false,
+    };
+
+    if (url.pathname === '/translate' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+
+      const { lang, texts } = body || {};
+      const langName = TRANSLATE_LANG_NAMES[lang];
+      if (!langName) return json({ error: '지원하지 않는 언어입니다.' }, 400);
+      if (!Array.isArray(texts) || texts.length === 0) return json({ error: '번역할 문구가 없습니다.' }, 400);
+      if (texts.length > 500) return json({ error: '한 번에 번역할 수 있는 문구는 500개까지입니다.' }, 400);
+
+      const prompt = `다음은 고령자를 위한 한국어 앱의 화면 UI 문구 목록(JSON 배열)입니다. 각 문구를 자연스럽고 정중한 ${langName}로 번역하세요.
+
+- <br> 같은 HTML 태그와 {i}, {n}, {age}, {gender} 같은 중괄호 플레이스홀더는 번역하지 말고 위치까지 그대로 유지하세요.
+- 이모지(예: ⚠, 💛)는 그대로 두세요.
+- 문구가 비어 있으면("") 빈 문자열로 그대로 두세요.
+- 입력 배열과 같은 개수, 같은 순서로 translations 배열을 채우세요.
+
+문구 목록:
+${JSON.stringify(texts)}`;
+
+      try {
+        const result = await runAnalysis(env, [{ type: 'text', text: prompt }], TRANSLATE_SCHEMA, 8192);
+        if (!Array.isArray(result.translations) || result.translations.length !== texts.length) {
+          return json({ error: 'AI 응답 형식이 올바르지 않습니다.' }, 502);
+        }
+        return json({ translations: result.translations }, 200);
+      } catch (err) {
+        return json({ error: '번역에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
 
     if (url.pathname === '/region-info' && request.method === 'GET') {
       const region = (url.searchParams.get('region') || '').trim();

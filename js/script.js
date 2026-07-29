@@ -2986,20 +2986,72 @@ const I18N = {
 };
 
 /** 현재 언어 설정에 맞는 번역 문구를 돌려준다(동적으로 생성되는 화면 문구용). 번역이 없으면 한국어 원문으로 대체 */
+/* ---- 언어: 정적으로 미리 옮겨둔 5개 언어 사전(I18N) 대신, 처음 그 언어를 고른 시점에
+   Worker(Claude API, /translate)로 화면 문구 전체를 실시간 번역해 기기에 캐시해둔다.
+   캐시가 있으면 정적 사전보다 그 결과를 우선 쓴다. 오프라인이거나 호출이 실패하면
+   조용히 기존 정적 사전(I18N)으로 폴백한다 — 화면이 비거나 깨지는 대신 이전과 같은 번역을 계속 보여준다. ---- */
+const TRANSLATION_CACHE_KEY = 'ai_helper_translations_v1';
+let dynamicTranslations = {}; // { [lang]: { [i18nKey]: 번역된 문구 } }
+(function loadDynamicTranslations(){
+  try {
+    const raw = localStorage.getItem(TRANSLATION_CACHE_KEY);
+    if (raw) dynamicTranslations = JSON.parse(raw) || {};
+  } catch (err) { dynamicTranslations = {}; }
+})();
+
+let translationInFlight = {}; // lang -> Promise. 같은 언어를 여러 번 골라도 중복 호출하지 않도록 막는다.
+
+/** 이 언어를 API로 번역해둔 적이 없으면 Worker(/translate)를 한 번 호출해 I18N.ko 전체를 번역하고 캐시한다.
+ *  실패해도 조용히 넘어간다 — t()/applyLanguage()가 정적 사전(I18N)으로 자동 폴백하기 때문에
+ *  이 호출 자체가 실패해도 사용자 눈에는 아무 문제가 없다(그저 초벌 정적 번역이 계속 보일 뿐). */
+async function translateUiIfNeeded(lang){
+  if (lang === 'ko' || dynamicTranslations[lang] || !AI_WORKER_URL) return;
+  if (translationInFlight[lang]) return translationInFlight[lang];
+
+  const keys = Object.keys(I18N.ko);
+  const texts = keys.map(k => I18N.ko[k]);
+
+  translationInFlight[lang] = (async () => {
+    try {
+      const res = await fetch(AI_WORKER_URL + '/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lang, texts }),
+      });
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data.translations)) return;
+      const dict = {};
+      keys.forEach((k, i) => { dict[k] = data.translations[i] || I18N.ko[k]; });
+      dynamicTranslations[lang] = dict;
+      try { localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(dynamicTranslations)); } catch (err) {}
+      // 번역이 도착했을 때도 여전히 이 언어를 보고 있으면 화면에 바로 반영한다(먼저 정적 사전으로 보여주고 있었으므로)
+      if (appState.settings.language === lang) applyLanguage();
+    } catch (err) {
+      // 네트워크 오류 등: 조용히 넘어가고 기존 정적 사전으로 계속 보여준다
+    } finally {
+      delete translationInFlight[lang];
+    }
+  })();
+  return translationInFlight[lang];
+}
+
 function t(key){
   const lang = I18N[appState.settings.language] ? appState.settings.language : 'ko';
+  const dyn = dynamicTranslations[lang];
+  if (dyn && dyn[key]) return dyn[key];
   return (I18N[lang] && I18N[lang][key]) || I18N.ko[key] || '';
 }
 
 function applyLanguage(){
   const lang = I18N[appState.settings.language] ? appState.settings.language : 'ko';
   const dict = I18N[lang];
+  const dyn = dynamicTranslations[lang];
   document.querySelectorAll('[data-i18n]').forEach(el => {
-    const text = (dict && dict[el.dataset.i18n]) || I18N.ko[el.dataset.i18n];
+    const text = (dyn && dyn[el.dataset.i18n]) || (dict && dict[el.dataset.i18n]) || I18N.ko[el.dataset.i18n];
     if (text) el.innerHTML = text;
   });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-    const text = (dict && dict[el.dataset.i18nPlaceholder]) || I18N.ko[el.dataset.i18nPlaceholder];
+    const text = (dyn && dyn[el.dataset.i18nPlaceholder]) || (dict && dict[el.dataset.i18nPlaceholder]) || I18N.ko[el.dataset.i18nPlaceholder];
     if (text) el.placeholder = text;
   });
   syncToggleGroupString('languageGroup', lang);
@@ -3009,6 +3061,7 @@ function setLanguage(lang){
   appState.settings.language = lang;
   saveState();
   applyLanguage();
+  translateUiIfNeeded(lang);
 }
 
 function syncSettingsUI(){
@@ -3655,6 +3708,7 @@ document.addEventListener('click', (e) => {
 
 window.addEventListener('load', () => {
   loadState();
+  translateUiIfNeeded(appState.settings.language); // 저장된 언어가 한국어가 아니면 캐시가 없는 경우에만 조용히 한 번 번역해둔다
 
   const docPreviewEl = document.getElementById('docPreviewContent');
   if (docPreviewEl) docPreviewDefaultHTML = docPreviewEl.innerHTML;
