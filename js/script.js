@@ -1447,7 +1447,7 @@ function retryAiError(){
     analyzeDocument(lastCapturedPhoto);
     return;
   }
-  if (aiErrorRetryScreen === 'screen-sms-paste' && pendingSmsText) {
+  if (aiErrorRetryScreen === 'screen-sms-recent' && pendingSmsText) {
     goTo('screen-loading-text');
     analyzeSmsText(pendingSmsText);
     return;
@@ -1757,85 +1757,13 @@ function selectSmsMessage(body){
   startSmsAnalysis();
 }
 
-/** 실제 문자 앱을 열면서, 돌아왔을 때 안내할 화면으로 같이 넘어가둠 */
-/** Android 네이티브 앱에서는 MessagingLauncher 플러그인으로 문자 앱(대화 목록)을 바로 열고,
- *  플러그인이 없는 환경(웹/iOS)에서는 sms: 스킴으로 대체한다(이 경우 작성 화면이 뜨는 건 플랫폼 제약) */
-function openRealSmsApp(){
-  goTo('screen-sms-switch');
-  const launcher = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.MessagingLauncher;
-  if (launcher) {
-    launcher.openMessagingApp().catch(() => { window.location.href = 'sms:'; });
-  } else {
-    window.location.href = 'sms:';
-  }
-}
-
-/** 튜토리얼 중에는 실제 문자 앱으로 나가지 않고, 앱 안의 연습 화면(screen-tutorial-sms-mock)을 대신 보여준다 */
-function handleSmsAppOpen(){
-  // 이전에 붙여넣었던 내용이 칸에 그대로 남아있던 문제 — 새 확인을 시작하는 시점에 비워둔다
-  const pasteEl = document.getElementById('smsPasteInput');
-  if (pasteEl) pasteEl.value = '';
-  if (coachActive) { goTo('screen-tutorial-sms-mock'); return; }
-  openRealSmsApp();
-}
-
-/** 실제 폰의 "길게 눌러 복사" 동작을 흉내: 1초 이상 누르고 있어야 복사하기 버튼이 뜬다(짧게 떼면 아무 일도 없음) */
-let tutorialHoldTimer = null;
-function tutorialHoldStart(){
-  clearTimeout(tutorialHoldTimer);
-  tutorialHoldTimer = setTimeout(() => {
-    document.getElementById('tutorialCopyPopup').style.display = 'block';
-    expandCoachHoleForPopup();
-  }, 1000);
-}
-function tutorialHoldCancel(){
-  clearTimeout(tutorialHoldTimer);
-}
-
-/** "복사하기" 팝업이 문자 말풍선 위쪽 어두운 영역에 걸쳐 흐릿하게 보이던 문제 — 스포트라이트 구멍을
- *  말풍선+팝업을 모두 감싸는 크기로 넓혀서 팝업도 밝은 강조 영역 안에 들어오게 한다 */
-function expandCoachHoleForPopup(){
-  if (!coachActive) return;
-  const bubble = document.querySelector('#screen-tutorial-sms-mock .compose-box');
-  const popup = document.getElementById('tutorialCopyPopup');
-  if (!bubble || !popup) return;
-  const b = bubble.getBoundingClientRect();
-  const p = popup.getBoundingClientRect();
-  const pad = 8;
-  const top = Math.min(b.top, p.top) - pad;
-  const left = Math.min(b.left, p.left) - pad;
-  const right = Math.max(b.right, p.right) + pad;
-  const bottom = Math.max(b.bottom, p.bottom) + pad;
-  const hole = document.getElementById('coachHole');
-  hole.style.top = top + 'px';
-  hole.style.left = left + 'px';
-  hole.style.width = (right - left) + 'px';
-  hole.style.height = (bottom - top) + 'px';
-}
-
-/** 연습 화면의 샘플 문자를 "복사"한 것처럼 실제 클립보드에 담아준다 — 이후 진짜 붙여넣기 칸에서 실제로 붙여넣기가 동작한다 */
-function tutorialCopySms(){
-  const text = '[국민건강보험공단] 건강검진비 환급 대상입니다. 아래 링크에서 계좌번호를 입력해주세요. bit.ly/hcheck-refund';
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(() => {});
-  document.getElementById('tutorialCopyPopup').style.display = 'none';
-  goTo('screen-sms-switch');
-}
-
-function confirmSmsPaste(){
-  const text = document.getElementById('smsPasteInput').value.trim();
-  if (text.length < 10) { goTo('screen-text-error'); return; }
-  pendingSmsText = text;
-  document.getElementById('smsFilledPreview').textContent = text;
-  goTo('screen-sms-filled');
-}
-
 function startSmsAnalysis(){
   goTo('screen-loading-text');
   analyzeSmsText(pendingSmsText);
 }
 
 async function analyzeSmsText(text){
-  if (!navigator.onLine) { goToAiError('screen-sms-paste', true); return; }
+  if (!navigator.onLine) { goToAiError('screen-sms-recent', true); return; }
 
   try {
     const res = await fetch(AI_WORKER_URL + '/analyze-text', {
@@ -1844,12 +1772,12 @@ async function analyzeSmsText(text){
       body: JSON.stringify({ text, profile: appState.profile })
     });
     const data = await res.json();
-    if (!res.ok || data.error) { goToAiError('screen-sms-paste'); return; }
+    if (!res.ok || data.error) { goToAiError('screen-sms-recent'); return; }
     lastSmsAnalysis = data;
     finishAllProgress();
     goTo('screen-result-text');
   } catch (err) {
-    goToAiError('screen-sms-paste', !navigator.onLine);
+    goToAiError('screen-sms-recent', !navigator.onLine);
   }
 }
 
@@ -2222,20 +2150,6 @@ const I18N = {
     'result.checkAnotherSms': '다른 문자 확인하기',
     'result.legalNote': '본 판별은 인공지능 분석 결과이므로 법적 효력이 없습니다.<br>의심스러운 경우 반드시 관계 기관에 직접 문의하세요.',
     'result.textConfirm': '확인했습니다', 'result.practiceAgain': '연습 다시 하기',
-    'sms.statusTime': '오후 2:34', 'sms.phoneHome': '휴대폰 홈',
-    'sms.appPhone': '전화', 'sms.appSms': '💬 문자', 'sms.appCamera': '카메라',
-    'sms.phoneCaption': '👆 💬 문자 앱을 눌러주세요', 'sms.openSmsApp': '문자 앱 열기',
-    'sms.phoneVoice': '문자 앱을 눌러주세요.',
-    'sms.switchTitle': '복사가 완료됐어요!',
-    'sms.switchDesc': '이제 AI 디지털 도우미 앱으로<br>돌아가주세요.',
-    'sms.switchOpenApp': 'AI 디지털 도우미 앱 열기',
-    'sms.switchVoice': '복사가 완료됐어요. 이제 AI 디지털 도우미 앱으로 돌아가주세요.',
-    'sms.pasteTitle': '여기에<br>문자 내용을 붙여넣어주세요.',
-    'sms.pastePlaceholder': '여기를 길게 눌러 붙여넣기(Paste)를 선택하세요',
-    'sms.confirm': '확인',
-    'sms.pasteVoice': '문자 내용을 길게 눌러 이 칸에 붙여넣어주세요.',
-    'sms.filledTitle': '문자 내용이<br>들어왔어요.',
-    'sms.filledVoice': '문자 내용이 잘 들어왔어요. 확인 버튼을 눌러 결과를 확인해보세요.',
     'sms.permission.voice': '문자 확인을 하려면 문자 읽기 권한이 필요해요.',
     'sms.permission.title': '문자 확인을 하려면<br>문자 읽기 권한이 필요해요.',
     'sms.permission.desc': '확인을 누른 문자만 서버로 보내 분석해요.<br>다른 문자는 읽지 않아요.',
@@ -2258,11 +2172,6 @@ const I18N = {
     'error.docBlurVoice': '사진이 흐려서 읽을 수 없어요. 밝은 곳에서 다시 찍어주세요.',
     'error.retry': '다시 시도', 'error.goHome': '홈으로 돌아가기',
     'error.aiVoice': '지금은 분석이 어려워요. 잠시 후 다시 시도해주세요.',
-    'error.textShortTitle': '내용이 너무 짧아요.',
-    'error.textShortDesc': '문자 전체가 복사되지 않은 것 같아요.<br>다시 복사해서 붙여넣어주세요.',
-    'error.textShortHint': "💡 문자를 길게 눌렀을 때 나오는 메뉴에서 '복사'를 눌렀는지 확인해주세요.",
-    'error.pasteAgain': '다시 붙여넣기',
-    'error.textShortVoice': '문자 내용이 너무 짧아서 확인하기 어려워요. 문자 전체를 다시 복사해주세요.'
   },
   zh: {
     'home.sectionTitle': '需要什么帮助？',
@@ -2431,20 +2340,6 @@ const I18N = {
     'result.checkAnotherSms': '确认其他短信',
     'result.legalNote': '本判别为人工智能分析结果，不具有法律效力。<br>如有可疑之处，请务必直接向相关机构咨询。',
     'result.textConfirm': '我知道了', 'result.practiceAgain': '重新练习',
-    'sms.statusTime': '下午 2:34', 'sms.phoneHome': '手机主屏幕',
-    'sms.appPhone': '电话', 'sms.appSms': '💬 短信', 'sms.appCamera': '相机',
-    'sms.phoneCaption': '👆 请点击💬短信应用', 'sms.openSmsApp': '打开短信应用',
-    'sms.phoneVoice': '请点击短信应用。',
-    'sms.switchTitle': '复制完成了！',
-    'sms.switchDesc': '现在请返回<br>AI数字助手应用。',
-    'sms.switchOpenApp': '打开AI数字助手应用',
-    'sms.switchVoice': '复制完成了。现在请返回AI数字助手应用。',
-    'sms.pasteTitle': '请把短信内容<br>粘贴到这里。',
-    'sms.pastePlaceholder': '请长按此处并选择粘贴（Paste）',
-    'sms.confirm': '确认',
-    'sms.pasteVoice': '请长按短信内容并粘贴到这个框里。',
-    'sms.filledTitle': '短信内容<br>已输入。',
-    'sms.filledVoice': '短信内容已经输入好了。请点击确认按钮查看结果。',
     'sms.permission.voice': '要确认短信，需要短信读取权限。',
     'sms.permission.title': '要确认短信，<br>需要短信读取权限。',
     'sms.permission.desc': '只会把您点击确认的短信发送到服务器分析。<br>不会读取其他短信。',
@@ -2467,11 +2362,6 @@ const I18N = {
     'error.docBlurVoice': '照片太模糊，无法读取。请在明亮的地方重新拍摄。',
     'error.retry': '重试', 'error.goHome': '返回主页',
     'error.aiVoice': '现在暂时无法分析。请稍后再试。',
-    'error.textShortTitle': '内容太短了。',
-    'error.textShortDesc': '好像没有复制到完整的短信。<br>请重新复制后粘贴。',
-    'error.textShortHint': '💡 请确认长按短信后出现的菜单中是否点击了“复制”。',
-    'error.pasteAgain': '重新粘贴',
-    'error.textShortVoice': '短信内容太短，难以确认。请重新复制完整的短信。'
   },
   vi: {
     'home.sectionTitle': 'Bạn cần giúp gì?',
@@ -2640,20 +2530,6 @@ const I18N = {
     'result.checkAnotherSms': 'Kiểm tra tin nhắn khác',
     'result.legalNote': 'Kết quả này là phân tích của trí tuệ nhân tạo nên không có hiệu lực pháp lý.<br>Nếu thấy đáng ngờ, hãy trực tiếp hỏi cơ quan liên quan.',
     'result.textConfirm': 'Tôi đã xem', 'result.practiceAgain': 'Luyện tập lại',
-    'sms.statusTime': '2:34 chiều', 'sms.phoneHome': 'Màn hình chính điện thoại',
-    'sms.appPhone': 'Điện thoại', 'sms.appSms': '💬 Tin nhắn', 'sms.appCamera': 'Máy ảnh',
-    'sms.phoneCaption': '👆 Hãy nhấn vào ứng dụng 💬 Tin nhắn', 'sms.openSmsApp': 'Mở ứng dụng tin nhắn',
-    'sms.phoneVoice': 'Hãy nhấn vào ứng dụng tin nhắn.',
-    'sms.switchTitle': 'Đã sao chép xong!',
-    'sms.switchDesc': 'Bây giờ hãy quay lại<br>ứng dụng Trợ lý số AI.',
-    'sms.switchOpenApp': 'Mở ứng dụng Trợ lý số AI',
-    'sms.switchVoice': 'Đã sao chép xong. Bây giờ hãy quay lại ứng dụng Trợ lý số AI.',
-    'sms.pasteTitle': 'Hãy dán nội dung tin nhắn<br>vào đây.',
-    'sms.pastePlaceholder': 'Hãy nhấn giữ ở đây rồi chọn Dán (Paste)',
-    'sms.confirm': 'Xác nhận',
-    'sms.pasteVoice': 'Hãy nhấn giữ nội dung tin nhắn rồi dán vào ô này.',
-    'sms.filledTitle': 'Nội dung tin nhắn<br>đã được nhập.',
-    'sms.filledVoice': 'Nội dung tin nhắn đã được nhập tốt. Hãy nhấn nút Xác nhận để xem kết quả.',
     'sms.permission.voice': 'Để kiểm tra tin nhắn, cần quyền đọc tin nhắn.',
     'sms.permission.title': 'Để kiểm tra tin nhắn,<br>cần quyền đọc tin nhắn.',
     'sms.permission.desc': 'Chỉ tin nhắn bạn nhấn xác nhận mới được gửi đến máy chủ để phân tích.<br>Các tin nhắn khác sẽ không được đọc.',
@@ -2676,11 +2552,6 @@ const I18N = {
     'error.docBlurVoice': 'Ảnh bị mờ nên không đọc được. Hãy chụp lại ở nơi sáng hơn.',
     'error.retry': 'Thử lại', 'error.goHome': 'Quay về trang chủ',
     'error.aiVoice': 'Hiện tại chưa thể phân tích. Hãy thử lại sau ít phút.',
-    'error.textShortTitle': 'Nội dung quá ngắn.',
-    'error.textShortDesc': 'Có vẻ tin nhắn chưa được sao chép đầy đủ.<br>Hãy sao chép lại rồi dán vào.',
-    'error.textShortHint': '💡 Hãy kiểm tra xem bạn đã nhấn “Sao chép” trong menu hiện ra khi nhấn giữ tin nhắn chưa.',
-    'error.pasteAgain': 'Dán lại',
-    'error.textShortVoice': 'Nội dung tin nhắn quá ngắn nên khó kiểm tra. Hãy sao chép lại toàn bộ tin nhắn.'
   },
   th: {
     'home.sectionTitle': 'ต้องการความช่วยเหลือเรื่องอะไร?',
@@ -2849,20 +2720,6 @@ const I18N = {
     'result.checkAnotherSms': 'ตรวจสอบข้อความอื่น',
     'result.legalNote': 'ผลการตัดสินนี้เป็นผลวิเคราะห์จากปัญญาประดิษฐ์ จึงไม่มีผลทางกฎหมาย<br>หากสงสัย กรุณาสอบถามหน่วยงานที่เกี่ยวข้องโดยตรง',
     'result.textConfirm': 'รับทราบแล้ว', 'result.practiceAgain': 'ฝึกอีกครั้ง',
-    'sms.statusTime': '14:34 น.', 'sms.phoneHome': 'หน้าจอหลักโทรศัพท์',
-    'sms.appPhone': 'โทรศัพท์', 'sms.appSms': '💬 ข้อความ', 'sms.appCamera': 'กล้อง',
-    'sms.phoneCaption': '👆 กรุณากดแอป 💬 ข้อความ', 'sms.openSmsApp': 'เปิดแอปข้อความ',
-    'sms.phoneVoice': 'กรุณากดแอปข้อความ',
-    'sms.switchTitle': 'คัดลอกเสร็จแล้ว!',
-    'sms.switchDesc': 'ตอนนี้กรุณากลับไปที่<br>แอปผู้ช่วยดิจิทัล AI',
-    'sms.switchOpenApp': 'เปิดแอปผู้ช่วยดิจิทัล AI',
-    'sms.switchVoice': 'คัดลอกเสร็จแล้ว ตอนนี้กรุณากลับไปที่แอปผู้ช่วยดิจิทัล AI',
-    'sms.pasteTitle': 'กรุณาวางเนื้อหาข้อความ<br>ตรงนี้',
-    'sms.pastePlaceholder': 'กรุณากดค้างตรงนี้แล้วเลือกวาง (Paste)',
-    'sms.confirm': 'ยืนยัน',
-    'sms.pasteVoice': 'กรุณากดค้างที่เนื้อหาข้อความแล้ววางลงในช่องนี้',
-    'sms.filledTitle': 'เนื้อหาข้อความ<br>เข้ามาแล้ว',
-    'sms.filledVoice': 'เนื้อหาข้อความเข้ามาเรียบร้อยแล้ว กรุณากดปุ่มยืนยันเพื่อดูผลลัพธ์',
     'sms.permission.voice': 'การตรวจสอบข้อความต้องได้รับสิทธิ์อ่านข้อความ',
     'sms.permission.title': 'การตรวจสอบข้อความ<br>ต้องได้รับสิทธิ์อ่านข้อความ',
     'sms.permission.desc': 'จะส่งเฉพาะข้อความที่คุณกดยืนยันไปวิเคราะห์ที่เซิร์ฟเวอร์เท่านั้น<br>จะไม่อ่านข้อความอื่น',
@@ -2885,11 +2742,6 @@ const I18N = {
     'error.docBlurVoice': 'รูปภาพเบลอจนอ่านไม่ได้ กรุณาถ่ายใหม่ในที่สว่าง',
     'error.retry': 'ลองอีกครั้ง', 'error.goHome': 'กลับไปหน้าแรก',
     'error.aiVoice': 'ตอนนี้ยังวิเคราะห์ไม่ได้ กรุณาลองใหม่อีกครั้งในภายหลัง',
-    'error.textShortTitle': 'เนื้อหาสั้นเกินไป',
-    'error.textShortDesc': 'ดูเหมือนว่าคัดลอกข้อความมาไม่ครบ<br>กรุณาคัดลอกใหม่แล้ววางอีกครั้ง',
-    'error.textShortHint': '💡 กรุณาตรวจสอบว่าได้กด “คัดลอก” ในเมนูที่ขึ้นมาตอนกดค้างที่ข้อความหรือไม่',
-    'error.pasteAgain': 'วางใหม่อีกครั้ง',
-    'error.textShortVoice': 'เนื้อหาข้อความสั้นเกินไปจึงตรวจสอบได้ยาก กรุณาคัดลอกข้อความทั้งหมดใหม่'
   },
   uz: {
     'home.sectionTitle': 'Sizga qanday yordam kerak?',
@@ -3058,20 +2910,6 @@ const I18N = {
     'result.checkAnotherSms': 'Boshqa SMS ni tekshirish',
     'result.legalNote': "Ushbu xulosa sun'iy intellekt tahlili bo'lgani uchun yuridik kuchga ega emas.<br>Shubha tug'ilsa, albatta tegishli idoraga o'zingiz murojaat qiling.",
     'result.textConfirm': 'Tanishib chiqdim', 'result.practiceAgain': 'Qaytadan mashq qilish',
-    'sms.statusTime': '14:34', 'sms.phoneHome': 'Telefon bosh ekrani',
-    'sms.appPhone': 'Telefon', 'sms.appSms': '💬 SMS', 'sms.appCamera': 'Kamera',
-    'sms.phoneCaption': '👆 💬 SMS ilovasini bosing', 'sms.openSmsApp': 'SMS ilovasini ochish',
-    'sms.phoneVoice': 'SMS ilovasini bosing.',
-    'sms.switchTitle': 'Nusxa olindi!',
-    'sms.switchDesc': 'Endi AI raqamli yordamchi<br>ilovasiga qayting.',
-    'sms.switchOpenApp': 'AI raqamli yordamchi ilovasini ochish',
-    'sms.switchVoice': 'Nusxa olindi. Endi AI raqamli yordamchi ilovasiga qayting.',
-    'sms.pasteTitle': 'SMS matnini<br>shu yerga joylashtiring.',
-    'sms.pastePlaceholder': 'Shu yerni bosib turing va Joylashtirish (Paste) ni tanlang',
-    'sms.confirm': 'Tasdiqlash',
-    'sms.pasteVoice': 'SMS matnini bosib turib, shu maydonga joylashtiring.',
-    'sms.filledTitle': 'SMS matni<br>kiritildi.',
-    'sms.filledVoice': "SMS matni to'g'ri kiritildi. Natijani ko'rish uchun Tasdiqlash tugmasini bosing.",
     'sms.permission.voice': "Xabarni tekshirish uchun xabar o'qish ruxsati kerak.",
     'sms.permission.title': "Xabarni tekshirish uchun<br>xabar o'qish ruxsati kerak.",
     'sms.permission.desc': "Faqat siz tasdiqlagan xabar serverga yuborilib tahlil qilinadi.<br>Boshqa xabarlar o'qilmaydi.",
@@ -3094,11 +2932,6 @@ const I18N = {
     'error.docBlurVoice': "Rasm xira bo'lgani uchun o'qib bo'lmadi. Yorug' joyda qaytadan suratga oling.",
     'error.retry': 'Qayta urinish', 'error.goHome': 'Bosh sahifaga qaytish',
     'error.aiVoice': "Hozir tahlil qilib bo'lmadi. Birozdan so'ng qayta urinib ko'ring.",
-    'error.textShortTitle': 'Matn juda qisqa.',
-    'error.textShortDesc': "SMS to'liq nusxalanmaganga o'xshaydi.<br>Qaytadan nusxa olib joylashtiring.",
-    'error.textShortHint': "💡 SMS ni bosib turganda chiqadigan menyuda “Nusxa olish” ni bosganingizni tekshiring.",
-    'error.pasteAgain': 'Qaytadan joylashtirish',
-    'error.textShortVoice': "SMS matni juda qisqa bo'lgani uchun tekshirish qiyin. Butun SMS ni qaytadan nusxalang."
   }
 };
 
@@ -3633,7 +3466,7 @@ function renderHomeInfoCard(){
 }
 
 /* ---- 보호자에게 알리기 ----
-   외부 문자 발송 API(계정·비용 필요)를 쓰지 않고, 문자 확인 흐름(openRealSmsApp)과 똑같이
+   외부 문자 발송 API(계정·비용 필요)를 쓰지 않고,
    기기의 문자 앱을 sms: 스킴으로 열어 받는 사람과 본문만 미리 채워준다.
    실제 '전송'은 사용자가 문자 앱에서 직접 누르는 것이므로, 앱은 절대 "보냈습니다"라고 말하지 않는다. */
 
