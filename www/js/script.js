@@ -233,6 +233,29 @@ function confirmSkipTutorial(){
   openSkipConfirm(() => goTo('screen-home'));
 }
 
+/** 설정 화면 "로그아웃": 이 앱엔 로그인 계정이 없으므로 실제로는 이 기기에 저장된 데이터(기록·일정·설정·
+ *  프로필·deviceId)를 모두 지우고 새로 시작하는 "기기 초기화"다. 되돌릴 수 없어 한 번 더 확인한다. */
+function confirmResetDevice(){
+  document.getElementById('resetConfirmBackdrop').style.display = 'block';
+  document.getElementById('resetConfirmSheet').style.display = 'block';
+  speak(t('resetConfirm.title'));
+}
+
+function closeResetConfirm(){
+  document.getElementById('resetConfirmBackdrop').style.display = 'none';
+  document.getElementById('resetConfirmSheet').style.display = 'none';
+}
+
+/** localStorage(appState + deviceId)를 지우고 새로고침한다.
+ *  reload를 쓰는 이유: appState의 모든 필드를 일일이 기본값으로 되돌리는 대신,
+ *  스크립트 로드 시 정의된 기본값(appState 리터럴)과 window.load의 onboardingDone 분기를
+ *  그대로 재사용해 화면 전환·네비바 표시 등을 빠짐없이 초기 상태로 맞추기 위함이다. */
+function acceptResetConfirm(){
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(DEVICE_ID_KEY);
+  location.reload();
+}
+
 /** AI 분석 대기 화면의 진행바: 실제로 언제 끝날지 모르니 90%까지만 천천히 채워두고,
  *  analyzeDocument()/analyzeSmsText()가 실제로 응답을 받으면 finishAllProgress()가 100%로 마무리한다 */
 function startLoadingProgress(fillId){
@@ -2041,6 +2064,12 @@ const I18N = {
     'settings.supportHelp': '사용 방법 안내',
     'settings.supportOnboarding': '화면 안내(첫 실행 안내) 다시 보기',
     'settings.supportCenter': '고객센터 연결',
+    'settings.account': '계정',
+    'settings.accountLogout': '로그아웃 (이 기기 데이터 초기화)',
+    'settings.accountLogoutNote': "이 앱은 별도 로그인이 없어요. '로그아웃'을 누르면 이 기기에 저장된 기록·일정·설정·내 정보가 모두 지워지고, 처음 사용하는 것처럼 다시 시작돼요.",
+    'resetConfirm.title': '기기 데이터를 모두 지울까요?',
+    'resetConfirm.body': '기록·일정·설정·내 정보가 모두 지워지고 되돌릴 수 없어요. 처음 사용하는 것처럼 다시 시작돼요.',
+    'resetConfirm.confirm': '초기화', 'resetConfirm.cancel': '취소',
     'onboard.replay': '다시 듣기', 'onboard.skip': '건너뛰기',
     'onboard.greet.title': '안녕하세요.<br>AI 디지털 도우미입니다.',
     'onboard.greet.desc': '문서를 쉽게 이해하고<br>해야 할 일을 알려드리겠습니다.',
@@ -2240,6 +2269,12 @@ const I18N = {
     'settings.supportHelp': '使用方法说明',
     'settings.supportOnboarding': '重新查看画面指南（首次使用指南）',
     'settings.supportCenter': '联系客服中心',
+    'settings.account': '账户',
+    'settings.accountLogout': '登出（清除本设备数据）',
+    'settings.accountLogoutNote': '本应用没有单独的登录账户。点击"登出"会清除本设备保存的记录·日程·设置·个人信息，并像首次使用一样重新开始。',
+    'resetConfirm.title': '要清除全部设备数据吗？',
+    'resetConfirm.body': '记录·日程·设置·个人信息将全部清除且无法恢复，将像首次使用一样重新开始。',
+    'resetConfirm.confirm': '初始化', 'resetConfirm.cancel': '取消',
     'onboard.replay': '再听一次', 'onboard.skip': '跳过',
     'onboard.greet.title': '您好。<br>我是AI数字助手。',
     'onboard.greet.desc': '帮您轻松理解文件，<br>并告诉您需要做的事。',
@@ -2436,6 +2471,12 @@ const I18N = {
     'settings.supportHelp': 'Hướng dẫn sử dụng',
     'settings.supportOnboarding': 'Xem lại hướng dẫn màn hình (hướng dẫn lần đầu)',
     'settings.supportCenter': 'Kết nối trung tâm hỗ trợ',
+    'settings.account': 'Tài khoản',
+    'settings.accountLogout': 'Đăng xuất (xóa dữ liệu trên thiết bị này)',
+    'settings.accountLogoutNote': 'Ứng dụng này không có tài khoản đăng nhập riêng. Nhấn "Đăng xuất" sẽ xóa toàn bộ lịch sử·lịch trình·cài đặt·thông tin cá nhân đã lưu trên thiết bị này, và bắt đầu lại như lần đầu sử dụng.',
+    'resetConfirm.title': 'Xóa toàn bộ dữ liệu thiết bị?',
+    'resetConfirm.body': 'Lịch sử·lịch trình·cài đặt·thông tin cá nhân sẽ bị xóa hết và không thể khôi phục. Sẽ bắt đầu lại như lần đầu sử dụng.',
+    'resetConfirm.confirm': 'Khởi tạo lại', 'resetConfirm.cancel': 'Hủy',
     'onboard.replay': 'Nghe lại', 'onboard.skip': 'Bỏ qua',
     'onboard.greet.title': 'Xin chào.<br>Tôi là trợ lý số AI.',
     'onboard.greet.desc': 'Tôi sẽ giúp bạn dễ dàng hiểu tài liệu<br>và biết việc cần làm.',
@@ -2632,6 +2673,12 @@ const I18N = {
     'settings.supportHelp': 'คำแนะนำการใช้งาน',
     'settings.supportOnboarding': 'ดูคำแนะนำหน้าจออีกครั้ง (คำแนะนำการใช้งานครั้งแรก)',
     'settings.supportCenter': 'ติดต่อศูนย์บริการลูกค้า',
+    'settings.account': 'บัญชี',
+    'settings.accountLogout': 'ออกจากระบบ (ล้างข้อมูลในเครื่องนี้)',
+    'settings.accountLogoutNote': 'แอปนี้ไม่มีบัญชีเข้าสู่ระบบแยกต่างหาก การกด "ออกจากระบบ" จะลบประวัติ·กำหนดการ·การตั้งค่า·ข้อมูลส่วนตัวที่บันทึกไว้ในเครื่องนี้ทั้งหมด และเริ่มต้นใหม่เหมือนใช้งานครั้งแรก',
+    'resetConfirm.title': 'ต้องการล้างข้อมูลอุปกรณ์ทั้งหมดหรือไม่?',
+    'resetConfirm.body': 'ประวัติ·กำหนดการ·การตั้งค่า·ข้อมูลส่วนตัวจะถูกลบทั้งหมดและกู้คืนไม่ได้ จะเริ่มต้นใหม่เหมือนใช้งานครั้งแรก',
+    'resetConfirm.confirm': 'ล้างข้อมูล', 'resetConfirm.cancel': 'ยกเลิก',
     'onboard.replay': 'ฟังอีกครั้ง', 'onboard.skip': 'ข้าม',
     'onboard.greet.title': 'สวัสดีค่ะ.<br>ฉันคือผู้ช่วยดิจิทัล AI',
     'onboard.greet.desc': 'ช่วยให้คุณเข้าใจเอกสารได้ง่าย<br>และแจ้งสิ่งที่ต้องทำให้ทราบ',
@@ -2828,6 +2875,12 @@ const I18N = {
     'settings.supportHelp': "Foydalanish bo'yicha qo'llanma",
     'settings.supportOnboarding': "Ekran qo'llanmasini qayta ko'rish (birinchi marta ishlatish qo'llanmasi)",
     'settings.supportCenter': "Mijozlarga xizmat ko'rsatish markazi bilan bog'lanish",
+    'settings.account': 'Hisob',
+    'settings.accountLogout': "Chiqish (bu qurilmadagi ma'lumotlarni tozalash)",
+    'settings.accountLogoutNote': "Bu ilovada alohida kirish hisobi yo'q. \"Chiqish\"ni bossangiz, bu qurilmada saqlangan tarix·jadval·sozlamalar·shaxsiy ma'lumotlar butunlay o'chiriladi va ilova birinchi marta ishlatilayotgandek qaytadan boshlanadi.",
+    'resetConfirm.title': "Qurilmadagi barcha ma'lumotlar tozalansinmi?",
+    'resetConfirm.body': "Tarix·jadval·sozlamalar·shaxsiy ma'lumotlar butunlay o'chiriladi va qaytarib bo'lmaydi. Ilova birinchi marta ishlatilayotgandek qaytadan boshlanadi.",
+    'resetConfirm.confirm': "Tozalash", 'resetConfirm.cancel': 'Bekor qilish',
     'onboard.replay': 'Qayta eshitish', 'onboard.skip': "O'tkazib yuborish",
     'onboard.greet.title': 'Salom.<br>Men AI raqamli yordamchiman.',
     'onboard.greet.desc': 'Hujjatlarni oson tushunishga<br>va nima qilish kerakligini aytishga yordam beraman.',

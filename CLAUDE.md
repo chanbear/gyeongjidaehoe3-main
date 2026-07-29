@@ -81,6 +81,9 @@ npx cap open android     # Android Studio로 열기
 ### 11. 지역별 맞춤 정보(경로당 현황)는 실제 공공데이터이지만, Worker가 아니라 D1에서 서빙한다
 홈 화면의 "우리 지역 정보" 카드(`renderRegionInfoCard()`)는 경기데이터드림(data.gg.go.kr)의 **"노인여가복지시설(경로당) 현황"(SenircentFaclt) Open API**에서 가져온 실제 데이터를 보여준다. **중요한 제약**: `openapi.gg.go.kr`는 Cloudflare Workers의 해외 egress IP를 차단해(WAF) Worker에서 직접 호출하면 HTML 에러 페이지가 돌아온다 — 그래서 로컬 PC(국내 IP)에서 한 번 데이터를 내려받아 D1의 `senior_centers` 테이블에 저장해두고(`worker/seed_senior_centers.sql`, 경기도 31개 시/군 × 5곳), Worker의 `GET /region-info?region=...`는 이 D1 테이블만 조회한다 — 실시간 API 호출이 아니라 스냅샷이다. 프로필의 자유 텍스트 지역 입력을 `GYEONGGI_CITIES`(31개 시/군 목록) 문자열 포함 여부로 매칭하고, 경기도가 아니면(매칭 실패) `matched:false`만 반환해 지어내지 않는다. 데이터를 갱신하거나 다른 지역/데이터셋을 추가하려면: (1) 국내 IP 환경에서 `https://openapi.gg.go.kr/{서비스명}?KEY=...&Type=json&...`을 직접 호출해 데이터를 받고, (2) `seed_senior_centers.sql` 같은 INSERT 스크립트를 만들어 `npx wrangler d1 execute ansim-doumi-db --remote --file=...`로 반영, (3) Worker 코드가 D1을 조회하도록 유지. `GG_DATA_API_KEY`는 `wrangler secret put`으로만 저장되어 있고 코드나 공개 저장소에는 없음(현재는 시드 스크립트 실행 시에만 필요).
 
+### 12. 설정 화면의 "로그아웃"은 실제 로그인 계정을 지우는 게 아니라 이 기기 데이터를 초기화하는 것이다
+이 앱엔 로그인/계정 시스템이 없다(6·8번 항목 참고) — 오직 `deviceId`(localStorage)로만 기기를 구분한다. 그래서 설정 화면 "계정" 섹션의 "로그아웃 (이 기기 데이터 초기화)" 행(`confirmResetDevice()`)은 서버 세션을 끊는 게 아니라, `resetConfirmSheet` 바텀시트(스타일은 `skipConfirm` 패턴 재사용)로 한 번 더 확인을 받은 뒤 `acceptResetConfirm()`이 `localStorage`의 `STORAGE_KEY`(`ai_helper_state_v1`)와 `DEVICE_ID_KEY`(`ai_helper_device_id`)를 모두 지우고 `location.reload()`하는 것 — 즉 이 기기를 "처음 쓰는 기기"처럼 되돌리는 기능이다. `DEVICE_ID_KEY`가 새로 발급되므로 Cloudflare D1에 저장돼 있던 이전 프로필과의 연결도 끊긴다(8번 항목). UI 문구(`settings.accountLogout`/`settings.accountLogoutNote`, 5개 언어 모두)에도 "로그인 계정이 없다"는 사실을 그대로 적어 사용자가 오해하지 않도록 했다 — 이 기능을 손볼 때 "계정에서 로그아웃"처럼 실제로 없는 로그인 개념을 암시하는 문구를 넣지 않도록 주의.
+
 ## 작업 규칙
 
 1. 큰 범위를 한 번에 바꾸지 않는다 — 기능 하나를 수정·검증한 뒤 다음으로 넘어간다.
