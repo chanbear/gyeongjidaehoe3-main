@@ -153,6 +153,26 @@ function json(data, status) {
   });
 }
 
+/** 토큰·salt용 랜덤 hex 문자열. bytes=16이면 32자 hex. */
+function randomHex(bytes) {
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** SHA-256 해시를 hex 문자열로. PIN/OTP는 평문으로 저장하지 않고 항상 이걸 거친다. */
+async function sha256Hex(text) {
+  const data = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** "123456" 형식의 6자리 숫자 OTP 하나를 만든다. */
+function generateOtp() {
+  const n = crypto.getRandomValues(new Uint32Array(1))[0] % 1000000;
+  return String(n).padStart(6, '0');
+}
+
 const RELAY_URL = 'https://relay-jet-six.vercel.app';
 
 async function runAnalysis(env, content, schema = ANALYSIS_SCHEMA, maxTokens = 4096) {
