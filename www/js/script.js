@@ -28,8 +28,8 @@ const appState = {
   profile: { name: '', gender: '', age: '', region: '' }, // 맞춤 안내용(선택 사항): AI 분석 요청에 참고 정보로만 함께 전달됨.
                     // age는 실제로 입력받기 전까지 빈 값으로 둔다 — 기본값을 숫자로 두면 온보딩 나이 입력칸에
                     // 사용자가 입력한 적 없는 값이 이미 채워진 것처럼 보이는 문제가 있었다.
-  avatarPhoto: '', // 홈 화면에 보여줄 프로필 사진(선택 사항). profile과 분리해두는 이유: profile은
-                    // saveProfileToServer()가 그대로 서버(D1)로 보내는데, 사진은 순전히 이 기기에서만
+  avatarPhoto: '', // 홈 화면에 보여줄 프로필 사진(선택 사항). profile과 분리해두는 이유: pushStateToServer()가
+                    // profile을 포함한 나머지 필드는 그대로 서버(D1)로 보내는데, 사진은 순전히 이 기기에서만
                     // 쓰는 것이라 서버로 전송되면 안 된다.
   onboardingDone: false // 인사→프로필→튜토리얼을 한 번이라도 끝냈는지. true면 다음 실행부터 홈에서 시작한다
 };
@@ -54,6 +54,67 @@ function saveState(){
     }));
   } catch (err) {
     console.warn('저장 실패:', err);
+  }
+  queueStateSync();
+}
+
+let stateSyncTimer = null;
+function queueStateSync(){
+  if (!getAuth()) return;
+  clearTimeout(stateSyncTimer);
+  stateSyncTimer = setTimeout(pushStateToServer, 1500);
+}
+
+async function pushStateToServer(){
+  const auth = getAuth();
+  if (!auth || !AI_WORKER_URL) return;
+  try {
+    await fetch(AI_WORKER_URL + '/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({
+        state: {
+          history: appState.history,
+          schedule: appState.schedule,
+          settings: appState.settings,
+          guardian: appState.guardian,
+          profile: appState.profile,
+          onboardingDone: appState.onboardingDone,
+        },
+      }),
+    });
+  } catch (err) {
+    console.warn('서버 동기화 실패(다음 저장 때 재시도):', err);
+  }
+}
+
+/** 로그인 직후 1회 호출: 서버에 저장된 값이 있으면 로컬 appState를 그 값으로 덮어쓴다(여러 기기 동기화가
+ *  목적이므로 "마지막으로 로그인한 곳"의 서버 값이 항상 이긴다 — 기존 프로필 동기화의 "로컬 우선"과 다르다). */
+async function pullStateFromServer(){
+  const auth = getAuth();
+  if (!auth || !AI_WORKER_URL) return true;
+  try {
+    const res = await fetch(AI_WORKER_URL + '/state', { headers: authHeaders() });
+    if (res.status === 401) return false; // 토큰이 서버에서 무효화됨 — 호출부가 로그아웃 처리하도록 알림
+    if (!res.ok) return true;
+    const data = await res.json();
+    if (data.state) {
+      const s = data.state;
+      if (s.history) appState.history = s.history;
+      if (s.schedule) appState.schedule = s.schedule;
+      if (s.settings) appState.settings = Object.assign(appState.settings, s.settings);
+      if (s.guardian) appState.guardian = Object.assign(appState.guardian, s.guardian);
+      if (s.profile) appState.profile = Object.assign(appState.profile, s.profile);
+      if (s.onboardingDone) appState.onboardingDone = true;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(Object.assign({ avatarPhoto: appState.avatarPhoto }, s)));
+    } else {
+      // 서버에 아직 아무것도 없음(첫 가입 직후) — 지금 로컬 값을 최초 스냅샷으로 올린다
+      await pushStateToServer();
+    }
+    return true;
+  } catch (err) {
+    console.warn('서버 상태 불러오기 실패(로컬 값 유지):', err);
+    return true;
   }
 }
 
@@ -3061,7 +3122,6 @@ function setProfileField(field, value){
   renderHomeInfoCard(); // 인사말이 이름·나이를 따라가므로 홈 요약 카드도 같이 갱신한다
   renderHomeGreet();    // 홈 인사 카드의 "OOO님"도 마찬가지
   if (field === 'region') queueRegionInfoRefresh();
-  queueProfileSave();
 }
 
 /** 나이 직접 입력: 만 나이를 그대로 저장한다(기초연금 65세처럼 혜택 기준이 한 살 단위라 반올림하지 않는다).
@@ -3088,53 +3148,87 @@ function queueRegionInfoRefresh(){
   regionInfoTimer = setTimeout(renderRegionInfoCard, 800);
 }
 
-/* ---- 프로필 서버 저장 (Cloudflare D1, 로그인 없이 기기별 deviceId로 구분) ---- */
-const DEVICE_ID_KEY = 'ai_helper_device_id';
-function getDeviceId(){
-  let id = localStorage.getItem(DEVICE_ID_KEY);
-  if (!id) {
-    id = (crypto.randomUUID ? crypto.randomUUID() : 'device-' + Date.now() + '-' + Math.random().toString(16).slice(2));
-    localStorage.setItem(DEVICE_ID_KEY, id);
-  }
-  return id;
-}
+/* ---- 인증(회원가입/로그인) 상태: appState와 분리된 별도 localStorage 키에 저장한다.
+   토큰이 서버로 동기화되는 appState JSON 안에 섞여 들어가면 안 되기 때문이다. ---- */
+const AUTH_KEY = 'ai_helper_auth_v1';
 
-let profileSaveTimer = null;
-function queueProfileSave(){
-  clearTimeout(profileSaveTimer);
-  profileSaveTimer = setTimeout(saveProfileToServer, 800);
-}
-
-async function saveProfileToServer(){
-  if (!AI_WORKER_URL) return;
+function getAuth(){
   try {
-    await fetch(AI_WORKER_URL + '/profile', {
+    const raw = localStorage.getItem(AUTH_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) { return null; }
+}
+function setAuth(auth){
+  try { localStorage.setItem(AUTH_KEY, JSON.stringify(auth)); } catch (err) {}
+}
+function clearAuth(){
+  try { localStorage.removeItem(AUTH_KEY); } catch (err) {}
+}
+function authHeaders(){
+  const auth = getAuth();
+  if (!auth) return {};
+  return { 'X-User-Id': String(auth.userId), 'X-Auth-Token': auth.token };
+}
+
+async function signupRequest(phone, pin, name){
+  try {
+    const res = await fetch(AI_WORKER_URL + '/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deviceId: getDeviceId(), ...appState.profile })
+      body: JSON.stringify({ phone, pin, name }),
     });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error || 'unknown' };
+    setAuth({ userId: data.userId, token: data.token, name: data.name, phone: phone.replace(/\D/g, '') });
+    return { ok: true };
   } catch (err) {
-    console.warn('프로필 서버 저장 실패:', err);
+    return { ok: false, error: 'network' };
   }
 }
 
-/** 기기를 바꿔도 같은 deviceId면 서버에 저장된 프로필을 불러온다(이 기기에 이미 있는 값이 없을 때만 덮어씀) */
-async function loadProfileFromServer(){
-  if (!AI_WORKER_URL) return;
+async function loginRequest(phone, pin){
   try {
-    const res = await fetch(AI_WORKER_URL + '/profile?deviceId=' + encodeURIComponent(getDeviceId()));
-    if (!res.ok) return;
+    const res = await fetch(AI_WORKER_URL + '/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, pin }),
+    });
     const data = await res.json();
-    const hasLocal = appState.profile.name || appState.profile.gender || appState.profile.region;
-    if (!hasLocal && data && (data.name || data.gender || data.age || data.region)) {
-      appState.profile = Object.assign(appState.profile, data);
-      saveState();
-      syncProfileUI();
-      renderPublicInfoCard();
-      renderHomeInfoCard();
-    }
+    if (!res.ok) return { ok: false, error: data.error || 'unknown' };
+    setAuth({ userId: data.userId, token: data.token, name: data.name, phone: phone.replace(/\D/g, '') });
+    return { ok: true };
   } catch (err) {
-    console.warn('프로필 서버 불러오기 실패:', err);
+    return { ok: false, error: 'network' };
+  }
+}
+
+async function requestPinResetOtp(phone, name){
+  try {
+    const res = await fetch(AI_WORKER_URL + '/request-pin-reset-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, name }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error || 'unknown' };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: 'network' };
+  }
+}
+
+async function verifyPinResetOtp(phone, otp, newPin){
+  try {
+    const res = await fetch(AI_WORKER_URL + '/verify-pin-reset-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, otp, newPin }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error || 'unknown', attemptsLeft: data.attemptsLeft };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: 'network' };
   }
 }
 
@@ -3726,5 +3820,6 @@ window.addEventListener('load', () => {
 
   attachRippleEffect();
   renderHomeDashboard();
-  loadProfileFromServer();
+  // 기기별 deviceId 프로필 동기화(loadProfileFromServer)는 계정 로그인 기반 동기화로 대체됐다.
+  // 로그인 상태에서 서버 값을 끌어오는 것(pullStateFromServer)은 태스크 6에서 로그인 화면 흐름에 연결한다.
 });
