@@ -885,6 +885,7 @@
           <span class="danger-pill" data-i18n="result.dangerPill">⚠ 위험 감지</span>
           <span class="badge">위험 · 응답하지 마세요</span>
           <div class="headline">이 문자는 위험할 수 있어요.</div>
+          <div class="reason-label" data-i18n="result.reasonLabel">왜 위험한가요?</div>
           <div class="subtext">공공기관은 문자로 계좌번호나 링크 클릭을 요구하지 않습니다. 절대 누르지 마세요.</div>
         </div>
         <button class="voice-pill block" data-replay><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="result.listenVoice">음성으로 듣기</span></button>
@@ -894,22 +895,8 @@
           <img id="smsIllustrationImg" alt="">
         </div>
 
-        <div class="section-label" data-i18n="result.actNowLabel">지금 바로 대처하세요</div>
-        <!-- renderSmsResult()가 이번 분석의 checklist로 채운다. 예전에는 아래 두 문장이 고정 텍스트라
-             문자가 바뀌어도 그대로였다 - 지금은 매번 실제 판별 결과로 다시 그린다. -->
-        <div class="todo-list" id="smsTodoList">
-          <div class="checklist-row"><label style="cursor:default;">상대방이 요구하는 계좌번호나 비밀번호를 절대 말하지 마세요.</label></div>
-          <div class="checklist-row"><label style="cursor:default;">가족이나 가까운 지인에게 지금 상황을 꼭 알리세요.</label></div>
-        </div>
-
-        <button class="guardian-btn" onclick="notifyGuardian()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-bell"></use></svg><span data-i18n="result.notifyGuardian">보호자에게 문자로 알리기</span></button>
+        <button class="guardian-btn" onclick="notifyGuardian()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-bell"></use></svg><span data-i18n="result.notifyGuardian">보호자에게 문자 전달하기</span></button>
         <p class="guardian-note" id="guardianNoteText"></p>
-        <div class="action-row">
-          <a class="secondary-btn" href="tel:118"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg><span data-i18n="result.report118">118 신고(경찰청 상담)</span></a>
-          <button class="secondary-btn" onclick="callGuardian()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg><span data-i18n="result.callFamily">가족에게 전화</span></button>
-        </div>
-        <button class="secondary-btn" style="margin-top:10px;" onclick="openAsk('sms')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-question"></use></svg><span data-i18n="result.askSms">이 문자에 대해 물어보기</span></button>
-        <button class="secondary-btn" style="margin-top:10px;" onclick="shareResult('sms')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-share"></use></svg><span data-i18n="result.share">자녀에게 보내기</span></button>
         <button class="secondary-btn" style="margin-top:10px;" onclick="openSmsCheck()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-chat"></use></svg><span data-i18n="result.checkAnotherSms">다른 문자 확인하기</span></button>
         <p class="settings-save-note" style="margin-top:14px;" data-i18n="result.legalNote">본 판별은 인공지능 분석 결과이므로 법적 효력이 없습니다.<br>의심스러운 경우 반드시 관계 기관에 직접 문의하세요.</p>
         <button class="primary-btn" style="margin-top:14px;" onclick="finishSmsResult()" data-i18n="result.textConfirm">확인했습니다</button>

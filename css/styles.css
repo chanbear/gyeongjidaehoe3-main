@@ -116,6 +116,7 @@
   .result-card.info .badge{ color:var(--ink-soft); }
   .result-card .headline{ font-size:calc(22px * var(--scale)); font-weight:800; letter-spacing:-.015em; line-height:1.36; color:var(--ink); }
   .result-card .subtext{ font-size:calc(15.5px * var(--scale)); line-height:1.6; color:var(--ink-soft); }
+  .result-card .reason-label{ font-size:calc(13px * var(--scale)); font-weight:700; color:var(--ink-faint); letter-spacing:.02em; margin:10px 0 4px; }
 
   .checklist{ display:flex; flex-direction:column; gap:16px; margin-bottom:20px; }
   .checklist label{

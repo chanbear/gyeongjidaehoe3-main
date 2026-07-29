@@ -1999,7 +1999,6 @@ const I18N = {
     'stats.title': '고지서 통계',
     'result.share': '자녀에게 보내기',
     'result.ask': '이 문서에 대해 물어보기',
-    'result.askSms': '이 문자에 대해 물어보기',
     'ask.title': '물어보기',
     'ask.voice': '궁금한 것을 눌러보시거나 직접 적어주세요.',
     'ask.suggested': '이런 걸 물어보실 수 있어요',
@@ -2142,11 +2141,8 @@ const I18N = {
     'result.shareTitle': '공유하기', 'result.shareSms': '문자', 'result.shareKakao': '💛 카카오톡', 'result.shareCopy': '복사하기',
     'result.docConfirm': '확인 완료',
     'result.textTitle': '진위 판별 결과', 'result.dangerPill': '⚠ 위험 감지', 'result.listenVoice': '음성으로 듣기',
-    'result.actNowLabel': '지금 바로 대처하세요',
-    'result.textTip1': '상대방이 요구하는 계좌번호나 비밀번호를 절대 말하지 마세요.',
-    'result.textTip2': '가족이나 가까운 지인에게 지금 상황을 꼭 알리세요.',
-    'result.notifyGuardian': '보호자에게 문자로 알리기',
-    'result.report118': '118 신고(경찰청 상담)', 'result.callFamily': '가족에게 전화',
+    'result.reasonLabel': '왜 위험한가요?',
+    'result.notifyGuardian': '보호자에게 문자 전달하기',
     'result.checkAnotherSms': '다른 문자 확인하기',
     'result.legalNote': '본 판별은 인공지능 분석 결과이므로 법적 효력이 없습니다.<br>의심스러운 경우 반드시 관계 기관에 직접 문의하세요.',
     'result.textConfirm': '확인했습니다', 'result.practiceAgain': '연습 다시 하기',
@@ -2192,7 +2188,6 @@ const I18N = {
     'stats.title': '缴费单统计',
     'result.share': '发送给子女',
     'result.ask': '询问关于这份文件',
-    'result.askSms': '询问关于这条短信',
     'ask.title': '提问',
     'ask.voice': '请点击想了解的内容，或直接输入。',
     'ask.suggested': '您可以这样提问',
@@ -2332,11 +2327,8 @@ const I18N = {
     'result.shareTitle': '分享', 'result.shareSms': '短信', 'result.shareKakao': '💛 KakaoTalk', 'result.shareCopy': '复制',
     'result.docConfirm': '确认完成',
     'result.textTitle': '真伪判别结果', 'result.dangerPill': '⚠ 检测到危险', 'result.listenVoice': '语音收听',
-    'result.actNowLabel': '请立即采取措施',
-    'result.textTip1': '绝对不要告诉对方账号或密码。',
-    'result.textTip2': '请务必把现在的情况告诉家人或身边熟人。',
-    'result.notifyGuardian': '用短信告知监护人',
-    'result.report118': '118举报（警察厅咨询）', 'result.callFamily': '给家人打电话',
+    'result.reasonLabel': '为什么危险？',
+    'result.notifyGuardian': '转发短信给监护人',
     'result.checkAnotherSms': '确认其他短信',
     'result.legalNote': '本判别为人工智能分析结果，不具有法律效力。<br>如有可疑之处，请务必直接向相关机构咨询。',
     'result.textConfirm': '我知道了', 'result.practiceAgain': '重新练习',
@@ -2382,7 +2374,6 @@ const I18N = {
     'stats.title': 'Thống kê hóa đơn',
     'result.share': 'Gửi cho con cái',
     'result.ask': 'Hỏi về tài liệu này',
-    'result.askSms': 'Hỏi về tin nhắn này',
     'ask.title': 'Hỏi đáp',
     'ask.voice': 'Hãy bấm vào điều bạn thắc mắc hoặc tự nhập câu hỏi.',
     'ask.suggested': 'Bạn có thể hỏi như thế này',
@@ -2522,11 +2513,8 @@ const I18N = {
     'result.shareTitle': 'Chia sẻ', 'result.shareSms': 'Tin nhắn', 'result.shareKakao': '💛 KakaoTalk', 'result.shareCopy': 'Sao chép',
     'result.docConfirm': 'Đã xem xong',
     'result.textTitle': 'Kết quả kiểm tra thật giả', 'result.dangerPill': '⚠ Phát hiện nguy hiểm', 'result.listenVoice': 'Nghe bằng giọng nói',
-    'result.actNowLabel': 'Hãy xử lý ngay bây giờ',
-    'result.textTip1': 'Tuyệt đối không nói số tài khoản hay mật khẩu mà đối phương yêu cầu.',
-    'result.textTip2': 'Hãy nhớ báo tình hình hiện tại cho gia đình hoặc người thân quen.',
-    'result.notifyGuardian': 'Báo cho người giám hộ bằng tin nhắn',
-    'result.report118': 'Báo 118 (tư vấn Cảnh sát)', 'result.callFamily': 'Gọi cho gia đình',
+    'result.reasonLabel': 'Tại sao nguy hiểm?',
+    'result.notifyGuardian': 'Chuyển tin nhắn cho người giám hộ',
     'result.checkAnotherSms': 'Kiểm tra tin nhắn khác',
     'result.legalNote': 'Kết quả này là phân tích của trí tuệ nhân tạo nên không có hiệu lực pháp lý.<br>Nếu thấy đáng ngờ, hãy trực tiếp hỏi cơ quan liên quan.',
     'result.textConfirm': 'Tôi đã xem', 'result.practiceAgain': 'Luyện tập lại',
@@ -2572,7 +2560,6 @@ const I18N = {
     'stats.title': 'สถิติใบแจ้งหนี้',
     'result.share': 'ส่งให้ลูกหลาน',
     'result.ask': 'ถามเกี่ยวกับเอกสารนี้',
-    'result.askSms': 'ถามเกี่ยวกับข้อความนี้',
     'ask.title': 'สอบถาม',
     'ask.voice': 'กรุณากดสิ่งที่สงสัย หรือพิมพ์คำถามเอง',
     'ask.suggested': 'คุณถามแบบนี้ได้',
@@ -2712,11 +2699,8 @@ const I18N = {
     'result.shareTitle': 'แชร์', 'result.shareSms': 'ข้อความ', 'result.shareKakao': '💛 KakaoTalk', 'result.shareCopy': 'คัดลอก',
     'result.docConfirm': 'ตรวจสอบเสร็จแล้ว',
     'result.textTitle': 'ผลการตรวจสอบว่าจริงหรือปลอม', 'result.dangerPill': '⚠ ตรวจพบความเสี่ยง', 'result.listenVoice': 'ฟังด้วยเสียง',
-    'result.actNowLabel': 'กรุณารับมือทันที',
-    'result.textTip1': 'อย่าบอกเลขบัญชีหรือรหัสผ่านที่อีกฝ่ายขอมาเด็ดขาด',
-    'result.textTip2': 'กรุณาแจ้งสถานการณ์นี้ให้ครอบครัวหรือคนใกล้ชิดทราบด้วย',
-    'result.notifyGuardian': 'แจ้งผู้ดูแลทางข้อความ',
-    'result.report118': 'แจ้ง 118 (ปรึกษาสำนักงานตำรวจ)', 'result.callFamily': 'โทรหาครอบครัว',
+    'result.reasonLabel': 'ทำไมถึงอันตราย?',
+    'result.notifyGuardian': 'ส่งต่อข้อความให้ผู้ดูแล',
     'result.checkAnotherSms': 'ตรวจสอบข้อความอื่น',
     'result.legalNote': 'ผลการตัดสินนี้เป็นผลวิเคราะห์จากปัญญาประดิษฐ์ จึงไม่มีผลทางกฎหมาย<br>หากสงสัย กรุณาสอบถามหน่วยงานที่เกี่ยวข้องโดยตรง',
     'result.textConfirm': 'รับทราบแล้ว', 'result.practiceAgain': 'ฝึกอีกครั้ง',
@@ -2762,7 +2746,6 @@ const I18N = {
     'stats.title': 'Hisob-kitob statistikasi',
     'result.share': 'Farzandlarga yuborish',
     'result.ask': 'Bu hujjat haqida so‘rash',
-    'result.askSms': 'Bu SMS haqida so‘rash',
     'ask.title': 'So‘rash',
     'ask.voice': 'Qiziqtirgan narsani bosing yoki o‘zingiz yozing.',
     'ask.suggested': 'Shunday so‘rashingiz mumkin',
@@ -2902,11 +2885,8 @@ const I18N = {
     'result.shareTitle': 'Ulashish', 'result.shareSms': 'SMS', 'result.shareKakao': '💛 KakaoTalk', 'result.shareCopy': 'Nusxa olish',
     'result.docConfirm': "Tekshirib bo'ldim",
     'result.textTitle': 'Haqiqiyligini aniqlash natijasi', 'result.dangerPill': '⚠ Xavf aniqlandi', 'result.listenVoice': 'Ovozli eshitish',
-    'result.actNowLabel': "Hoziroq chora ko'ring",
-    'result.textTip1': "Suhbatdosh so'ragan hisob raqami yoki parolni hech qachon aytmang.",
-    'result.textTip2': "Hozirgi vaziyatni oila a'zolaringizga yoki yaqin tanishingizga albatta ayting.",
-    'result.notifyGuardian': 'Vasiyga SMS orqali xabar berish',
-    'result.report118': '118 ga xabar berish (Politsiya maslahati)', 'result.callFamily': "Oilaga qo'ng'iroq qilish",
+    'result.reasonLabel': "Nega xavfli?",
+    'result.notifyGuardian': 'Xabarni vasiyga yuborish',
     'result.checkAnotherSms': 'Boshqa SMS ni tekshirish',
     'result.legalNote': "Ushbu xulosa sun'iy intellekt tahlili bo'lgani uchun yuridik kuchga ega emas.<br>Shubha tug'ilsa, albatta tegishli idoraga o'zingiz murojaat qiling.",
     'result.textConfirm': 'Tanishib chiqdim', 'result.practiceAgain': 'Qaytadan mashq qilish',
@@ -3475,11 +3455,16 @@ function renderHomeInfoCard(){
  *  (CLAUDE.md 9번 항목: AI 분석 결과는 오역 위험 때문에 항상 한국어로 유지). */
 const GUARDIAN_STATUS_LABEL = { danger: '위험', info: '정보', normal: '정상' };
 function guardianSmsBody(){
-  const lines = ['[온담] 방금 확인한 문자에 대해 알려드립니다.'];
+  const lines = ['[온담] 방금 확인한 문자를 전달드려요.'];
   if (lastSmsAnalysis) {
     lines.push('판정: ' + (GUARDIAN_STATUS_LABEL[lastSmsAnalysis.status] || '확인 필요'));
     const headline = String(lastSmsAnalysis.headline || '').trim();
     if (headline) lines.push(headline.length > 60 ? headline.slice(0, 60) + '…' : headline);
+  }
+  // "보호자에게 문자 전달하기" — 판정 요약뿐 아니라 실제 원문도 함께 보내 보호자가 직접 확인할 수 있게 한다.
+  if (pendingSmsText) {
+    lines.push('--- 받은 문자 원문 ---');
+    lines.push(pendingSmsText);
   }
   lines.push('확인 부탁드립니다.');
   return lines.join('\n');
