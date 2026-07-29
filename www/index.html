@@ -98,7 +98,7 @@
         <div class="settings-section">
           <h2 data-i18n="onboard.profile.ageLabel">나이</h2>
           <div class="field-row">
-            <input type="number" id="profileAge" inputmode="numeric" min="1" max="120" placeholder="예: 73" data-i18n-placeholder="onboard.profile.agePlaceholder" oninput="setProfileAge(this.value)" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+            <input type="number" id="profileAge" inputmode="numeric" min="1" max="120" placeholder="예: 73" data-i18n-placeholder="onboard.profile.agePlaceholder" oninput="setProfileAge(this.value)" onblur="syncProfileUI()" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
             <p class="settings-save-note" style="text-align:left;margin-top:6px;" data-i18n="onboard.profile.ageNote">만 나이를 숫자로 적어주세요. 나이에 따라 받을 수 있는 혜택이 달라요.</p>
           </div>
         </div>
@@ -1029,7 +1029,7 @@
           </div>
           <div class="field-row">
             <label for="profileAgeSettings" data-i18n="onboard.profile.ageLabel">나이</label>
-            <input type="number" id="profileAgeSettings" inputmode="numeric" min="1" max="120" placeholder="예: 73" data-i18n-placeholder="onboard.profile.agePlaceholder" oninput="setProfileAge(this.value)" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+            <input type="number" id="profileAgeSettings" inputmode="numeric" min="1" max="120" placeholder="예: 73" data-i18n-placeholder="onboard.profile.agePlaceholder" oninput="setProfileAge(this.value)" onblur="syncProfileUI()" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
           </div>
           <div class="field-row">
             <label for="profileRegionSettings" data-i18n="settings.regionLabel">사시는 지역</label>

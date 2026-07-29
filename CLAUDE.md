@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 "온담"(AI 디지털 도우미, 온기를 담아 전하는 서비스) — 고령층 대상 문서/문자 사기 판별 및 생활 안내 앱. Capacitor로 웹 앱을 Android 네이티브(APK)로 감싼 하이브리드 앱이며, 문서 이미지 분석을 위한 별도 Cloudflare Worker 백엔드(Anthropic API 연동)를 포함한다.
 
-> 참고: 안드로이드 패키지명(`com.ondam.app`)과 표시 이름은 "온담"으로 바뀌었지만, Worker 배포 주소(`ansim-doumi-ai.kke88084.workers.dev`)·D1 데이터베이스명(`ansim-doumi-db`)·GitHub 저장소명 등 기존에 배포·연동된 식별자는 재배포 부담을 피하기 위해 이전 이름("안심도우미"/`ansimhelper`/`ansim-doumi`)을 그대로 유지한다. 이 문서와 코드에서 그런 식별자를 볼 수 있는 것은 의도된 것이다.
+> 참고: 안드로이드 패키지명(`com.ondam.app`)과 표시 이름은 "온담"으로 바뀌었지만, Worker 배포 주소(`ansim-doumi-ai.kke88084.workers.dev`)·D1 데이터베이스명(`ansim-doumi-db`)·GitHub 저장소명 등 기존에 배포·연동된 식별자는 재배포 부담을 피하기 위해 이전 이름("안심도우미"/`ansimhelper`/`an
+sim-doumi`)을 그대로 유지한다. 이 문서와 코드에서 그런 식별자를 볼 수 있는 것은 의도된 것이다.
 
 세 부분이 독립적으로 존재한다:
 - **루트 (`/`)**: 프레임워크·번들러 없는 순수 HTML/CSS/JS 프런트엔드
@@ -28,6 +29,7 @@ D1 데이터베이스(`ansim-doumi-db`, 프로필 저장용) 스키마를 바꿨
 ```
 npx wrangler d1 execute ansim-doumi-db --remote --file=./schema.sql   # worker/ 안에서 실행
 ```
+
 
 Android 네이티브 빌드/동기화 (Capacitor CLI는 devDependency로 설치되어 있음, 루트에서 실행):
 ```
@@ -54,6 +56,7 @@ npx cap open android     # Android Studio로 열기
 
 ### 4. `worker/`는 배포되어 프런트엔드와 연결되어 있음
 `worker/src/index.js`는 `/analyze-doc`, `/analyze-text` 엔드포인트로 이미지·문자를 받아 Anthropic API(`claude-opus-4-8`, `json_schema` 출력)로 분석하고 `{status, headline, summary, checklist}`를 반환하며, `https://ansim-doumi-ai.kke88084.workers.dev`로 배포되어 있다. `js/script.js` 상단의 `AI_WORKER_URL` 상수가 이 주소를 가리키고, `analyzeDocument()`/`analyzeSmsText()`가 사진 촬영·붙여넣기 직후 이 엔드포인트를 호출한다. Worker 코드를 고치면 `worker/` 안에서 `npm run deploy`로 다시 배포해야 실사용 흐름에 반영된다.
+
 
 ### 5. 카메라/갤러리는 네이티브·웹 두 경로를 모두 지원
 `getCameraPlugin()`으로 Capacitor의 네이티브 Camera 플러그인 존재 여부를 확인하고, 있으면 그걸 쓰고 없으면(모바일 브라우저·PWA) `<input type="file" capture>` 기반 웹 표준 방식(`pickWebPhoto`)으로 대체한다. 두 경로 모두 `pickPhoto()`를 통해 동일한 후속 흐름(`screen-loading-doc`)으로 합류한다.

@@ -25,7 +25,9 @@ const appState = {
   schedule: [],                                   // { id, text, source, date, time, done, createdAt }
   settings: { fontScale: 1, voiceRate: 1, voiceEnabled: true, language: 'ko' }, // 접근성 설정
   guardian: { name: '', phone: '', autoNotify: false },
-  profile: { name: '', gender: '', age: 50, region: '' }, // 맞춤 안내용(선택 사항): AI 분석 요청에 참고 정보로만 함께 전달됨
+  profile: { name: '', gender: '', age: '', region: '' }, // 맞춤 안내용(선택 사항): AI 분석 요청에 참고 정보로만 함께 전달됨.
+                    // age는 실제로 입력받기 전까지 빈 값으로 둔다 — 기본값을 숫자로 두면 온보딩 나이 입력칸에
+                    // 사용자가 입력한 적 없는 값이 이미 채워진 것처럼 보이는 문제가 있었다.
   avatarPhoto: '', // 홈 화면에 보여줄 프로필 사진(선택 사항). profile과 분리해두는 이유: profile은
                     // saveProfileToServer()가 그대로 서버(D1)로 보내는데, 사진은 순전히 이 기기에서만
                     // 쓰는 것이라 서버로 전송되면 안 된다.
@@ -280,11 +282,22 @@ function renderHomeDashboard(){
   renderAvatarPhoto();
 }
 
-/** 홈 인사 카드의 이름 부분("OOO님" / "70대 어르신" / 기본값) */
+/** 프로필의 성별 값("남성"/"여성", 항상 한국어로 저장됨)을 현재 화면 언어로 번역한다 */
+function homeGenderWord(gender){
+  if (gender === '남성') return t('settings.male');
+  if (gender === '여성') return t('settings.female');
+  return '';
+}
+
+/** 홈 인사 카드의 이름 부분("OOO님" / "70대 어르신" / 기본값). 언어를 바꾸면 이 문구도 같이 바뀌도록 t()로 가져온다. */
 function homeGreetName(){
   const { name, gender, age } = appState.profile;
-  if (name) return name + '님';
-  if (age) return `${toAgeBand(age)}대${gender ? ' ' + gender : ''} 어르신`;
+  if (name) return name + t('home.greetNameSuffix');
+  if (age) {
+    const genderWord = homeGenderWord(gender);
+    const template = genderWord ? t('home.greetAgeGender') : t('home.greetAge');
+    return template.replace('{age}', toAgeBand(age)).replace('{gender}', genderWord);
+  }
   return t('home.greetDefault');
 }
 
@@ -964,7 +977,24 @@ const firstRunHelpStep = {
   target: '#bottomNav',
   cat: 'help', key: 'moreHelp', skippable: true
 };
-const firstRunCoachSteps = [...fullCoachSteps.slice(0, 10), firstRunHelpStep];
+
+/** 첫 실행 투어 전용 다리 단계: 촬영(doc3) 다음은 실제로는 screen-doc-choice가 아니라
+ *  "찍은 사진" 모아보기 화면(screen-doc-collect)으로 이어지고, 거기서 분석하거나 취소하면
+ *  결국 screen-home으로 돌아온다 — screen-doc-choice로 저절로 되돌아오는 경로가 없어
+ *  문자 확인 데모(sms1, screen-doc-choice 기대)가 영원히 대기만 하다 조용히 끊기던 문제가 있었다.
+ *  fullCoachSteps는 다른 미니 투어들이 인덱스로 참조하므로 건드리지 않고, 첫 실행 투어에서만
+ *  screen-home에서 'AI 문서 분석하기' 카드를 다시 눌러 문자 데모로 이어지도록 다리를 놓는다. */
+const firstRunDocToSmsBridgeStep = {
+  screen: 'screen-home',
+  target: '#screen-home .feature-card[onclick*="screen-doc-choice"]',
+  cat: 'sms', key: 'sms1b'
+};
+const firstRunCoachSteps = [
+  ...fullCoachSteps.slice(0, 3),
+  firstRunDocToSmsBridgeStep,
+  ...fullCoachSteps.slice(3, 10),
+  firstRunHelpStep
+];
 
 let coachSteps = firstRunCoachSteps;
 let coachIndex = -1;
@@ -1852,7 +1882,7 @@ function saveGuardianPhoneAndCall(){
 }
 
 function callGuardianFromSheet(){
-  if (!appState.guardian.phone) { showGuardianPhonePrompt(); return; }   // 시트를 닫지 않고 그 안에서 입력받는다
+  if (guardianPhoneDigits(appState.guardian.phone).length < 9) { showGuardianPhonePrompt(); return; }   // 시트를 닫지 않고 그 안에서 입력받는다
   closeEmergencySheet();
   callGuardian();
 }
@@ -1929,6 +1959,7 @@ const I18N = {
     'home.sectionTitle': '무엇을 도와드릴까요?',
     'home.assistantActive': '온담 비서가 활성화되었습니다',
     'home.greetDefault': '어르신',
+    'home.greetNameSuffix': '님', 'home.greetAge': '{age}대 어르신', 'home.greetAgeGender': '{age}대 {gender} 어르신',
     'home.aiAnalyzeTitle': 'AI 문서 분석하기',
     'home.aiAnalyzeDesc': '사진 촬영하기·사진 불러오기·문자 내용 불러오기 중에서 골라 AI가 분석해드려요',
     'home.welfareTitle': '주변 복지센터·경로당 찾기',
@@ -2037,6 +2068,7 @@ const I18N = {
     'coach.doc2.title': '직접 촬영해볼게요', 'coach.doc2.desc': '카메라로 문서를 찍어보세요.', 'coach.doc2.voice': '직접 촬영하기를 눌러보세요.',
     'coach.doc3.title': '촬영 버튼을 눌러주세요', 'coach.doc3.desc': '문서가 화면 가운데 오도록 맞추고 눌러주세요.', 'coach.doc3.voice': '촬영 버튼을 눌러주세요.',
     'coach.sms1.title': '문자도 확인해보세요', 'coach.sms1.desc': '받은 문자가 안전한지도 여기서 확인할 수 있어요.', 'coach.sms1.voice': '문자 내용 불러오기 카드를 눌러보세요.',
+    'coach.sms1b.title': '이번엔 문자를 확인해볼까요', 'coach.sms1b.desc': '사진 확인은 여기까지예요. AI 분석하기 카드를 다시 눌러주세요.', 'coach.sms1b.voice': 'AI 분석하기 카드를 다시 눌러주세요.',
     'coach.sms2.title': '문자 앱을 눌러보세요', 'coach.sms2.desc': '문자 앱을 열어볼게요.', 'coach.sms2.voice': '문자 앱을 눌러보세요.',
     'coach.sms3.title': '문자를 길게 눌러 복사해보세요', 'coach.sms3.desc': '실제로는 확인하고 싶은 문자를 길게 눌러 복사하면 돼요.', 'coach.sms3.voice': '문자를 길게 눌러 복사해보세요.',
     'coach.sms4.title': '다시 이 앱으로 돌아와주세요', 'coach.sms4.desc': '복사했다면 이 버튼을 눌러 앱으로 돌아오세요.', 'coach.sms4.voice': '앱 열기 버튼을 눌러주세요.',
@@ -2126,6 +2158,7 @@ const I18N = {
     'home.sectionTitle': '需要什么帮助？',
     'home.assistantActive': '온담 助手已启用',
     'home.greetDefault': '您好',
+    'home.greetNameSuffix': '', 'home.greetAge': '{age}多岁的您', 'home.greetAgeGender': '{age}多岁的{gender}士',
     'home.aiAnalyzeTitle': 'AI文件分析',
     'home.aiAnalyzeDesc': '可选择拍摄照片、导入照片或导入短信内容，由AI为您分析',
     'home.welfareTitle': '附近福利中心·老人活动中心',
@@ -2231,6 +2264,7 @@ const I18N = {
     'coach.doc2.title': '直接拍摄一下', 'coach.doc2.desc': '用相机拍摄文件吧。', 'coach.doc2.voice': '请点击直接拍摄。',
     'coach.doc3.title': '请按拍摄按钮', 'coach.doc3.desc': '将文件对准屏幕中央后按下按钮。', 'coach.doc3.voice': '请按拍摄按钮。',
     'coach.sms1.title': '短信也可以确认', 'coach.sms1.desc': '也可以在这里确认收到的短信是否安全。', 'coach.sms1.voice': '请点击导入短信内容卡片。',
+    'coach.sms1b.title': '接下来确认一下短信吧', 'coach.sms1b.desc': '照片确认到此为止。请再次点击AI分析卡片。', 'coach.sms1b.voice': '请再次点击AI分析卡片。',
     'coach.sms2.title': '请点击短信应用', 'coach.sms2.desc': '我们来打开短信应用。', 'coach.sms2.voice': '请点击短信应用。',
     'coach.sms3.title': '长按短信复制试试看', 'coach.sms3.desc': '实际使用时，长按想确认的短信即可复制。', 'coach.sms3.voice': '请长按短信进行复制。',
     'coach.sms4.title': '请再回到本应用', 'coach.sms4.desc': '复制完成后，请点击此按钮返回应用。', 'coach.sms4.voice': '请点击打开应用按钮。',
@@ -2320,6 +2354,7 @@ const I18N = {
     'home.sectionTitle': 'Bạn cần giúp gì?',
     'home.assistantActive': 'Trợ lý 온담 đã được kích hoạt',
     'home.greetDefault': 'Cô/Chú',
+    'home.greetNameSuffix': '', 'home.greetAge': 'Cô/Chú khoảng {age} tuổi', 'home.greetAgeGender': '{gender} khoảng {age} tuổi',
     'home.aiAnalyzeTitle': 'Phân tích tài liệu bằng AI',
     'home.aiAnalyzeDesc': 'Chọn chụp ảnh, tải ảnh lên hoặc tải nội dung tin nhắn để AI phân tích',
     'home.welfareTitle': 'Tìm trung tâm phúc lợi và nhà sinh hoạt người cao tuổi',
@@ -2425,6 +2460,7 @@ const I18N = {
     'coach.doc2.title': 'Chúng ta chụp trực tiếp nhé', 'coach.doc2.desc': 'Hãy chụp tài liệu bằng camera.', 'coach.doc2.voice': 'Hãy nhấn chụp trực tiếp.',
     'coach.doc3.title': 'Hãy nhấn nút chụp', 'coach.doc3.desc': 'Canh tài liệu vào giữa màn hình rồi nhấn nút.', 'coach.doc3.voice': 'Hãy nhấn nút chụp.',
     'coach.sms1.title': 'Cũng có thể kiểm tra tin nhắn', 'coach.sms1.desc': 'Bạn cũng có thể kiểm tra ở đây xem tin nhắn nhận được có an toàn không.', 'coach.sms1.voice': 'Hãy nhấn vào thẻ tải nội dung tin nhắn.',
+    'coach.sms1b.title': 'Bây giờ hãy kiểm tra tin nhắn nhé', 'coach.sms1b.desc': 'Phần xem ảnh đến đây là xong. Hãy nhấn lại vào thẻ Phân tích tài liệu bằng AI.', 'coach.sms1b.voice': 'Hãy nhấn lại vào thẻ Phân tích tài liệu bằng AI.',
     'coach.sms2.title': 'Hãy nhấn vào ứng dụng tin nhắn', 'coach.sms2.desc': 'Chúng ta sẽ mở ứng dụng tin nhắn.', 'coach.sms2.voice': 'Hãy nhấn vào ứng dụng tin nhắn.',
     'coach.sms3.title': 'Hãy thử nhấn giữ tin nhắn để sao chép', 'coach.sms3.desc': 'Trong thực tế, bạn nhấn giữ tin nhắn muốn kiểm tra để sao chép.', 'coach.sms3.voice': 'Hãy nhấn giữ tin nhắn để sao chép.',
     'coach.sms4.title': 'Hãy quay lại ứng dụng này', 'coach.sms4.desc': 'Sau khi sao chép, nhấn nút này để quay lại ứng dụng.', 'coach.sms4.voice': 'Hãy nhấn nút mở ứng dụng.',
@@ -2514,6 +2550,7 @@ const I18N = {
     'home.sectionTitle': 'ต้องการความช่วยเหลือเรื่องอะไร?',
     'home.assistantActive': 'ผู้ช่วย 온담 เปิดใช้งานแล้ว',
     'home.greetDefault': 'คุณลูกค้า',
+    'home.greetNameSuffix': '', 'home.greetAge': 'ผู้สูงอายุวัย {age} ปีขึ้นไป', 'home.greetAgeGender': 'ผู้สูงอายุเพศ{gender} วัย {age} ปีขึ้นไป',
     'home.aiAnalyzeTitle': 'วิเคราะห์เอกสารด้วย AI',
     'home.aiAnalyzeDesc': 'เลือกถ่ายภาพ นำเข้ารูปภาพ หรือนำเข้าข้อความ ให้ AI วิเคราะห์ให้',
     'home.welfareTitle': 'ค้นหาศูนย์สวัสดิการ·ศูนย์ผู้สูงอายุใกล้เคียง',
@@ -2619,6 +2656,7 @@ const I18N = {
     'coach.doc2.title': 'ลองถ่ายภาพเองดูนะ', 'coach.doc2.desc': 'ถ่ายภาพเอกสารด้วยกล้อง', 'coach.doc2.voice': 'กรุณากดถ่ายภาพเอง',
     'coach.doc3.title': 'กรุณากดปุ่มถ่ายภาพ', 'coach.doc3.desc': 'จัดเอกสารให้อยู่กลางจอแล้วกดปุ่ม', 'coach.doc3.voice': 'กรุณากดปุ่มถ่ายภาพ',
     'coach.sms1.title': 'ตรวจสอบข้อความได้เช่นกัน', 'coach.sms1.desc': 'สามารถตรวจสอบที่นี่ได้ว่าข้อความที่ได้รับปลอดภัยหรือไม่', 'coach.sms1.voice': 'กรุณากดการ์ดนำเข้าข้อความ',
+    'coach.sms1b.title': 'มาตรวจสอบข้อความกันต่อ', 'coach.sms1b.desc': 'ดูรูปภาพจบแค่นี้ กรุณากดการ์ดวิเคราะห์ด้วย AI อีกครั้ง', 'coach.sms1b.voice': 'กรุณากดการ์ดวิเคราะห์ด้วย AI อีกครั้ง',
     'coach.sms2.title': 'กรุณากดแอปข้อความ', 'coach.sms2.desc': 'เราจะเปิดแอปข้อความกัน', 'coach.sms2.voice': 'กรุณากดแอปข้อความ',
     'coach.sms3.title': 'ลองกดค้างที่ข้อความเพื่อคัดลอกดู', 'coach.sms3.desc': 'ในการใช้งานจริง กดค้างที่ข้อความที่ต้องการตรวจสอบเพื่อคัดลอก', 'coach.sms3.voice': 'กรุณากดค้างที่ข้อความเพื่อคัดลอก',
     'coach.sms4.title': 'กรุณากลับมาที่แอปนี้อีกครั้ง', 'coach.sms4.desc': 'เมื่อคัดลอกแล้ว กดปุ่มนี้เพื่อกลับมาที่แอป', 'coach.sms4.voice': 'กรุณากดปุ่มเปิดแอป',
@@ -2708,6 +2746,7 @@ const I18N = {
     'home.sectionTitle': 'Sizga qanday yordam kerak?',
     'home.assistantActive': "온담 yordamchisi faollashtirildi",
     'home.greetDefault': 'Foydalanuvchi',
+    'home.greetNameSuffix': '', 'home.greetAge': '{age} yoshli foydalanuvchi', 'home.greetAgeGender': '{age} yoshli {gender}',
     'home.aiAnalyzeTitle': "AI bilan hujjat tahlili",
     'home.aiAnalyzeDesc': "Surat olish, rasm yuklash yoki SMS matnini yuklashni tanlang, AI tahlil qilib beradi",
     'home.welfareTitle': "Yaqin atrofdagi ijtimoiy ta'minot markazlari va keksalar markazini toping",
@@ -2813,6 +2852,7 @@ const I18N = {
     'coach.doc2.title': 'Bevosita suratga olamiz', 'coach.doc2.desc': 'Kamera bilan hujjatni suratga oling.', 'coach.doc2.voice': 'Bevosita suratga olishni bosing.',
     'coach.doc3.title': 'Suratga olish tugmasini bosing', 'coach.doc3.desc': "Hujjatni ekran markaziga to'g'rilab tugmani bosing.", 'coach.doc3.voice': 'Suratga olish tugmasini bosing.',
     'coach.sms1.title': 'SMS xabarni ham tekshirish mumkin', 'coach.sms1.desc': 'Kelgan SMS xavfsizligini shu yerda ham tekshirish mumkin.', 'coach.sms1.voice': "SMS matnini yuklash kartasini bosing.",
+    'coach.sms1b.title': 'Endi SMS xabarni tekshiramiz', 'coach.sms1b.desc': "Rasmni ko'rish shu yerda tugadi. AI tahlili kartasini yana bosing.", 'coach.sms1b.voice': "AI tahlili kartasini yana bosing.",
     'coach.sms2.title': 'SMS ilovasini bosing', 'coach.sms2.desc': 'SMS ilovasini ochamiz.', 'coach.sms2.voice': 'SMS ilovasini bosing.',
     'coach.sms3.title': 'SMS xabarni bosib turib nusxalab ko\'ring', 'coach.sms3.desc': "Haqiqatda tekshirmoqchi bo'lgan SMS ni bosib turib nusxalash mumkin.", 'coach.sms3.voice': 'SMS ni bosib turib nusxalang.',
     'coach.sms4.title': 'Yana shu ilovaga qaytib keling', 'coach.sms4.desc': "Nusxalagandan so'ng, shu tugmani bosib ilovaga qayting.", 'coach.sms4.voice': 'Ilovani ochish tugmasini bosing.',
@@ -3495,7 +3535,9 @@ function syncGuardianNotifyPrompt(){
 }
 
 function callGuardian(){
-  if (!appState.guardian.phone) {
+  // 숫자가 9자리 미만이면(비어있거나 오타 등 잘못 입력된 번호) 실제로는 걸리지 않는 tel: 링크를 여는 대신
+  // 번호부터 다시 받는다 — notifyGuardian()의 검증과 동일한 기준을 쓴다.
+  if (guardianPhoneDigits(appState.guardian.phone).length < 9) {
     // 설정 화면으로 튕기지 않고, 긴급 도움 시트를 열어 그 안에서 바로 번호를 받는다(저장 즉시 전화 연결)
     openEmergencySheet();
     showGuardianPhonePrompt();
