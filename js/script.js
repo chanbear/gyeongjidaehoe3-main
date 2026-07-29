@@ -2183,6 +2183,7 @@ const I18N = {
     'onboard.greet.start': '시작하기',
     'onboard.greet.voice': '안녕하세요. AI 디지털 도우미입니다. 실제 화면을 보여드리며 사용 방법을 간단히 안내해드릴게요.',
     'onboard.signup.title': '회원가입', 'onboard.signup.desc': '전화번호와 PIN 번호로 계정을 만들어요.<br>이 계정으로 다른 기기에서도 내 정보를 이어서 쓸 수 있어요.',
+    'onboard.signup.phoneLabel': '전화번호',
     'onboard.signup.pinLabel': 'PIN 번호 (숫자 4자리)', 'onboard.signup.pinConfirmPlaceholder': 'PIN 다시 입력',
     'onboard.signup.submit': '가입하기', 'onboard.signup.toLogin': '이미 계정이 있으신가요? 로그인하기',
     'onboard.signup.errorPhone': '전화번호를 다시 확인해주세요', 'onboard.signup.errorPinFormat': 'PIN은 숫자 4자리로 입력해주세요',
