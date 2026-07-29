@@ -2080,6 +2080,7 @@ const I18N = {
     'result.docCountLabel': '문서 {i} / {n}',
     'result.docPrev': '이전 문서', 'result.docNext': '다음 문서',
     'result.shareNothing': '보낼 결과가 없어요.',
+    'stats.safetyLabel': '보호자용 안전 확인 현황', 'stats.safetyDangerCount': '위험으로 판정된 건수', 'stats.safetyNone': '위험으로 판정된 문서·문자가 없어요.',
     'stats.thisMonth': '이번 달 고지서',
     'stats.cumulative': '달마다 쌓인 금액',
     'stats.upcoming': '다가오는 납부 기한',
@@ -2272,6 +2273,7 @@ const I18N = {
     'result.docCountLabel': '文件 {i} / {n}',
     'result.docPrev': '上一份文件', 'result.docNext': '下一份文件',
     'result.shareNothing': '没有可发送的结果。',
+    'stats.safetyLabel': '监护人安全确认现况', 'stats.safetyDangerCount': '被判定为危险的件数', 'stats.safetyNone': '没有被判定为危险的文件或短信。',
     'stats.thisMonth': '本月缴费单',
     'stats.cumulative': '每月累计金额',
     'stats.upcoming': '临近的缴纳期限',
@@ -2461,6 +2463,7 @@ const I18N = {
     'result.docCountLabel': 'Tài liệu {i} / {n}',
     'result.docPrev': 'Tài liệu trước', 'result.docNext': 'Tài liệu sau',
     'result.shareNothing': 'Không có kết quả để gửi.',
+    'stats.safetyLabel': 'Tình trạng xác nhận an toàn dành cho người giám hộ', 'stats.safetyDangerCount': 'Số trường hợp được đánh giá nguy hiểm', 'stats.safetyNone': 'Không có tài liệu/tin nhắn nào được đánh giá là nguy hiểm.',
     'stats.thisMonth': 'Hóa đơn tháng này',
     'stats.cumulative': 'Số tiền tích lũy theo tháng',
     'stats.upcoming': 'Hạn nộp sắp tới',
@@ -2650,6 +2653,7 @@ const I18N = {
     'result.docCountLabel': 'เอกสาร {i} / {n}',
     'result.docPrev': 'เอกสารก่อนหน้า', 'result.docNext': 'เอกสารถัดไป',
     'result.shareNothing': 'ไม่มีผลลัพธ์ที่จะส่ง',
+    'stats.safetyLabel': 'สถานะการตรวจสอบความปลอดภัยสำหรับผู้ดูแล', 'stats.safetyDangerCount': 'จำนวนที่ถูกตัดสินว่าอันตราย', 'stats.safetyNone': 'ไม่มีเอกสารหรือข้อความที่ถูกตัดสินว่าอันตราย',
     'stats.thisMonth': 'ใบแจ้งหนี้เดือนนี้',
     'stats.cumulative': 'ยอดสะสมรายเดือน',
     'stats.upcoming': 'กำหนดชำระที่ใกล้เข้ามา',
@@ -2839,6 +2843,7 @@ const I18N = {
     'result.docCountLabel': 'Hujjat {i} / {n}',
     'result.docPrev': 'Oldingi hujjat', 'result.docNext': 'Keyingi hujjat',
     'result.shareNothing': 'Yuboradigan natija yo\'q.',
+    'stats.safetyLabel': "Vasiy uchun xavfsizlik holati", 'stats.safetyDangerCount': "Xavfli deb topilgan holatlar soni", 'stats.safetyNone': "Xavfli deb topilgan hujjat yoki SMS yo'q.",
     'stats.thisMonth': 'Shu oydagi hisoblar',
     'stats.cumulative': 'Oylar bo\'yicha to\'plangan summa',
     'stats.upcoming': 'Yaqinlashayotgan to\'lov muddati',
@@ -3465,6 +3470,26 @@ function renderStats(){
   const dueItems = upcomingDueEntries();
   const hasAmount = buckets.length > 0;
 
+  // 0) 보호자용 안전 확인 현황: 전체 확인 건수와 그중 위험 판정 건수, 최근 위험 판정 목록
+  const safetySection = document.getElementById('statsSafetySection');
+  const dangerEntries = appState.history.filter(h => h.analysis && h.analysis.status === 'danger');
+  const hasHistory = appState.history.length > 0;
+  safetySection.style.display = hasHistory ? 'block' : 'none';
+  if (hasHistory) {
+    document.getElementById('statsSafetyDangerCount').textContent = `${dangerEntries.length}건`;
+    document.getElementById('statsSafetyTotalCount').textContent = `전체 확인 ${appState.history.length}건 중`;
+    const listEl = document.getElementById('statsSafetyList');
+    if (dangerEntries.length === 0) {
+      listEl.innerHTML = `<div class="empty-state" style="padding:14px;" data-i18n="stats.safetyNone">위험으로 판정된 문서·문자가 없어요.</div>`;
+    } else {
+      listEl.innerHTML = dangerEntries.slice(0, 5).map(h => `
+        <div class="row">
+          <div class="icon-chip" style="background:var(--danger-strong);"><svg viewBox="0 0 24 24"><use href="#ic-alert"></use></svg></div>
+          <div class="text"><div class="t1">${escapeHtml(h.title)}</div><div class="t2">${escapeHtml(h.time || '')}</div></div>
+        </div>`).join('');
+    }
+  }
+
   // 1) 이번 달 합계
   const now = new Date();
   const thisKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -3513,7 +3538,7 @@ function renderStats(){
     }).join('');
   }
 
-  document.getElementById('statsEmpty').style.display = (hasAmount || dueItems.length) ? 'none' : 'block';
+  document.getElementById('statsEmpty').style.display = (hasAmount || dueItems.length || hasHistory) ? 'none' : 'block';
 }
 
 /** 프로필이 있으면 "○○님을 위한 정보"처럼 인사말을 맞춰준다(지역별 실데이터가 아니라 호칭만 맞춤). */

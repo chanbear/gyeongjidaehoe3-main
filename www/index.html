@@ -283,6 +283,18 @@
       <section class="screen" id="screen-stats" data-voice="지금까지 확인한 고지서의 금액과 납부 기한을 모아서 보여드려요.">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-list"></use></svg><span data-i18n="stats.title">고지서 통계</span></span><span></span></div>
 
+        <!-- 보호자용 안전 확인 현황: 지금까지 몇 건을 확인했고, 그중 위험으로 판정된 게 몇 건인지 요약.
+             appState.history에 이미 저장된 분석 결과(entry.analysis.status)만 집계하므로 새 데이터를 만들지 않는다. -->
+        <div class="section" id="statsSafetySection" style="display:none;">
+          <div class="section-label" data-i18n="stats.safetyLabel">보호자용 안전 확인 현황</div>
+          <div class="stat-hero" id="statsSafetyHero" style="background:var(--danger-soft);">
+            <div class="stat-hero-label" data-i18n="stats.safetyDangerCount">위험으로 판정된 건수</div>
+            <div class="stat-hero-value" id="statsSafetyDangerCount" style="color:var(--danger-strong);"></div>
+            <div class="stat-hero-sub" id="statsSafetyTotalCount"></div>
+          </div>
+          <div class="group" id="statsSafetyList" style="background:#fff;margin-top:10px;"></div>
+        </div>
+
         <div class="stat-hero" id="statsMonthCard" style="display:none;">
           <div class="stat-hero-label" data-i18n="stats.thisMonth">이번 달 고지서</div>
           <div class="stat-hero-value" id="statsMonthAmount"></div>
