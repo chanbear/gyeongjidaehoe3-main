@@ -160,6 +160,8 @@ function syncBottomNav(id){
 let activeScreenEl = document.querySelector('.screen.active');
 
 function goTo(id){
+  // 인앱 카메라를 켠 채로 촬영 화면을 벗어나면(뒤로가기 등) 카메라를 계속 켜두지 않도록 반드시 먼저 끈다
+  if (activeScreenEl && activeScreenEl.id === 'screen-doc-capture' && id !== 'screen-doc-capture') stopInAppCamera();
   if (activeScreenEl) activeScreenEl.classList.remove('active');
   const target = document.getElementById(id);
   target.classList.add('active');
@@ -190,6 +192,7 @@ function goTo(id){
   if (id === 'screen-profile') syncProfileUI();
   if (id === 'screen-history') renderHistory();
   if (id === 'screen-welfare-nearby') loadWelfareNearby();
+  if (id === 'screen-doc-capture') startInAppCamera();
   if (id === 'screen-loading-doc') startLoadingProgress('progressFillLoadDoc');
   if (id === 'screen-doc-collect') renderPendingPhotos();
   if (id === 'screen-ask') renderAskScreen();
@@ -1264,6 +1267,49 @@ function cancelPendingPhotos(){
 }
 function capturePhoto(){ return pickPhoto(true, 'environment'); }
 function pickFromGallery(){ return pickPhoto(false, null); }
+
+/* ---- 인앱 카메라: 외부 카메라 앱이나 파일 선택기로 나가지 않고 웹뷰 안에서 바로 촬영한다.
+   getUserMedia를 지원하지 않거나 권한이 거부되면(구형 기기, 데스크톱에서 권한 거부 등) 조용히
+   기존 capturePhoto()(네이티브 플러그인 또는 파일 선택) 경로로 폴백한다 — 화면은 안내 테두리만 보여준 채로 그대로 둔다. ---- */
+let inAppCameraStream = null;
+
+async function startInAppCamera(){
+  const video = document.getElementById('inAppCameraVideo');
+  if (!video || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+    inAppCameraStream = stream;
+    video.srcObject = stream;
+    video.style.display = 'block';
+  } catch (err) {
+    inAppCameraStream = null; // 권한 거부·카메라 없음: 안내 테두리만 남기고 촬영 버튼은 capturePhoto() 폴백으로 동작
+  }
+}
+
+function stopInAppCamera(){
+  if (inAppCameraStream) {
+    inAppCameraStream.getTracks().forEach(track => track.stop());
+    inAppCameraStream = null;
+  }
+  const video = document.getElementById('inAppCameraVideo');
+  if (video) { video.srcObject = null; video.style.display = 'none'; }
+}
+
+/** 촬영 버튼: 인앱 카메라 미리보기가 켜져 있으면 지금 보이는 화면을 그대로 캡처하고,
+ *  아니면(폴백) 기존 capturePhoto()(네이티브 플러그인 또는 파일 선택)로 넘어간다. */
+function captureInAppPhoto(){
+  if (!inAppCameraStream) { capturePhoto(); return; }
+  const video = document.getElementById('inAppCameraVideo');
+  const canvas = document.getElementById('inAppCameraCanvas');
+  canvas.width = video.videoWidth || 720;
+  canvas.height = video.videoHeight || 960;
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+  stopInAppCamera();
+  pendingPhotos.push(dataUrl);
+  lastCapturedPhoto = pendingPhotos[0];
+  goTo('screen-doc-collect');
+}
 
 /* ---- 홈 화면 프로필 사진 ----
    문서 사진과 달리 서버로 보내지 않고 이 기기에만 작은 크기로 저장한다(appState.avatarPhoto). */

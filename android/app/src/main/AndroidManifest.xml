@@ -34,6 +34,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- 인앱 카메라(getUserMedia): 문서 촬영 시 외부 카메라 앱으로 나가지 않고 웹뷰 안에서 바로 미리보기를 띄운다.
+         Capacitor의 BridgeWebChromeClient.onPermissionRequest()가 이 권한을 런타임에 요청/승인 처리한다. -->
+    <uses-permission android:name="android.permission.CAMERA" />
     <!-- 경진대회 심사용 APK 전용 기능: 문자 확인 시 복사/붙여넣기 없이 최근 문자를 바로 읽어온다.
          Google Play 정책상 READ_SMS는 기본 문자 앱만 요청할 수 있어 스토어 출시 앱에는 넣지 않는다. -->
     <uses-permission android:name="android.permission.READ_SMS" />
