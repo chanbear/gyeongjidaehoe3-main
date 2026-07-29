@@ -936,14 +936,12 @@ const fullCoachSteps = [
   { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-doc-choice"]', cat: 'doc', key: 'doc1' },
   { screen: 'screen-doc-choice', target: '#screen-doc-choice .feature-card[onclick*="screen-doc-capture"]', cat: 'doc', key: 'doc2' },
   { screen: 'screen-doc-capture', target: '#screen-doc-capture .camera-shutter', cat: 'doc', key: 'doc3', advance: 'click' },
-  // 문자 확인 입구가 홈에서 'AI 문서 분석하기' 화면(screen-doc-choice) 안으로 옮겨져 이 단계도 그리로 옮겼다.
-  { screen: 'screen-doc-choice', target: '#screen-doc-choice .feature-card[onclick*="screen-sms-phone"]', cat: 'sms', key: 'sms1' },
-  { screen: 'screen-sms-phone', target: '#screen-sms-phone .app-icon.msg', cat: 'sms', key: 'sms2' },
-  { screen: 'screen-tutorial-sms-mock', target: '#screen-tutorial-sms-mock .compose-box', cat: 'sms', key: 'sms3' },
-  { screen: 'screen-sms-switch', target: '#screen-sms-switch .primary-btn', cat: 'sms', key: 'sms4' },
-  { screen: 'screen-sms-paste', target: '#smsPasteInput', cat: 'sms', key: 'sms5', advance: 'input' },
-  { screen: 'screen-sms-paste', target: '#screen-sms-paste .primary-btn', cat: 'sms', key: 'sms6' },
-  { screen: 'screen-sms-filled', target: '#screen-sms-filled .primary-btn', cat: 'sms', key: 'sms7' },
+  // 2026-07-29: 문자 확인이 복사/붙여넣기 대신 최근 문자 목록에서 바로 고르는 방식으로 바뀌면서
+  // 입구도 screen-doc-choice가 아니라 홈의 "문자 내용 요약" 카드(openSmsCheck())로 옮겨졌다.
+  // 권한이 이미 있으면 smsPermission 단계 자체가 통째로 건너뛰어진다(coachOnNavigate의 2단계 lookahead가 처리).
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="openSmsCheck"]', cat: 'sms', key: 'sms1' },
+  { screen: 'screen-sms-permission-needed', target: '#smsPermissionRetryBtn', cat: 'sms', key: 'smsPermission', skippable: true },
+  { screen: 'screen-sms-recent', target: '#screen-sms-recent .row:first-child', cat: 'sms', key: 'sms2' },
   { screen: 'screen-home', target: '#bottomNav [data-tab="screen-history"]', cat: 'history', key: 'history1' },
   { screen: 'screen-history', target: '#screen-history .nav-btn', cat: 'history', key: 'history2' },
   { screen: 'screen-info', target: '#publicInfoList .row:first-child', cat: 'info', key: 'info1' },
@@ -964,14 +962,14 @@ const fullCoachSteps = [
 /** "사용 방법 안내"의 각 항목별 "체험해보기": 전체 투어(fullCoachSteps)에서 해당 구간만 골라 재사용한다.
  *  아래 slice/인덱스는 fullCoachSteps의 순서에 의존하므로, 그 배열의 항목을 지우거나 순서를 바꾸지 말 것. */
 const docMiniCoachSteps = fullCoachSteps.slice(0, 3);
-const smsMiniCoachSteps = fullCoachSteps.slice(3, 10);
-const historyMiniCoachSteps = fullCoachSteps.slice(10, 12);
-const publicInfoMiniCoachSteps = fullCoachSteps.slice(12, 14);
-const welfareMiniCoachSteps = fullCoachSteps.slice(14, 16);
-const voiceMiniCoachSteps = [fullCoachSteps[16]];
-const emergencyMiniCoachSteps = [fullCoachSteps[17]];
+const smsMiniCoachSteps = fullCoachSteps.slice(3, 6);
+const historyMiniCoachSteps = fullCoachSteps.slice(6, 8);
+const publicInfoMiniCoachSteps = fullCoachSteps.slice(8, 10);
+const welfareMiniCoachSteps = fullCoachSteps.slice(10, 12);
+const voiceMiniCoachSteps = [fullCoachSteps[12]];
+const emergencyMiniCoachSteps = [fullCoachSteps[13]];
 const settingsLanguageMiniStep = { screen: 'screen-settings', target: '#languageGroup', cat: 'settings', key: 'language', skippable: true };
-const settingsMiniCoachSteps = [fullCoachSteps[19], fullCoachSteps[20], fullCoachSteps[21], settingsLanguageMiniStep, fullCoachSteps[24]];
+const settingsMiniCoachSteps = [fullCoachSteps[15], fullCoachSteps[16], fullCoachSteps[17], settingsLanguageMiniStep, fullCoachSteps[20]];
 
 /** 첫 실행 안내: 앱의 핵심인 문서 촬영·문자 확인만 다루고 마지막에 "나머지는 여기서 볼 수 있어요"로 마무리한다.
  *  예전에는 8개 분류 25단계를 첫 실행에 한 번에 보여줬는데, 처음 쓰는 어르신에게는 부담이 컸다.
@@ -982,23 +980,10 @@ const firstRunHelpStep = {
   cat: 'help', key: 'moreHelp', skippable: true
 };
 
-/** 첫 실행 투어 전용 다리 단계: 촬영(doc3) 다음은 실제로는 screen-doc-choice가 아니라
- *  "찍은 사진" 모아보기 화면(screen-doc-collect)으로 이어지고, 거기서 분석하거나 취소하면
- *  결국 screen-home으로 돌아온다 — screen-doc-choice로 저절로 되돌아오는 경로가 없어
- *  문자 확인 데모(sms1, screen-doc-choice 기대)가 영원히 대기만 하다 조용히 끊기던 문제가 있었다.
- *  fullCoachSteps는 다른 미니 투어들이 인덱스로 참조하므로 건드리지 않고, 첫 실행 투어에서만
- *  screen-home에서 'AI 문서 분석하기' 카드를 다시 눌러 문자 데모로 이어지도록 다리를 놓는다. */
-const firstRunDocToSmsBridgeStep = {
-  screen: 'screen-home',
-  target: '#screen-home .feature-card[onclick*="screen-doc-choice"]',
-  cat: 'sms', key: 'sms1b'
-};
-const firstRunCoachSteps = [
-  ...fullCoachSteps.slice(0, 3),
-  firstRunDocToSmsBridgeStep,
-  ...fullCoachSteps.slice(3, 10),
-  firstRunHelpStep
-];
+// 촬영(doc3) 다음 단계(sms1)는 이제 screen-home을 기다린다. 촬영 후 실제 흐름은
+// screen-doc-collect(찍은 사진 모아보기) → 분석하거나 취소 → 결국 screen-home으로 돌아오므로,
+// 예전처럼 screen-doc-choice로 돌아오길 기다리다 끊기는 다리(bridge) 단계가 더 이상 필요 없다.
+const firstRunCoachSteps = [...fullCoachSteps.slice(0, 6), firstRunHelpStep];
 
 let coachSteps = firstRunCoachSteps;
 let coachIndex = -1;
@@ -1052,12 +1037,18 @@ function coachOnNavigate(id){
   const step = coachSteps[coachIndex];
   if (!step) return;
   const nextStep = coachSteps[coachIndex + 1];
+  const nextNextStep = coachSteps[coachIndex + 2];
   // 현재 단계와 다음 단계가 같은 화면일 수 있으므로(예: 설정 화면 안에서 이어지는 단계들), "지금 단계가 기다리는 화면"인지 먼저 확인해야
   // 이제 막 시작한 단계를 건너뛰지 않는다. 다른 화면으로 실제로 넘어갔을 때만 다음 단계로 진행한다.
   if (id === step.screen) {
     setTimeout(showCoachStep, 200);
   } else if (nextStep && id === nextStep.screen) {
     coachIndex++;
+    setTimeout(showCoachStep, 200);
+  } else if (nextNextStep && id === nextNextStep.screen) {
+    // 조건에 따라 중간 단계가 통째로 생략될 수 있는 경우(예: 문자 읽기 권한이 이미 있어 권한 안내 화면을 거치지 않음) —
+    // 그 단계는 건너뛰고 실제로 도착한 화면부터 바로 이어받는다
+    coachIndex += 2;
     setTimeout(showCoachStep, 200);
   } else if (!nextStep) {
     // advance 없이 마지막 단계를 벗어난 경우(예: 미니 투어에서 재사용한 단계의 원래 다음 단계가 없음): 더 기다릴 단계가 없으므로 투어를 종료한다
@@ -2152,13 +2143,8 @@ const I18N = {
     'coach.doc2.title': '직접 촬영해볼게요', 'coach.doc2.desc': '카메라로 문서를 찍어보세요.', 'coach.doc2.voice': '직접 촬영하기를 눌러보세요.',
     'coach.doc3.title': '촬영 버튼을 눌러주세요', 'coach.doc3.desc': '문서가 화면 가운데 오도록 맞추고 눌러주세요.', 'coach.doc3.voice': '촬영 버튼을 눌러주세요.',
     'coach.sms1.title': '문자도 확인해보세요', 'coach.sms1.desc': '받은 문자가 안전한지도 여기서 확인할 수 있어요.', 'coach.sms1.voice': '문자 내용 불러오기 카드를 눌러보세요.',
-    'coach.sms1b.title': '이번엔 문자를 확인해볼까요', 'coach.sms1b.desc': '사진 확인은 여기까지예요. AI 분석하기 카드를 다시 눌러주세요.', 'coach.sms1b.voice': 'AI 분석하기 카드를 다시 눌러주세요.',
-    'coach.sms2.title': '문자 앱을 눌러보세요', 'coach.sms2.desc': '문자 앱을 열어볼게요.', 'coach.sms2.voice': '문자 앱을 눌러보세요.',
-    'coach.sms3.title': '문자를 길게 눌러 복사해보세요', 'coach.sms3.desc': '실제로는 확인하고 싶은 문자를 길게 눌러 복사하면 돼요.', 'coach.sms3.voice': '문자를 길게 눌러 복사해보세요.',
-    'coach.sms4.title': '다시 이 앱으로 돌아와주세요', 'coach.sms4.desc': '복사했다면 이 버튼을 눌러 앱으로 돌아오세요.', 'coach.sms4.voice': '앱 열기 버튼을 눌러주세요.',
-    'coach.sms5.title': '길게 눌러 붙여넣어보세요', 'coach.sms5.desc': '이 칸을 길게 눌러 붙여넣기를 선택하세요. 화면을 빠르게 두 번 톡톡 두드리면 더 쉽게 붙여넣을 수 있어요.', 'coach.sms5.voice': '붙여넣기 칸을 눌러보세요. 빠르게 두 번 두드리면 더 쉽게 붙여넣을 수 있어요.',
-    'coach.sms6.title': '확인을 눌러주세요', 'coach.sms6.desc': '붙여넣기가 끝나면 확인을 눌러주세요.', 'coach.sms6.voice': '확인 버튼을 눌러주세요.',
-    'coach.sms7.title': '확인을 눌러 결과를 보세요', 'coach.sms7.desc': '이 버튼을 누르면 AI가 문자를 확인해드려요.', 'coach.sms7.voice': '확인 버튼을 눌러 결과를 확인하세요.',
+    'coach.smsPermission.title': '문자 읽기를 허용해주세요', 'coach.smsPermission.desc': '허용하면 최근 문자를 바로 보여드려요.', 'coach.smsPermission.voice': '허용을 눌러주세요.',
+    'coach.sms2.title': '이 문자를 눌러 확인해보세요', 'coach.sms2.desc': '탭 한 번으로 바로 확인할 수 있어요.', 'coach.sms2.voice': '문자를 눌러 확인해보세요.',
     'coach.history1.title': '기록도 볼 수 있어요', 'coach.history1.desc': '지금까지 확인한 문서와 문자 기록을 모아볼 수 있어요.', 'coach.history1.voice': '아래 기록 버튼을 눌러보세요.',
     'coach.history2.title': '다시 홈으로 돌아가볼게요', 'coach.history2.desc': '← 홈으로 버튼을 누르면 언제든 돌아갈 수 있어요.', 'coach.history2.voice': '홈으로 버튼을 눌러 돌아가보세요.',
     'coach.info1.title': '알아두면 좋은 정보도 있어요', 'coach.info1.desc': '기초연금, 건강검진 같은 유용한 정보를 안내해드려요.', 'coach.info1.voice': '알아두면 좋은 정보를 눌러보세요.',
@@ -2342,13 +2328,8 @@ const I18N = {
     'coach.doc2.title': '直接拍摄一下', 'coach.doc2.desc': '用相机拍摄文件吧。', 'coach.doc2.voice': '请点击直接拍摄。',
     'coach.doc3.title': '请按拍摄按钮', 'coach.doc3.desc': '将文件对准屏幕中央后按下按钮。', 'coach.doc3.voice': '请按拍摄按钮。',
     'coach.sms1.title': '短信也可以确认', 'coach.sms1.desc': '也可以在这里确认收到的短信是否安全。', 'coach.sms1.voice': '请点击导入短信内容卡片。',
-    'coach.sms1b.title': '接下来确认一下短信吧', 'coach.sms1b.desc': '照片确认到此为止。请再次点击AI分析卡片。', 'coach.sms1b.voice': '请再次点击AI分析卡片。',
-    'coach.sms2.title': '请点击短信应用', 'coach.sms2.desc': '我们来打开短信应用。', 'coach.sms2.voice': '请点击短信应用。',
-    'coach.sms3.title': '长按短信复制试试看', 'coach.sms3.desc': '实际使用时，长按想确认的短信即可复制。', 'coach.sms3.voice': '请长按短信进行复制。',
-    'coach.sms4.title': '请再回到本应用', 'coach.sms4.desc': '复制完成后，请点击此按钮返回应用。', 'coach.sms4.voice': '请点击打开应用按钮。',
-    'coach.sms5.title': '长按粘贴试试看', 'coach.sms5.desc': '长按此处后选择粘贴。快速点击两下屏幕可以更轻松地粘贴。', 'coach.sms5.voice': '请点击粘贴框。快速点击两下可以更轻松粘贴。',
-    'coach.sms6.title': '请点击确认', 'coach.sms6.desc': '粘贴完成后请点击确认。', 'coach.sms6.voice': '请点击确认按钮。',
-    'coach.sms7.title': '点击确认查看结果', 'coach.sms7.desc': '点击此按钮AI会为您确认短信。', 'coach.sms7.voice': '请点击确认按钮查看结果。',
+    'coach.smsPermission.title': '请允许读取短信', 'coach.smsPermission.desc': '允许后会立即显示最近的短信。', 'coach.smsPermission.voice': '请点击允许。',
+    'coach.sms2.title': '点击这条短信确认', 'coach.sms2.desc': '轻触一下即可确认。', 'coach.sms2.voice': '请点击短信确认。',
     'coach.history1.title': '也可以查看记录', 'coach.history1.desc': '可以汇总查看至今确认过的文件和短信记录。', 'coach.history1.voice': '请点击下方的记录按钮。',
     'coach.history2.title': '我们再回到首页', 'coach.history2.desc': '点击←返回首页按钮可以随时返回。', 'coach.history2.voice': '请点击返回首页按钮。',
     'coach.info1.title': '还有值得了解的信息', 'coach.info1.desc': '为您提供基础养老金、健康体检等实用信息。', 'coach.info1.voice': '请点击值得了解的信息。',
@@ -2532,13 +2513,8 @@ const I18N = {
     'coach.doc2.title': 'Chúng ta chụp trực tiếp nhé', 'coach.doc2.desc': 'Hãy chụp tài liệu bằng camera.', 'coach.doc2.voice': 'Hãy nhấn chụp trực tiếp.',
     'coach.doc3.title': 'Hãy nhấn nút chụp', 'coach.doc3.desc': 'Canh tài liệu vào giữa màn hình rồi nhấn nút.', 'coach.doc3.voice': 'Hãy nhấn nút chụp.',
     'coach.sms1.title': 'Cũng có thể kiểm tra tin nhắn', 'coach.sms1.desc': 'Bạn cũng có thể kiểm tra ở đây xem tin nhắn nhận được có an toàn không.', 'coach.sms1.voice': 'Hãy nhấn vào thẻ tải nội dung tin nhắn.',
-    'coach.sms1b.title': 'Bây giờ hãy kiểm tra tin nhắn nhé', 'coach.sms1b.desc': 'Phần xem ảnh đến đây là xong. Hãy nhấn lại vào thẻ Phân tích tài liệu bằng AI.', 'coach.sms1b.voice': 'Hãy nhấn lại vào thẻ Phân tích tài liệu bằng AI.',
-    'coach.sms2.title': 'Hãy nhấn vào ứng dụng tin nhắn', 'coach.sms2.desc': 'Chúng ta sẽ mở ứng dụng tin nhắn.', 'coach.sms2.voice': 'Hãy nhấn vào ứng dụng tin nhắn.',
-    'coach.sms3.title': 'Hãy thử nhấn giữ tin nhắn để sao chép', 'coach.sms3.desc': 'Trong thực tế, bạn nhấn giữ tin nhắn muốn kiểm tra để sao chép.', 'coach.sms3.voice': 'Hãy nhấn giữ tin nhắn để sao chép.',
-    'coach.sms4.title': 'Hãy quay lại ứng dụng này', 'coach.sms4.desc': 'Sau khi sao chép, nhấn nút này để quay lại ứng dụng.', 'coach.sms4.voice': 'Hãy nhấn nút mở ứng dụng.',
-    'coach.sms5.title': 'Hãy thử nhấn giữ để dán', 'coach.sms5.desc': 'Nhấn giữ ô này rồi chọn dán. Chạm nhanh hai lần vào màn hình sẽ dễ dán hơn.', 'coach.sms5.voice': 'Hãy nhấn vào ô dán. Chạm nhanh hai lần sẽ dễ dán hơn.',
-    'coach.sms6.title': 'Hãy nhấn xác nhận', 'coach.sms6.desc': 'Sau khi dán xong, hãy nhấn xác nhận.', 'coach.sms6.voice': 'Hãy nhấn nút xác nhận.',
-    'coach.sms7.title': 'Nhấn xác nhận để xem kết quả', 'coach.sms7.desc': 'Nhấn nút này để AI kiểm tra tin nhắn giúp bạn.', 'coach.sms7.voice': 'Hãy nhấn nút xác nhận để xem kết quả.',
+    'coach.smsPermission.title': 'Hãy cho phép đọc tin nhắn', 'coach.smsPermission.desc': 'Cho phép thì sẽ hiện tin nhắn gần đây ngay.', 'coach.smsPermission.voice': 'Hãy nhấn cho phép.',
+    'coach.sms2.title': 'Nhấn vào tin nhắn này để kiểm tra', 'coach.sms2.desc': 'Chỉ cần chạm một lần là kiểm tra được ngay.', 'coach.sms2.voice': 'Hãy nhấn vào tin nhắn để kiểm tra.',
     'coach.history1.title': 'Cũng có thể xem lịch sử', 'coach.history1.desc': 'Bạn có thể xem lại các tài liệu và tin nhắn đã kiểm tra.', 'coach.history1.voice': 'Hãy nhấn nút Lịch sử ở bên dưới.',
     'coach.history2.title': 'Chúng ta quay lại trang chủ nhé', 'coach.history2.desc': 'Nhấn nút ← Về trang chủ để quay lại bất cứ lúc nào.', 'coach.history2.voice': 'Hãy nhấn nút về trang chủ.',
     'coach.info1.title': 'Cũng có thông tin nên biết', 'coach.info1.desc': 'Chúng tôi cung cấp thông tin hữu ích như lương hưu cơ bản, khám sức khỏe.', 'coach.info1.voice': 'Hãy nhấn vào thông tin nên biết.',
@@ -2722,13 +2698,8 @@ const I18N = {
     'coach.doc2.title': 'ลองถ่ายภาพเองดูนะ', 'coach.doc2.desc': 'ถ่ายภาพเอกสารด้วยกล้อง', 'coach.doc2.voice': 'กรุณากดถ่ายภาพเอง',
     'coach.doc3.title': 'กรุณากดปุ่มถ่ายภาพ', 'coach.doc3.desc': 'จัดเอกสารให้อยู่กลางจอแล้วกดปุ่ม', 'coach.doc3.voice': 'กรุณากดปุ่มถ่ายภาพ',
     'coach.sms1.title': 'ตรวจสอบข้อความได้เช่นกัน', 'coach.sms1.desc': 'สามารถตรวจสอบที่นี่ได้ว่าข้อความที่ได้รับปลอดภัยหรือไม่', 'coach.sms1.voice': 'กรุณากดการ์ดนำเข้าข้อความ',
-    'coach.sms1b.title': 'มาตรวจสอบข้อความกันต่อ', 'coach.sms1b.desc': 'ดูรูปภาพจบแค่นี้ กรุณากดการ์ดวิเคราะห์ด้วย AI อีกครั้ง', 'coach.sms1b.voice': 'กรุณากดการ์ดวิเคราะห์ด้วย AI อีกครั้ง',
-    'coach.sms2.title': 'กรุณากดแอปข้อความ', 'coach.sms2.desc': 'เราจะเปิดแอปข้อความกัน', 'coach.sms2.voice': 'กรุณากดแอปข้อความ',
-    'coach.sms3.title': 'ลองกดค้างที่ข้อความเพื่อคัดลอกดู', 'coach.sms3.desc': 'ในการใช้งานจริง กดค้างที่ข้อความที่ต้องการตรวจสอบเพื่อคัดลอก', 'coach.sms3.voice': 'กรุณากดค้างที่ข้อความเพื่อคัดลอก',
-    'coach.sms4.title': 'กรุณากลับมาที่แอปนี้อีกครั้ง', 'coach.sms4.desc': 'เมื่อคัดลอกแล้ว กดปุ่มนี้เพื่อกลับมาที่แอป', 'coach.sms4.voice': 'กรุณากดปุ่มเปิดแอป',
-    'coach.sms5.title': 'ลองกดค้างเพื่อวางดู', 'coach.sms5.desc': 'กดค้างที่ช่องนี้แล้วเลือกวาง แตะหน้าจอสองครั้งเร็วๆ จะวางได้ง่ายขึ้น', 'coach.sms5.voice': 'กรุณากดที่ช่องวาง แตะสองครั้งเร็วๆ จะวางได้ง่ายขึ้น',
-    'coach.sms6.title': 'กรุณากดยืนยัน', 'coach.sms6.desc': 'เมื่อวางเสร็จแล้ว กรุณากดยืนยัน', 'coach.sms6.voice': 'กรุณากดปุ่มยืนยัน',
-    'coach.sms7.title': 'กดยืนยันเพื่อดูผลลัพธ์', 'coach.sms7.desc': 'กดปุ่มนี้เพื่อให้ AI ตรวจสอบข้อความให้คุณ', 'coach.sms7.voice': 'กรุณากดปุ่มยืนยันเพื่อดูผลลัพธ์',
+    'coach.smsPermission.title': 'กรุณาอนุญาตให้อ่านข้อความ', 'coach.smsPermission.desc': 'หากอนุญาตจะแสดงข้อความล่าสุดทันที', 'coach.smsPermission.voice': 'กรุณากดอนุญาต',
+    'coach.sms2.title': 'กดข้อความนี้เพื่อตรวจสอบ', 'coach.sms2.desc': 'แตะเพียงครั้งเดียวก็ตรวจสอบได้ทันที', 'coach.sms2.voice': 'กรุณากดข้อความเพื่อตรวจสอบ',
     'coach.history1.title': 'ดูประวัติได้เช่นกัน', 'coach.history1.desc': 'สามารถดูเอกสารและข้อความที่ตรวจสอบมาแล้วทั้งหมด', 'coach.history1.voice': 'กรุณากดปุ่มประวัติด้านล่าง',
     'coach.history2.title': 'กลับไปหน้าหลักกันเถอะ', 'coach.history2.desc': 'กดปุ่ม ← กลับหน้าหลักเพื่อย้อนกลับได้ทุกเมื่อ', 'coach.history2.voice': 'กรุณากดปุ่มกลับหน้าหลัก',
     'coach.info1.title': 'มีข้อมูลที่ควรรู้ด้วย', 'coach.info1.desc': 'แนะนำข้อมูลที่เป็นประโยชน์ เช่น เงินบำนาญพื้นฐาน การตรวจสุขภาพ', 'coach.info1.voice': 'กรุณากดข้อมูลที่ควรรู้',
@@ -2912,13 +2883,8 @@ const I18N = {
     'coach.doc2.title': 'Bevosita suratga olamiz', 'coach.doc2.desc': 'Kamera bilan hujjatni suratga oling.', 'coach.doc2.voice': 'Bevosita suratga olishni bosing.',
     'coach.doc3.title': 'Suratga olish tugmasini bosing', 'coach.doc3.desc': "Hujjatni ekran markaziga to'g'rilab tugmani bosing.", 'coach.doc3.voice': 'Suratga olish tugmasini bosing.',
     'coach.sms1.title': 'SMS xabarni ham tekshirish mumkin', 'coach.sms1.desc': 'Kelgan SMS xavfsizligini shu yerda ham tekshirish mumkin.', 'coach.sms1.voice': "SMS matnini yuklash kartasini bosing.",
-    'coach.sms1b.title': 'Endi SMS xabarni tekshiramiz', 'coach.sms1b.desc': "Rasmni ko'rish shu yerda tugadi. AI tahlili kartasini yana bosing.", 'coach.sms1b.voice': "AI tahlili kartasini yana bosing.",
-    'coach.sms2.title': 'SMS ilovasini bosing', 'coach.sms2.desc': 'SMS ilovasini ochamiz.', 'coach.sms2.voice': 'SMS ilovasini bosing.',
-    'coach.sms3.title': 'SMS xabarni bosib turib nusxalab ko\'ring', 'coach.sms3.desc': "Haqiqatda tekshirmoqchi bo'lgan SMS ni bosib turib nusxalash mumkin.", 'coach.sms3.voice': 'SMS ni bosib turib nusxalang.',
-    'coach.sms4.title': 'Yana shu ilovaga qaytib keling', 'coach.sms4.desc': "Nusxalagandan so'ng, shu tugmani bosib ilovaga qayting.", 'coach.sms4.voice': 'Ilovani ochish tugmasini bosing.',
-    'coach.sms5.title': 'Bosib turib joylashtirib ko\'ring', 'coach.sms5.desc': 'Shu joyni bosib turib joylashtirishni tanlang. Ekranni tez ikki marta bosish osonroq joylashtiradi.', 'coach.sms5.voice': 'Joylashtirish maydonini bosing. Tez ikki marta bosish osonroq joylashtiradi.',
-    'coach.sms6.title': 'Tasdiqlashni bosing', 'coach.sms6.desc': 'Joylashtirish tugagach tasdiqlashni bosing.', 'coach.sms6.voice': 'Tasdiqlash tugmasini bosing.',
-    'coach.sms7.title': 'Natijani ko\'rish uchun tasdiqlashni bosing', 'coach.sms7.desc': 'Shu tugmani bosganingizda AI SMS ni tekshirib beradi.', 'coach.sms7.voice': 'Natijani ko\'rish uchun tasdiqlash tugmasini bosing.',
+    'coach.smsPermission.title': "Xabar o'qishga ruxsat bering", 'coach.smsPermission.desc': "Ruxsat bersangiz so'nggi xabarlar darhol ko'rsatiladi.", 'coach.smsPermission.voice': "Ruxsat berishni bosing.",
+    'coach.sms2.title': 'Ushbu xabarni tekshirish uchun bosing', 'coach.sms2.desc': "Bir marta bosish bilan darhol tekshirish mumkin.", 'coach.sms2.voice': 'Xabarni tekshirish uchun bosing.',
     'coach.history1.title': 'Tarixni ham ko\'rish mumkin', 'coach.history1.desc': 'Hozirgacha tekshirilgan hujjat va SMS tarixini birgalikda ko\'rish mumkin.', 'coach.history1.voice': 'Pastdagi Tarix tugmasini bosing.',
     'coach.history2.title': 'Yana bosh sahifaga qaytamiz', 'coach.history2.desc': "← Bosh sahifaga tugmasini bosib istalgan vaqtda qaytish mumkin.", 'coach.history2.voice': 'Bosh sahifaga qaytish tugmasini bosing.',
     'coach.info1.title': "Bilish foydali ma'lumotlar ham bor", 'coach.info1.desc': "Asosiy pensiya, sog'liqni tekshirish kabi foydali ma'lumotlarni taqdim etamiz.", 'coach.info1.voice': "Bilish foydali ma'lumotlarni bosing.",
