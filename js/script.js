@@ -1697,6 +1697,66 @@ function openSmsAppSettings(){
   if (SmsReader) SmsReader.openAppSettings();
 }
 
+async function loadAndShowRecentSms(SmsReader){
+  goTo('screen-sms-recent');
+  document.getElementById('smsRecentCount').textContent = t('sms.recent.loading');
+  try {
+    const { messages } = await SmsReader.getRecentMessages({ limit: 30 });
+    renderSmsRecentList(messages || []);
+  } catch (err) {
+    renderSmsRecentList([]);
+  }
+}
+
+/** 문자 미리보기 한 줄(50자)만 보여주고, 발신번호·받은 시각은 그대로 표시한다.
+ *  AI가 만든 텍스트가 아니라 기기 문자 원문이므로 XSS 방지를 위해 항상 textContent로만 채운다. */
+function renderSmsRecentList(messages){
+  const listEl = document.getElementById('smsRecentList');
+  const emptyEl = document.getElementById('smsRecentEmpty');
+  const countEl = document.getElementById('smsRecentCount');
+  listEl.innerHTML = '';
+  if (messages.length === 0) {
+    countEl.style.display = 'none';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  countEl.style.display = '';
+  countEl.textContent = t('sms.recent.desc');
+  emptyEl.style.display = 'none';
+  messages.forEach((msg) => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.setAttribute('role', 'button');
+    row.setAttribute('tabindex', '0');
+    row.onclick = () => selectSmsMessage(msg.body);
+
+    const iconChip = document.createElement('div');
+    iconChip.className = 'icon-chip accent';
+    iconChip.innerHTML = '<svg viewBox="0 0 24 24"><use href="#ic-chat"></use></svg>';
+
+    const text = document.createElement('div');
+    text.className = 'text';
+    const t1 = document.createElement('div');
+    t1.className = 't1';
+    t1.textContent = msg.address || t('sms.recent.unknownSender');
+    const t2 = document.createElement('div');
+    t2.className = 't2';
+    const preview = (msg.body || '').replace(/\s+/g, ' ').trim();
+    t2.textContent = preview.length > 50 ? preview.slice(0, 50) + '…' : preview;
+    text.appendChild(t1);
+    text.appendChild(t2);
+
+    row.appendChild(iconChip);
+    row.appendChild(text);
+    listEl.appendChild(row);
+  });
+}
+
+function selectSmsMessage(body){
+  pendingSmsText = body;
+  startSmsAnalysis();
+}
+
 /** 실제 문자 앱을 열면서, 돌아왔을 때 안내할 화면으로 같이 넘어가둠 */
 /** Android 네이티브 앱에서는 MessagingLauncher 플러그인으로 문자 앱(대화 목록)을 바로 열고,
  *  플러그인이 없는 환경(웹/iOS)에서는 sms: 스킴으로 대체한다(이 경우 작성 화면이 뜨는 건 플랫폼 제약) */

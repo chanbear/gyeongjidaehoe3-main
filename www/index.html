@@ -855,6 +855,15 @@
         <button class="secondary-btn" id="smsPermissionSettingsBtn" style="margin-top:12px;" onclick="openSmsAppSettings()" data-i18n="sms.permission.openSettings">앱 설정에서 허용하기</button>
       </section>
 
+      <!-- 실사용: 최근 문자 목록에서 골라 확인 (복사/붙여넣기 없음) -->
+      <section class="screen" id="screen-sms-recent" data-voice="최근 문자 목록을 가져왔어요. 확인하고 싶은 문자를 눌러주세요." data-voice-i18n="sms.recent.voice">
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span></span></div>
+        <h1 class="page-title" data-i18n="sms.recent.title">최근 문자</h1>
+        <p class="desc" id="smsRecentCount" data-i18n="sms.recent.desc">최근 문자를 가져왔어요. 확인하고 싶은 문자를 눌러주세요.</p>
+        <div class="group" id="smsRecentList" style="background:#fff;"></div>
+        <div class="empty-state" id="smsRecentEmpty" style="display:none;" data-i18n="sms.recent.empty">받은 문자가 없어요.</div>
+      </section>
+
       <!-- 실사용: 문자 - 휴대폰 홈 -->
       <section class="screen" id="screen-sms-phone" data-voice="문자 앱을 눌러주세요." data-voice-i18n="sms.phoneVoice">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span></span></div>
