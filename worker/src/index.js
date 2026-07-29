@@ -366,6 +366,84 @@ export default {
       }
     }
 
+    if (url.pathname === '/signup' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      const { phone, pin, name } = body || {};
+      const phoneDigits = String(phone || '').replace(/\D/g, '');
+      if (phoneDigits.length < 9) return json({ error: 'invalid_phone' }, 400);
+      if (!/^\d{4}$/.test(String(pin || ''))) return json({ error: 'invalid_pin' }, 400);
+
+      try {
+        const existing = await env.ansim_doumi_db.prepare(
+          `SELECT id FROM users WHERE phone = ?`
+        ).bind(phoneDigits).first();
+        if (existing) return json({ error: 'phone_exists' }, 409);
+
+        const pinSalt = randomHex(16);
+        const pinHash = await sha256Hex(pinSalt + pin);
+        const token = randomHex(32);
+
+        const inserted = await env.ansim_doumi_db.prepare(
+          `INSERT INTO users (phone, pin_hash, pin_salt, name, token)
+           VALUES (?, ?, ?, ?, ?)`
+        ).bind(phoneDigits, pinHash, pinSalt, name || '', token).run();
+
+        const userId = inserted.meta.last_row_id;
+        return json({ userId, token, name: name || '' }, 200);
+      } catch (err) {
+        return json({ error: '가입에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
+    if (url.pathname === '/login' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      const { phone, pin } = body || {};
+      const phoneDigits = String(phone || '').replace(/\D/g, '');
+
+      try {
+        const user = await env.ansim_doumi_db.prepare(
+          `SELECT id, pin_hash, pin_salt, name, failed_attempts, locked_until FROM users WHERE phone = ?`
+        ).bind(phoneDigits).first();
+
+        if (!user) return json({ error: 'invalid' }, 401);
+
+        if (user.locked_until && new Date(user.locked_until).getTime() > Date.now()) {
+          return json({ error: 'locked' }, 423);
+        }
+
+        const pinHash = await sha256Hex(user.pin_salt + String(pin || ''));
+        if (pinHash !== user.pin_hash) {
+          const attempts = (user.failed_attempts || 0) + 1;
+          const lockedUntil = attempts >= 5
+            ? new Date(Date.now() + 15 * 60 * 1000).toISOString()
+            : null;
+          await env.ansim_doumi_db.prepare(
+            `UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?`
+          ).bind(attempts, lockedUntil, user.id).run();
+          return json({ error: lockedUntil ? 'locked' : 'invalid' }, lockedUntil ? 423 : 401);
+        }
+
+        const token = randomHex(32);
+        await env.ansim_doumi_db.prepare(
+          `UPDATE users SET token = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?`
+        ).bind(token, user.id).run();
+
+        return json({ userId: user.id, token, name: user.name || '' }, 200);
+      } catch (err) {
+        return json({ error: '로그인에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
     /* 로그인이 없으므로 기기별 임의 deviceId로 프로필(이름/성별/연령대/지역)을 D1에 저장한다 */
     if (url.pathname === '/profile' && request.method === 'POST') {
       let body;
