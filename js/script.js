@@ -2182,6 +2182,23 @@ const I18N = {
     'onboard.greet.desc': '문서를 쉽게 이해하고<br>해야 할 일을 알려드리겠습니다.',
     'onboard.greet.start': '시작하기',
     'onboard.greet.voice': '안녕하세요. AI 디지털 도우미입니다. 실제 화면을 보여드리며 사용 방법을 간단히 안내해드릴게요.',
+    'onboard.signup.title': '회원가입', 'onboard.signup.desc': '전화번호와 PIN 번호로 계정을 만들어요.<br>이 계정으로 다른 기기에서도 내 정보를 이어서 쓸 수 있어요.',
+    'onboard.signup.pinLabel': 'PIN 번호 (숫자 4자리)', 'onboard.signup.pinConfirmPlaceholder': 'PIN 다시 입력',
+    'onboard.signup.submit': '가입하기', 'onboard.signup.toLogin': '이미 계정이 있으신가요? 로그인하기',
+    'onboard.signup.errorPhone': '전화번호를 다시 확인해주세요', 'onboard.signup.errorPinFormat': 'PIN은 숫자 4자리로 입력해주세요',
+    'onboard.signup.errorPinMismatch': '입력하신 PIN이 서로 달라요', 'onboard.signup.errorPhoneExists': '이미 가입된 전화번호예요. 로그인해주세요',
+    'onboard.signup.errorGeneric': '가입에 실패했어요. 잠시 후 다시 시도해주세요',
+    'onboard.login.title': '로그인', 'onboard.login.desc': '가입할 때 쓴 전화번호와 PIN 번호를 입력해주세요.',
+    'onboard.login.submit': '로그인', 'onboard.login.toSignup': '계정이 없으신가요? 회원가입', 'onboard.login.forgotPin': 'PIN을 잊으셨나요?',
+    'onboard.login.errorInvalid': '전화번호 또는 PIN이 올바르지 않습니다', 'onboard.login.errorLocked': '너무 여러 번 틀렸어요. 15분 후 다시 시도해주세요',
+    'onboard.resetPin.title': 'PIN 재설정', 'onboard.resetPin.desc': '가입할 때 쓴 이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요.',
+    'onboard.resetPin.requestOtp': '인증번호 받기', 'onboard.resetPin.otpLabel': '인증번호 (6자리)', 'onboard.resetPin.submit': '재설정하기',
+    'onboard.resetPin.otpSentNotice': '인증번호를 보냈습니다', 'onboard.resetPin.errorSmsFailed': '문자 발송에 실패했어요. 잠시 후 다시 시도해주세요',
+    'onboard.resetPin.errorOtpExpired': '인증번호가 만료됐어요. 다시 받아주세요', 'onboard.resetPin.errorOtpLocked': '너무 여러 번 틀렸어요. 처음부터 다시 시도해주세요',
+    'onboard.resetPin.errorOtpInvalid': '인증번호가 올바르지 않습니다 ({n}회 남음)',
+    'onboard.signup.voice': '이름과 전화번호, 4자리 숫자 PIN을 입력해서 가입해주세요.',
+    'onboard.login.voice': '전화번호와 PIN 번호를 입력해서 로그인해주세요.',
+    'onboard.resetPin.voice': '이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요.',
     'onboard.profile.title': '몇 가지만<br>알려주시겠어요?',
     'onboard.profile.desc': '입력하신 정보는 이 기기와 안전한 서버에만 저장되고,<br>더 알맞은 설명을 드리는 데만 사용돼요.<br>원하지 않으면 건너뛰어도 됩니다.',
     'onboard.profile.genderLabel': '성별', 'onboard.profile.ageLabel': '나이',
@@ -3230,6 +3247,83 @@ async function verifyPinResetOtp(phone, otp, newPin){
   } catch (err) {
     return { ok: false, error: 'network' };
   }
+}
+
+function showFieldError(id, message){
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = message;
+  el.style.display = message ? 'block' : 'none';
+}
+
+async function handleSignupSubmit(){
+  const name = document.getElementById('signupName').value.trim();
+  const phone = document.getElementById('signupPhone').value.trim();
+  const pin = document.getElementById('signupPin').value.trim();
+  const pinConfirm = document.getElementById('signupPinConfirm').value.trim();
+
+  if (guardianPhoneDigits(phone).length < 9) return showFieldError('signupError', t('onboard.signup.errorPhone'));
+  if (!/^\d{4}$/.test(pin)) return showFieldError('signupError', t('onboard.signup.errorPinFormat'));
+  if (pin !== pinConfirm) return showFieldError('signupError', t('onboard.signup.errorPinMismatch'));
+
+  showFieldError('signupError', '');
+  const result = await signupRequest(phone, pin, name);
+  if (!result.ok) {
+    if (result.error === 'phone_exists') return showFieldError('signupError', t('onboard.signup.errorPhoneExists'));
+    return showFieldError('signupError', t('onboard.signup.errorGeneric'));
+  }
+  appState.profile.name = name;
+  saveState();
+  goTo('screen-profile');
+}
+
+async function handleLoginSubmit(){
+  const phone = document.getElementById('loginPhone').value.trim();
+  const pin = document.getElementById('loginPin').value.trim();
+
+  showFieldError('loginError', '');
+  const result = await loginRequest(phone, pin);
+  if (!result.ok) {
+    if (result.error === 'locked') return showFieldError('loginError', t('onboard.login.errorLocked'));
+    return showFieldError('loginError', t('onboard.login.errorInvalid'));
+  }
+  await pullStateFromServer();
+  saveState();
+  syncSettingsUI();
+  goTo('screen-home');
+}
+
+async function handleRequestResetOtp(){
+  const name = document.getElementById('resetPinName').value.trim();
+  const phone = document.getElementById('resetPinPhone').value.trim();
+
+  showFieldError('resetPinError', '');
+  const result = await requestPinResetOtp(phone, name);
+  if (!result.ok) return showFieldError('resetPinError', t('onboard.resetPin.errorSmsFailed'));
+
+  document.getElementById('resetPinStep2').style.display = '';
+  const notice = document.getElementById('resetPinNotice');
+  notice.textContent = t('onboard.resetPin.otpSentNotice');
+  notice.style.display = 'block';
+}
+
+async function handleVerifyResetOtp(){
+  const phone = document.getElementById('resetPinPhone').value.trim();
+  const otp = document.getElementById('resetPinOtp').value.trim();
+  const newPin = document.getElementById('resetPinNewPin').value.trim();
+  const newPinConfirm = document.getElementById('resetPinNewPinConfirm').value.trim();
+
+  if (!/^\d{4}$/.test(newPin)) return showFieldError('resetPinError', t('onboard.signup.errorPinFormat'));
+  if (newPin !== newPinConfirm) return showFieldError('resetPinError', t('onboard.signup.errorPinMismatch'));
+
+  showFieldError('resetPinError', '');
+  const result = await verifyPinResetOtp(phone, otp, newPin);
+  if (!result.ok) {
+    if (result.error === 'otp_expired') return showFieldError('resetPinError', t('onboard.resetPin.errorOtpExpired'));
+    if (result.error === 'otp_locked') return showFieldError('resetPinError', t('onboard.resetPin.errorOtpLocked'));
+    return showFieldError('resetPinError', t('onboard.resetPin.errorOtpInvalid').replace('{n}', result.attemptsLeft != null ? result.attemptsLeft : 0));
+  }
+  goTo('screen-login');
 }
 
 /** 값이 다를 때만 반영해 입력 중인 커서 위치가 튀지 않게 한다 */
