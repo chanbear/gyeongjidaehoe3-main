@@ -173,6 +173,33 @@ function generateOtp() {
   return String(n).padStart(6, '0');
 }
 
+/** 알리고(Aligo) SMS 발송. 자격 증명이 없거나 호출이 실패하면 false만 반환한다(throw하지 않음) —
+ *  호출부가 "OTP를 만들었는지"와 "실제로 보내졌는지"를 구분해 처리할 수 있게 하기 위함. */
+async function sendAligoSms(env, phoneDigits, message) {
+  if (!env.ALIGO_API_KEY || !env.ALIGO_USER_ID || !env.ALIGO_SENDER) return false;
+  try {
+    const form = new URLSearchParams({
+      key: env.ALIGO_API_KEY,
+      user_id: env.ALIGO_USER_ID,
+      sender: env.ALIGO_SENDER,
+      receiver: phoneDigits,
+      msg: message,
+    });
+    const res = await fetch('https://apis.aligo.in/send/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    // 알리고는 HTTP 200이어도 result_code가 음수면 실패다.
+    return Number(data.result_code) >= 0;
+  } catch (err) {
+    console.warn('알리고 발송 실패:', err && err.message || err);
+    return false;
+  }
+}
+
 const RELAY_URL = 'https://relay-jet-six.vercel.app';
 
 async function runAnalysis(env, content, schema = ANALYSIS_SCHEMA, maxTokens = 4096) {
@@ -441,6 +468,85 @@ export default {
         return json({ userId: user.id, token, name: user.name || '' }, 200);
       } catch (err) {
         return json({ error: '로그인에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
+    if (url.pathname === '/request-pin-reset-otp' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      const { phone, name } = body || {};
+      const phoneDigits = String(phone || '').replace(/\D/g, '');
+
+      try {
+        const user = await env.ansim_doumi_db.prepare(
+          `SELECT id FROM users WHERE phone = ? AND name = ?`
+        ).bind(phoneDigits, String(name || '')).first();
+
+        // 계정 존재 여부를 노출하지 않기 위해, 일치하지 않아도 여기서 바로 성공 응답을 준비한다(아래서 return).
+        if (user) {
+          const otp = generateOtp();
+          const otpHash = await sha256Hex(otp);
+          const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+          await env.ansim_doumi_db.prepare(
+            `UPDATE users SET otp_hash = ?, otp_expires_at = ?, otp_attempts = 0 WHERE id = ?`
+          ).bind(otpHash, expiresAt, user.id).run();
+
+          const sent = await sendAligoSms(env, phoneDigits, `[온담] 인증번호는 ${otp}입니다. 5분 이내에 입력해주세요.`);
+          if (!sent) return json({ error: 'sms_failed' }, 502);
+        }
+
+        return json({ ok: true }, 200);
+      } catch (err) {
+        return json({ error: '요청 처리에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
+    if (url.pathname === '/verify-pin-reset-otp' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      const { phone, otp, newPin } = body || {};
+      const phoneDigits = String(phone || '').replace(/\D/g, '');
+      if (!/^\d{4}$/.test(String(newPin || ''))) return json({ error: 'invalid_pin' }, 400);
+
+      try {
+        const user = await env.ansim_doumi_db.prepare(
+          `SELECT id, otp_hash, otp_expires_at, otp_attempts FROM users WHERE phone = ?`
+        ).bind(phoneDigits).first();
+        if (!user || !user.otp_hash) return json({ error: 'otp_invalid', attemptsLeft: 0 }, 401);
+
+        if (new Date(user.otp_expires_at).getTime() < Date.now()) {
+          return json({ error: 'otp_expired' }, 410);
+        }
+        if ((user.otp_attempts || 0) >= 5) {
+          return json({ error: 'otp_locked' }, 429);
+        }
+
+        const otpHash = await sha256Hex(String(otp || ''));
+        if (otpHash !== user.otp_hash) {
+          const attempts = (user.otp_attempts || 0) + 1;
+          await env.ansim_doumi_db.prepare(
+            `UPDATE users SET otp_attempts = ? WHERE id = ?`
+          ).bind(attempts, user.id).run();
+          return json({ error: 'otp_invalid', attemptsLeft: 5 - attempts }, 401);
+        }
+
+        const pinSalt = randomHex(16);
+        const pinHash = await sha256Hex(pinSalt + String(newPin));
+        await env.ansim_doumi_db.prepare(
+          `UPDATE users SET pin_hash = ?, pin_salt = ?, otp_hash = NULL, otp_expires_at = NULL, otp_attempts = 0 WHERE id = ?`
+        ).bind(pinHash, pinSalt, user.id).run();
+
+        return json({ ok: true }, 200);
+      } catch (err) {
+        return json({ error: '재설정에 실패했습니다.', detail: String(err && err.message || err) }, 502);
       }
     }
 
