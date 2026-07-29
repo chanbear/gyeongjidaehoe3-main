@@ -1682,10 +1682,10 @@ async function openSmsCheck(){
 
 function showSmsPermissionNeeded(reason){
   const isUnsupported = reason === 'unsupported';
-  document.getElementById('smsPermissionTitle').textContent = isUnsupported
+  document.getElementById('smsPermissionTitle').innerHTML = isUnsupported
     ? t('sms.permission.unsupportedTitle')
     : t('sms.permission.title');
-  document.getElementById('smsPermissionDesc').textContent = isUnsupported
+  document.getElementById('smsPermissionDesc').innerHTML = isUnsupported
     ? t('sms.permission.unsupportedDesc')
     : t('sms.permission.desc');
   document.getElementById('smsPermissionSettingsBtn').style.display = isUnsupported ? 'none' : '';
