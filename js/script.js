@@ -1660,6 +1660,43 @@ function currentDocShareText(){
 let pendingSmsText = '';
 let lastSmsAnalysis = null;
 
+function getSmsReaderPlugin(){
+  return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SmsReader) || null;
+}
+
+/** 문자 확인 화면 진입점. 권한이 있으면 바로 목록을 보여주고, 없으면 요청하거나
+ *  (플러그인 자체가 없는 웹/iOS라면) 권한 필요 화면으로 보낸다. 복사/붙여넣기로는 폴백하지 않는다. */
+async function openSmsCheck(){
+  const SmsReader = getSmsReaderPlugin();
+  if (!SmsReader) { showSmsPermissionNeeded('unsupported'); return; }
+  try {
+    const status = await SmsReader.checkPermissions();
+    if (status.sms === 'granted') { await loadAndShowRecentSms(SmsReader); return; }
+    const requested = await SmsReader.requestPermissions();
+    if (requested.sms === 'granted') { await loadAndShowRecentSms(SmsReader); return; }
+    showSmsPermissionNeeded('denied');
+  } catch (err) {
+    showSmsPermissionNeeded('denied');
+  }
+}
+
+function showSmsPermissionNeeded(reason){
+  const isUnsupported = reason === 'unsupported';
+  document.getElementById('smsPermissionTitle').textContent = isUnsupported
+    ? t('sms.permission.unsupportedTitle')
+    : t('sms.permission.title');
+  document.getElementById('smsPermissionDesc').textContent = isUnsupported
+    ? t('sms.permission.unsupportedDesc')
+    : t('sms.permission.desc');
+  document.getElementById('smsPermissionSettingsBtn').style.display = isUnsupported ? 'none' : '';
+  goTo('screen-sms-permission-needed');
+}
+
+function openSmsAppSettings(){
+  const SmsReader = getSmsReaderPlugin();
+  if (SmsReader) SmsReader.openAppSettings();
+}
+
 /** 실제 문자 앱을 열면서, 돌아왔을 때 안내할 화면으로 같이 넘어가둠 */
 /** Android 네이티브 앱에서는 MessagingLauncher 플러그인으로 문자 앱(대화 목록)을 바로 열고,
  *  플러그인이 없는 환경(웹/iOS)에서는 sms: 스킴으로 대체한다(이 경우 작성 화면이 뜨는 건 플랫폼 제약) */
@@ -2139,6 +2176,13 @@ const I18N = {
     'sms.pasteVoice': '문자 내용을 길게 눌러 이 칸에 붙여넣어주세요.',
     'sms.filledTitle': '문자 내용이<br>들어왔어요.',
     'sms.filledVoice': '문자 내용이 잘 들어왔어요. 확인 버튼을 눌러 결과를 확인해보세요.',
+    'sms.permission.voice': '문자 확인을 하려면 문자 읽기 권한이 필요해요.',
+    'sms.permission.title': '문자 확인을 하려면<br>문자 읽기 권한이 필요해요.',
+    'sms.permission.desc': '확인을 누른 문자만 서버로 보내 분석해요.<br>다른 문자는 읽지 않아요.',
+    'sms.permission.unsupportedTitle': '이 기능은<br>안드로이드 앱에서만 사용할 수 있어요.',
+    'sms.permission.unsupportedDesc': '이 기기·브라우저에서는<br>문자를 직접 불러올 수 없어요.',
+    'sms.permission.retry': '다시 시도',
+    'sms.permission.openSettings': '앱 설정에서 허용하기',
     'emergency.title': '긴급 도움', 'emergency.guardian': '보호자',
     'emergency.howToAgain': '사용법 다시 보기', 'emergency.close': '닫기',
     'error.docBlurTitle': '사진이 흐려요.',
@@ -2335,6 +2379,13 @@ const I18N = {
     'sms.pasteVoice': '请长按短信内容并粘贴到这个框里。',
     'sms.filledTitle': '短信内容<br>已输入。',
     'sms.filledVoice': '短信内容已经输入好了。请点击确认按钮查看结果。',
+    'sms.permission.voice': '要确认短信，需要短信读取权限。',
+    'sms.permission.title': '要确认短信，<br>需要短信读取权限。',
+    'sms.permission.desc': '只会把您点击确认的短信发送到服务器分析。<br>不会读取其他短信。',
+    'sms.permission.unsupportedTitle': '此功能<br>仅支持安卓应用。',
+    'sms.permission.unsupportedDesc': '此设备/浏览器<br>无法直接读取短信。',
+    'sms.permission.retry': '重试',
+    'sms.permission.openSettings': '在应用设置中允许',
     'emergency.title': '紧急求助', 'emergency.guardian': '监护人',
     'emergency.howToAgain': '重新查看使用方法', 'emergency.close': '关闭',
     'error.docBlurTitle': '照片模糊了。',
@@ -2531,6 +2582,13 @@ const I18N = {
     'sms.pasteVoice': 'Hãy nhấn giữ nội dung tin nhắn rồi dán vào ô này.',
     'sms.filledTitle': 'Nội dung tin nhắn<br>đã được nhập.',
     'sms.filledVoice': 'Nội dung tin nhắn đã được nhập tốt. Hãy nhấn nút Xác nhận để xem kết quả.',
+    'sms.permission.voice': 'Để kiểm tra tin nhắn, cần quyền đọc tin nhắn.',
+    'sms.permission.title': 'Để kiểm tra tin nhắn,<br>cần quyền đọc tin nhắn.',
+    'sms.permission.desc': 'Chỉ tin nhắn bạn nhấn xác nhận mới được gửi đến máy chủ để phân tích.<br>Các tin nhắn khác sẽ không được đọc.',
+    'sms.permission.unsupportedTitle': 'Tính năng này<br>chỉ dùng được trên ứng dụng Android.',
+    'sms.permission.unsupportedDesc': 'Thiết bị/trình duyệt này<br>không thể đọc tin nhắn trực tiếp.',
+    'sms.permission.retry': 'Thử lại',
+    'sms.permission.openSettings': 'Cho phép trong Cài đặt ứng dụng',
     'emergency.title': 'Trợ giúp khẩn cấp', 'emergency.guardian': 'Người giám hộ',
     'emergency.howToAgain': 'Xem lại cách sử dụng', 'emergency.close': 'Đóng',
     'error.docBlurTitle': 'Ảnh bị mờ.',
@@ -2727,6 +2785,13 @@ const I18N = {
     'sms.pasteVoice': 'กรุณากดค้างที่เนื้อหาข้อความแล้ววางลงในช่องนี้',
     'sms.filledTitle': 'เนื้อหาข้อความ<br>เข้ามาแล้ว',
     'sms.filledVoice': 'เนื้อหาข้อความเข้ามาเรียบร้อยแล้ว กรุณากดปุ่มยืนยันเพื่อดูผลลัพธ์',
+    'sms.permission.voice': 'การตรวจสอบข้อความต้องได้รับสิทธิ์อ่านข้อความ',
+    'sms.permission.title': 'การตรวจสอบข้อความ<br>ต้องได้รับสิทธิ์อ่านข้อความ',
+    'sms.permission.desc': 'จะส่งเฉพาะข้อความที่คุณกดยืนยันไปวิเคราะห์ที่เซิร์ฟเวอร์เท่านั้น<br>จะไม่อ่านข้อความอื่น',
+    'sms.permission.unsupportedTitle': 'ฟีเจอร์นี้<br>ใช้ได้เฉพาะแอปแอนดรอยด์เท่านั้น',
+    'sms.permission.unsupportedDesc': 'อุปกรณ์/เบราว์เซอร์นี้<br>ไม่สามารถอ่านข้อความโดยตรงได้',
+    'sms.permission.retry': 'ลองอีกครั้ง',
+    'sms.permission.openSettings': 'อนุญาตในการตั้งค่าแอป',
     'emergency.title': 'ขอความช่วยเหลือฉุกเฉิน', 'emergency.guardian': 'ผู้ดูแล',
     'emergency.howToAgain': 'ดูวิธีใช้งานอีกครั้ง', 'emergency.close': 'ปิด',
     'error.docBlurTitle': 'รูปภาพเบลอ',
@@ -2923,6 +2988,13 @@ const I18N = {
     'sms.pasteVoice': 'SMS matnini bosib turib, shu maydonga joylashtiring.',
     'sms.filledTitle': 'SMS matni<br>kiritildi.',
     'sms.filledVoice': "SMS matni to'g'ri kiritildi. Natijani ko'rish uchun Tasdiqlash tugmasini bosing.",
+    'sms.permission.voice': "Xabarni tekshirish uchun xabar o'qish ruxsati kerak.",
+    'sms.permission.title': "Xabarni tekshirish uchun<br>xabar o'qish ruxsati kerak.",
+    'sms.permission.desc': "Faqat siz tasdiqlagan xabar serverga yuborilib tahlil qilinadi.<br>Boshqa xabarlar o'qilmaydi.",
+    'sms.permission.unsupportedTitle': "Bu funksiya<br>faqat Android ilovada ishlaydi.",
+    'sms.permission.unsupportedDesc': "Bu qurilma/brauzerda<br>xabarlarni to'g'ridan-to'g'ri o'qib bo'lmaydi.",
+    'sms.permission.retry': 'Qayta urinish',
+    'sms.permission.openSettings': "Ilova sozlamalarida ruxsat berish",
     'emergency.title': 'Shoshilinch yordam', 'emergency.guardian': 'Vasiy',
     'emergency.howToAgain': "Foydalanish yo'riqnomasini qayta ko'rish", 'emergency.close': 'Yopish',
     'error.docBlurTitle': 'Rasm xira chiqdi.',

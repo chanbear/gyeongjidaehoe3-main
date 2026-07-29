@@ -841,6 +841,20 @@
         <button class="primary-btn" style="margin-top:12px;" onclick="finishDocResult()" data-i18n="result.docConfirm">확인 완료</button>
       </section>
 
+      <!-- 실사용: 문자 읽기 권한이 없거나(거부/미지원) 요청 중일 때 -->
+      <section class="screen" id="screen-sms-permission-needed" data-voice="문자 확인을 하려면 문자 읽기 권한이 필요해요." data-voice-i18n="sms.permission.voice">
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span></span></div>
+        <div class="center-col">
+          <div class="icon-circle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#2454e6" stroke-width="2" width="40" height="40"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01" stroke-linecap="round" stroke-width="2.4"/></svg>
+          </div>
+          <h1 id="smsPermissionTitle" data-i18n="sms.permission.title">문자 확인을 하려면<br>문자 읽기 권한이 필요해요.</h1>
+          <p class="desc" id="smsPermissionDesc" data-i18n="sms.permission.desc">확인을 누른 문자만 서버로 보내 분석해요.<br>다른 문자는 읽지 않아요.</p>
+        </div>
+        <button class="primary-btn" id="smsPermissionRetryBtn" onclick="openSmsCheck()" data-i18n="sms.permission.retry">다시 시도</button>
+        <button class="secondary-btn" id="smsPermissionSettingsBtn" style="margin-top:12px;" onclick="openSmsAppSettings()" data-i18n="sms.permission.openSettings">앱 설정에서 허용하기</button>
+      </section>
+
       <!-- 실사용: 문자 - 휴대폰 홈 -->
       <section class="screen" id="screen-sms-phone" data-voice="문자 앱을 눌러주세요." data-voice-i18n="sms.phoneVoice">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span></span></div>
