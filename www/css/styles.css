@@ -221,6 +221,9 @@
   }
   .doc-summary h3{ font-size:calc(16px * var(--scale)); font-weight:700; color:var(--ink-soft); margin:0 0 10px; }
   .doc-summary p{ font-size:calc(17px * var(--scale)); line-height:1.65; margin:0; color:var(--ink); }
+  .doc-summary ul{ font-size:calc(17px * var(--scale)); line-height:1.65; margin:0; padding-left:20px; color:var(--ink); }
+  .doc-summary ul li{ margin-bottom:4px; }
+  .doc-summary ul li:last-child{ margin-bottom:0; }
 
   /* ---- camera / gallery mockup ---- */
   .camera-view{
@@ -345,6 +348,46 @@
     background:var(--accent); color:#fff; font-weight:700; font-size:calc(14px * var(--scale));
     cursor:pointer; white-space:nowrap;
   }
+
+  /* ---- 더보기: 프로필 요약 카드 + 메뉴 목록 (Figma 시안 반영) ---- */
+  .profile-summary-card{
+    background:#fff; border:1px solid var(--line); border-radius:var(--radius-md);
+    box-shadow:var(--shadow-card); padding:20px; margin:0 0 18px;
+    display:flex; flex-direction:column; align-items:center; gap:16px;
+  }
+  .profile-summary-name{
+    font-size:calc(15px * var(--scale)); font-weight:700; color:var(--ink-soft);
+    text-align:center;
+  }
+  .profile-summary-name strong{
+    display:block; margin-top:2px; color:var(--ink); font-size:calc(24px * var(--scale));
+  }
+  .profile-summary-stats{ display:flex; width:100%; }
+  .profile-summary-stat{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;
+    padding:0 8px; border-left:1px solid var(--line);
+  }
+  .profile-summary-stat:first-child{ border-left:none; }
+  .pss-label{ font-size:calc(13px * var(--scale)); color:var(--ink-faint); font-weight:600; }
+  .pss-value{ font-size:calc(18px * var(--scale)); color:var(--ink); font-weight:700; }
+
+  .more-menu-list{
+    background:#fff; border:1px solid var(--line); border-radius:var(--radius-md);
+    box-shadow:var(--shadow-card); overflow:hidden;
+  }
+  .more-menu-row{
+    width:100%; display:flex; align-items:center; gap:14px; min-height:64px;
+    padding:14px 16px; background:none; border:none; border-bottom:1px solid var(--line);
+    font-family:inherit; text-align:left; cursor:pointer;
+  }
+  .more-menu-row:last-child{ border-bottom:none; }
+  .more-menu-icon{
+    width:40px; height:40px; border-radius:10px; background:var(--accent-soft);
+    color:var(--accent-strong); display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .more-menu-icon svg{ width:22px; height:22px; }
+  .more-menu-label{ flex:1; font-size:calc(16px * var(--scale)); font-weight:700; color:var(--ink); }
+  .more-menu-chevron{ width:18px; height:18px; color:var(--ink-faint); flex-shrink:0; }
 
   /* ---- 오류 상태 화면 ---- */
   .error-hint{

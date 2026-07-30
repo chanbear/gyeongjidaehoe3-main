@@ -208,7 +208,7 @@ function stopVoice(){
    4. 화면 전환 + 진행바
    --------------------------------------------------------- */
 /* 안내(온보딩) 화면 동안에는 긴급 도움 FAB을 숨긴다 */
-const onboardScreens = new Set(['screen-greet', 'screen-signup', 'screen-login', 'screen-reset-pin', 'screen-profile', 'screen-guardian-profile', 'screen-tutorial-ai-notice']);
+const onboardScreens = new Set(['screen-greet', 'screen-signup', 'screen-login', 'screen-reset-pin', 'screen-onboard-access', 'screen-profile', 'screen-guardian-profile', 'screen-tutorial-ai-notice']);
 
 /* 하단 네비게이션 바를 노출할 최상위 화면. 여기 없는 화면(촬영·로딩·결과 등 흐름 중간)에서는 숨겨서
    "네비바가 보이면 출발점, 안 보이면 진행 중"이라는 규칙을 만든다. */
@@ -252,10 +252,11 @@ function goTo(id){
   }
 
   if (id === 'screen-home') { renderHomeGreet(); renderAvatarPhoto(); }
-  if (id === 'screen-more') renderHomeDashboard();
+  if (id === 'screen-more') { renderHomeDashboard(); renderMoreProfileSummary(); }
   if (id === 'screen-info') renderInfoTab();
   if (id === 'screen-stats') renderStats();
   if (id === 'screen-settings') syncSettingsUI();
+  if (id === 'screen-onboard-access') syncAccessibilityOnboardUI();
   if (id === 'screen-profile') syncProfileUI();
   if (id === 'screen-history') renderHistory();
   if (id === 'screen-welfare-nearby') loadWelfareNearby();
@@ -358,6 +359,20 @@ function homeGenderWord(gender){
   if (gender === '남성') return t('settings.male');
   if (gender === '여성') return t('settings.female');
   return '';
+}
+
+/** 더보기 화면 상단 프로필 요약 카드(이름/나이/성별/지역)를 appState.profile로 채운다.
+ *  값을 입력한 적 없으면 지어내지 않고 '-'로 둔다. */
+function renderMoreProfileSummary(){
+  const p = appState.profile;
+  const nameEl = document.getElementById('moreProfileName');
+  if (nameEl) nameEl.textContent = p.name || '-';
+  const ageEl = document.getElementById('moreProfileAge');
+  if (ageEl) ageEl.textContent = p.age ? `${p.age}${t('home.moreAgeUnit')}` : '-';
+  const genderEl = document.getElementById('moreProfileGender');
+  if (genderEl) genderEl.textContent = homeGenderWord(p.gender) || '-';
+  const regionEl = document.getElementById('moreProfileRegion');
+  if (regionEl) regionEl.textContent = p.region || '-';
 }
 
 /** 홈 인사 카드의 이름 부분("OOO님" / "70대 어르신" / 기본값). 언어를 바꾸면 이 문구도 같이 바뀌도록 t()로 가져온다. */
@@ -524,6 +539,7 @@ async function openWelfareRoute(mode){
 /** 오늘 해야 할 일: 날짜가 오늘이거나 날짜가 없는(항상 표시) 미완료/완료 항목 */
 function renderTodayTasks(){
   const el = document.getElementById('todayTaskList');
+  if (!el) return; // screen-more가 프로필 요약+메뉴 화면으로 바뀌면서 이 목록은 더 이상 없다
   const today = todayStr();
   const items = appState.schedule.filter(s => !s.date || s.date === today);
   if (items.length === 0) {
@@ -719,6 +735,7 @@ function renderWelfareMap(el, lat, lon, places){
 /** 다가오는 일정: 날짜가 지정된 항목을 오늘/내일/그 이후로 그룹핑 */
 function renderUpcomingSchedule(){
   const wrap = document.getElementById('upcomingSchedule');
+  if (!wrap) return; // screen-more가 프로필 요약+메뉴 화면으로 바뀌면서 이 섹션은 더 이상 없다
   const dated = appState.schedule.filter(s => s.date);
   if (dated.length === 0) { wrap.style.display = 'none'; return; }
 
@@ -1926,6 +1943,20 @@ function renderSmsResult(){
   applyResultHero(document.querySelector('#screen-result-text .result-card'), data);
   applyIllustration('smsIllustration', 'smsIllustrationImg', data.illustration);
 
+  // 위험(danger) 판정일 때만 "위험 문자 요소" 카드로 이유를 보여주고, result-card 안의 이유 문장은 숨긴다
+  // (같은 내용 중복 방지, Figma 시안 반영). 정상/정보 판정은 기존처럼 result-card 안에만 보여준다.
+  const isDanger = data.status === 'danger';
+  const reasonLabelEl = document.querySelector('#screen-result-text .reason-label');
+  const subtextEl = document.querySelector('#screen-result-text .result-card .subtext');
+  if (reasonLabelEl) reasonLabelEl.style.display = isDanger ? 'none' : '';
+  if (subtextEl) subtextEl.style.display = isDanger ? 'none' : '';
+  const riskCard = document.getElementById('smsRiskCard');
+  if (riskCard) {
+    riskCard.style.display = isDanger ? 'block' : 'none';
+    const riskItem = document.getElementById('smsRiskSummaryItem');
+    if (riskItem) riskItem.textContent = data.summary || '';
+  }
+
   // "지금 바로 대처하세요" — 예전에는 HTML에 고정된 두 문장이라 분석 결과가 바뀌어도 그대로였다.
   // AI가 이 문자에 맞춰 알려준 checklist로 채우고, 비어있을 때만 일반 안전 수칙으로 대신한다.
   const todoEl = document.getElementById('smsTodoList');
@@ -2078,14 +2109,25 @@ function setFontScale(value){
   appState.settings.fontScale = value;
   document.documentElement.style.setProperty('--scale', value);
   syncToggleGroup('fontScaleGroup', 'scale', value);
+  syncToggleGroup('fontScaleGroupOnboard', 'scale', value);
   saveState();
 }
 
 function setVoiceRate(value){
   appState.settings.voiceRate = value;
   syncToggleGroup('voiceRateGroup', 'rate', value);
+  syncToggleGroup('voiceRateGroupOnboard', 'rate', value);
   saveState();
   speak('이 정도 속도로 읽어드릴게요.');
+}
+
+/** 회원가입 직후 접근성 설정 화면(screen-onboard-access) 진입 시, screen-settings와 같은
+ *  세그먼트/토글 컨트롤을 현재 appState.settings 값에 맞춰 미리 표시한다. */
+function syncAccessibilityOnboardUI(){
+  syncToggleGroup('fontScaleGroupOnboard', 'scale', appState.settings.fontScale);
+  syncToggleGroup('voiceRateGroupOnboard', 'rate', appState.settings.voiceRate);
+  syncVoiceEnabledToggles();
+  syncToggleGroupString('languageGroupOnboard', appState.settings.language);
 }
 
 /** 보호자(자녀) 정보: 설정 화면과 온보딩의 "자녀 정보" 화면 두 곳에 같은 값을 반영한다(내 정보와 같은 방식). */
@@ -2120,6 +2162,8 @@ const I18N = {
     'home.smsCheckDesc': '받은 문자가 안전한지 AI가 확인해드려요',
     'home.welfareTitle': '주변 복지센터·경로당 찾기',
     'home.moreMenu': '더보기',
+    'home.moreNameLabel': '이름 :', 'home.moreAgeLabel': '나이', 'home.moreGenderLabel': '성별', 'home.moreRegionLabel': '지역', 'home.moreAgeUnit': '세',
+    'home.moreMyInfo': '내 정보', 'home.moreStats': '통계',
     'home.welfareDesc': '내 위치 주변 복지센터·경로당 위치를 알려드려요',
     'home.todayTasks': '오늘 해야 할 일',
     'home.viewAll': '전체 보기',
@@ -2167,7 +2211,7 @@ const I18N = {
     'settings.fontSize': '화면 글자 크기',
     'settings.fontNormal': '보통', 'settings.fontLarge': '크게', 'settings.fontXLarge': '아주 크게',
     'settings.voiceSpeed': '음성 읽기 속도',
-    'settings.rate1': '1배속', 'settings.rate15': '1.5배속', 'settings.rate2': '2배속',
+    'settings.rate05': '0.5배속', 'settings.rate1': '1배속', 'settings.rate15': '1.5배속', 'settings.rate2': '2배속',
     'settings.replay': '다시 읽기', 'settings.stop': '멈추기',
     'settings.voiceEnable': '음성 안내 사용하기',
     'settings.accountTitle': '계정', 'settings.logout': '로그아웃',
@@ -2226,6 +2270,8 @@ const I18N = {
     'onboard.resetPin.successNotice': '비밀번호가 재설정됐어요. 새 비밀번호로 로그인해주세요.',
     'onboard.resetPin.voice': '이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요.',
     'onboard.profile.title': '몇 가지만<br>알려주시겠어요?',
+    'onboard.access.title': '몇 가지만<br>알려주시겠어요?', 'onboard.access.desc': '원하지 않으면 건너뛰어도 됩니다.',
+    'onboard.access.voice': '화면 글자 크기와 음성 읽기 속도, 언어를 미리 맞춰두실 수 있어요. 원하지 않으면 건너뛰어도 됩니다.',
     'onboard.profile.desc': '입력하신 정보는 이 기기와 안전한 서버에만 저장되고,<br>더 알맞은 설명을 드리는 데만 사용돼요.<br>원하지 않으면 건너뛰어도 됩니다.',
     'onboard.profile.genderLabel': '성별', 'onboard.profile.ageLabel': '나이',
     'onboard.profile.agePlaceholder': '예: 73', 'onboard.profile.ageNote': '만 나이를 숫자로 적어주세요. 나이에 따라 받을 수 있는 혜택이 달라요.',
@@ -2292,6 +2338,7 @@ const I18N = {
     'result.reasonLabel': '왜 위험한가요?',
     'result.notifyGuardian': '보호자에게 문자 전달하기',
     'result.checkAnotherSms': '다른 문자 확인하기',
+    'result.riskFactorsTitle': '🔴 위험 문자 요소', 'result.report118': '118 신고(경찰청 신고)', 'result.askSms': '이 문자에 대해 물어보기',
     'result.legalNote': '본 판별은 인공지능 분석 결과이므로 법적 효력이 없습니다.<br>의심스러운 경우 반드시 관계 기관에 직접 문의하세요.',
     'result.textConfirm': '확인했습니다', 'result.practiceAgain': '연습 다시 하기',
     'sms.permission.voice': '문자 확인을 하려면 문자 읽기 권한이 필요해요.',
@@ -2328,6 +2375,8 @@ const I18N = {
     'home.smsCheckDesc': 'AI帮您确认收到的短信是否安全',
     'home.welfareTitle': '附近福利中心·老人活动中心',
     'home.moreMenu': '更多',
+    'home.moreNameLabel': '姓名 :', 'home.moreAgeLabel': '年龄', 'home.moreGenderLabel': '性别', 'home.moreRegionLabel': '地区', 'home.moreAgeUnit': '岁',
+    'home.moreMyInfo': '我的信息', 'home.moreStats': '统计',
     'home.welfareDesc': '为您查找所在位置附近的福利中心、老人活动中心',
     'home.todayTasks': '今天要做的事',
     'home.viewAll': '查看全部',
@@ -2375,7 +2424,7 @@ const I18N = {
     'settings.fontSize': '屏幕字体大小',
     'settings.fontNormal': '普通', 'settings.fontLarge': '大', 'settings.fontXLarge': '特大',
     'settings.voiceSpeed': '语音朗读速度',
-    'settings.rate1': '1倍速', 'settings.rate15': '1.5倍速', 'settings.rate2': '2倍速',
+    'settings.rate05': '0.5倍速', 'settings.rate1': '1倍速', 'settings.rate15': '1.5倍速', 'settings.rate2': '2倍速',
     'settings.replay': '重新播放', 'settings.stop': '停止',
     'settings.voiceEnable': '使用语音讲解',
     'settings.myInfo': '我的信息（用于个性化说明，可选）',
@@ -2413,6 +2462,8 @@ const I18N = {
     'onboard.greet.start': '开始',
     'onboard.greet.voice': '您好。我是AI数字助手。我会通过实际画面简单介绍使用方法。',
     'onboard.profile.title': '请告诉我<br>几项信息好吗？',
+    'onboard.access.title': '请告诉我<br>几项信息好吗？', 'onboard.access.desc': '如果不需要,可以跳过。',
+    'onboard.access.voice': '您可以先设置好屏幕字体大小、语音朗读速度和语言。如果不需要,可以跳过。',
     'onboard.profile.desc': '您输入的信息只保存在本设备和安全的服务器中，<br>仅用于提供更合适的说明。<br>不想输入的话也可以跳过。',
     'onboard.profile.genderLabel': '性别', 'onboard.profile.ageLabel': '年龄',
     'onboard.profile.agePlaceholder': '例: 73', 'onboard.profile.ageNote': '请填写周岁数字。可享受的福利会因年龄而异。',
@@ -2476,6 +2527,7 @@ const I18N = {
     'result.reasonLabel': '为什么危险？',
     'result.notifyGuardian': '转发短信给监护人',
     'result.checkAnotherSms': '确认其他短信',
+    'result.riskFactorsTitle': '🔴 危险短信要素', 'result.report118': '118举报(向警察厅举报)', 'result.askSms': '询问这条短信',
     'result.legalNote': '本判别为人工智能分析结果，不具有法律效力。<br>如有可疑之处，请务必直接向相关机构咨询。',
     'result.textConfirm': '我知道了', 'result.practiceAgain': '重新练习',
     'sms.permission.voice': '要确认短信，需要短信读取权限。',
@@ -2512,6 +2564,8 @@ const I18N = {
     'home.smsCheckDesc': 'AI sẽ xác nhận giúp bạn tin nhắn nhận được có an toàn không',
     'home.welfareTitle': 'Tìm trung tâm phúc lợi và nhà sinh hoạt người cao tuổi',
     'home.moreMenu': 'Xem thêm',
+    'home.moreNameLabel': 'Tên :', 'home.moreAgeLabel': 'Tuổi', 'home.moreGenderLabel': 'Giới tính', 'home.moreRegionLabel': 'Khu vực', 'home.moreAgeUnit': ' tuổi',
+    'home.moreMyInfo': 'Thông tin của tôi', 'home.moreStats': 'Thống kê',
     'home.welfareDesc': 'Tìm trung tâm phúc lợi, nhà sinh hoạt người cao tuổi gần vị trí của bạn',
     'home.todayTasks': 'Việc cần làm hôm nay',
     'home.viewAll': 'Xem tất cả',
@@ -2559,7 +2613,7 @@ const I18N = {
     'settings.fontSize': 'Cỡ chữ màn hình',
     'settings.fontNormal': 'Vừa', 'settings.fontLarge': 'Lớn', 'settings.fontXLarge': 'Rất lớn',
     'settings.voiceSpeed': 'Tốc độ đọc giọng nói',
-    'settings.rate1': 'Tốc độ 1x', 'settings.rate15': 'Tốc độ 1.5x', 'settings.rate2': 'Tốc độ 2x',
+    'settings.rate05': 'Tốc độ 0.5x', 'settings.rate1': 'Tốc độ 1x', 'settings.rate15': 'Tốc độ 1.5x', 'settings.rate2': 'Tốc độ 2x',
     'settings.replay': 'Nghe lại', 'settings.stop': 'Dừng lại',
     'settings.voiceEnable': 'Sử dụng hướng dẫn bằng giọng nói',
     'settings.myInfo': 'Thông tin của tôi (dùng để cá nhân hóa, không bắt buộc)',
@@ -2597,6 +2651,8 @@ const I18N = {
     'onboard.greet.start': 'Bắt đầu',
     'onboard.greet.voice': 'Xin chào. Tôi là trợ lý số AI. Tôi sẽ hướng dẫn cách sử dụng đơn giản qua màn hình thực tế.',
     'onboard.profile.title': 'Cho tôi biết<br>một vài thông tin nhé?',
+    'onboard.access.title': 'Cho tôi biết<br>một vài thông tin nhé?', 'onboard.access.desc': 'Nếu không muốn, bạn có thể bỏ qua.',
+    'onboard.access.voice': 'Bạn có thể chỉnh trước cỡ chữ màn hình, tốc độ đọc bằng giọng nói và ngôn ngữ. Nếu không muốn, bạn có thể bỏ qua.',
     'onboard.profile.desc': 'Thông tin bạn nhập chỉ được lưu trên thiết bị này và máy chủ an toàn,<br>chỉ dùng để đưa ra giải thích phù hợp hơn.<br>Nếu không muốn, bạn có thể bỏ qua.',
     'onboard.profile.genderLabel': 'Giới tính', 'onboard.profile.ageLabel': 'Tuổi',
     'onboard.profile.agePlaceholder': 'VD: 73', 'onboard.profile.ageNote': 'Hãy nhập tuổi bằng số. Quyền lợi được hưởng khác nhau tùy theo tuổi.',
@@ -2660,6 +2716,7 @@ const I18N = {
     'result.reasonLabel': 'Tại sao nguy hiểm?',
     'result.notifyGuardian': 'Chuyển tin nhắn cho người giám hộ',
     'result.checkAnotherSms': 'Kiểm tra tin nhắn khác',
+    'result.riskFactorsTitle': '🔴 Yếu tố tin nhắn nguy hiểm', 'result.report118': 'Báo cáo 118 (báo cảnh sát)', 'result.askSms': 'Hỏi về tin nhắn này',
     'result.legalNote': 'Kết quả này là phân tích của trí tuệ nhân tạo nên không có hiệu lực pháp lý.<br>Nếu thấy đáng ngờ, hãy trực tiếp hỏi cơ quan liên quan.',
     'result.textConfirm': 'Tôi đã xem', 'result.practiceAgain': 'Luyện tập lại',
     'sms.permission.voice': 'Để kiểm tra tin nhắn, cần quyền đọc tin nhắn.',
@@ -2696,6 +2753,8 @@ const I18N = {
     'home.smsCheckDesc': 'AI จะช่วยตรวจสอบว่าข้อความที่ได้รับปลอดภัยหรือไม่',
     'home.welfareTitle': 'ค้นหาศูนย์สวัสดิการ·ศูนย์ผู้สูงอายุใกล้เคียง',
     'home.moreMenu': 'ดูเพิ่มเติม',
+    'home.moreNameLabel': 'ชื่อ :', 'home.moreAgeLabel': 'อายุ', 'home.moreGenderLabel': 'เพศ', 'home.moreRegionLabel': 'พื้นที่', 'home.moreAgeUnit': ' ปี',
+    'home.moreMyInfo': 'ข้อมูลของฉัน', 'home.moreStats': 'สถิติ',
     'home.welfareDesc': 'แจ้งตำแหน่งศูนย์สวัสดิการ·ศูนย์ผู้สูงอายุใกล้ที่อยู่ของคุณ',
     'home.todayTasks': 'สิ่งที่ต้องทำวันนี้',
     'home.viewAll': 'ดูทั้งหมด',
@@ -2743,7 +2802,7 @@ const I18N = {
     'settings.fontSize': 'ขนาดตัวอักษรหน้าจอ',
     'settings.fontNormal': 'ปกติ', 'settings.fontLarge': 'ใหญ่', 'settings.fontXLarge': 'ใหญ่มาก',
     'settings.voiceSpeed': 'ความเร็วในการอ่านออกเสียง',
-    'settings.rate1': 'ความเร็ว 1 เท่า', 'settings.rate15': 'ความเร็ว 1.5 เท่า', 'settings.rate2': 'ความเร็ว 2 เท่า',
+    'settings.rate05': 'ความเร็ว 0.5 เท่า', 'settings.rate1': 'ความเร็ว 1 เท่า', 'settings.rate15': 'ความเร็ว 1.5 เท่า', 'settings.rate2': 'ความเร็ว 2 เท่า',
     'settings.replay': 'ฟังอีกครั้ง', 'settings.stop': 'หยุด',
     'settings.voiceEnable': 'ใช้คำแนะนำด้วยเสียง',
     'settings.myInfo': 'ข้อมูลของฉัน (สำหรับคำแนะนำเฉพาะบุคคล ไม่บังคับ)',
@@ -2781,6 +2840,8 @@ const I18N = {
     'onboard.greet.start': 'เริ่มต้น',
     'onboard.greet.voice': 'สวัสดีค่ะ ฉันคือผู้ช่วยดิจิทัล AI จะแนะนำวิธีใช้งานง่ายๆ ผ่านหน้าจอจริง',
     'onboard.profile.title': 'ขอข้อมูล<br>สักเล็กน้อยได้ไหมคะ?',
+    'onboard.access.title': 'ขอข้อมูล<br>สักเล็กน้อยได้ไหมคะ?', 'onboard.access.desc': 'หากไม่ต้องการ สามารถข้ามได้',
+    'onboard.access.voice': 'คุณสามารถตั้งค่าขนาดตัวอักษรหน้าจอ ความเร็วในการอ่านออกเสียง และภาษาไว้ล่วงหน้าได้ หากไม่ต้องการ สามารถข้ามได้',
     'onboard.profile.desc': 'ข้อมูลที่กรอกจะถูกเก็บไว้ในเครื่องนี้และเซิร์ฟเวอร์ที่ปลอดภัยเท่านั้น<br>ใช้เพื่อให้คำอธิบายที่เหมาะสมยิ่งขึ้นเท่านั้น<br>หากไม่ต้องการก็สามารถข้ามได้',
     'onboard.profile.genderLabel': 'เพศ', 'onboard.profile.ageLabel': 'อายุ',
     'onboard.profile.agePlaceholder': 'เช่น 73', 'onboard.profile.ageNote': 'กรุณากรอกอายุเป็นตัวเลข สิทธิประโยชน์ที่ได้รับจะต่างกันตามอายุ',
@@ -2844,6 +2905,7 @@ const I18N = {
     'result.reasonLabel': 'ทำไมถึงอันตราย?',
     'result.notifyGuardian': 'ส่งต่อข้อความให้ผู้ดูแล',
     'result.checkAnotherSms': 'ตรวจสอบข้อความอื่น',
+    'result.riskFactorsTitle': '🔴 องค์ประกอบข้อความอันตราย', 'result.report118': 'แจ้ง 118 (แจ้งตำรวจ)', 'result.askSms': 'ถามเกี่ยวกับข้อความนี้',
     'result.legalNote': 'ผลการตัดสินนี้เป็นผลวิเคราะห์จากปัญญาประดิษฐ์ จึงไม่มีผลทางกฎหมาย<br>หากสงสัย กรุณาสอบถามหน่วยงานที่เกี่ยวข้องโดยตรง',
     'result.textConfirm': 'รับทราบแล้ว', 'result.practiceAgain': 'ฝึกอีกครั้ง',
     'sms.permission.voice': 'การตรวจสอบข้อความต้องได้รับสิทธิ์อ่านข้อความ',
@@ -2880,6 +2942,8 @@ const I18N = {
     'home.smsCheckDesc': "AI olingan xabar xavfsizligini tekshirib beradi",
     'home.welfareTitle': "Yaqin atrofdagi ijtimoiy ta'minot markazlari va keksalar markazini toping",
     'home.moreMenu': "Ko'proq",
+    'home.moreNameLabel': 'Ism :', 'home.moreAgeLabel': 'Yosh', 'home.moreGenderLabel': 'Jinsi', 'home.moreRegionLabel': 'Hudud', 'home.moreAgeUnit': ' yosh',
+    'home.moreMyInfo': 'Mening ma\'lumotim', 'home.moreStats': 'Statistika',
     'home.welfareDesc': "Joylashuvingiz yaqinidagi ijtimoiy ta'minot markazlari va keksalar markazini ko'rsatamiz",
     'home.todayTasks': 'Bugungi vazifalar',
     'home.viewAll': "Barchasini ko'rish",
@@ -2927,7 +2991,7 @@ const I18N = {
     'settings.fontSize': "Ekran shrift o'lchami",
     'settings.fontNormal': "Oddiy", 'settings.fontLarge': 'Katta', 'settings.fontXLarge': "Juda katta",
     'settings.voiceSpeed': "Ovozli o'qish tezligi",
-    'settings.rate1': '1x tezlik', 'settings.rate15': '1.5x tezlik', 'settings.rate2': '2x tezlik',
+    'settings.rate05': '0.5x tezlik', 'settings.rate1': '1x tezlik', 'settings.rate15': '1.5x tezlik', 'settings.rate2': '2x tezlik',
     'settings.replay': "Qayta o'qish", 'settings.stop': "To'xtatish",
     'settings.voiceEnable': "Ovozli qo'llanmadan foydalanish",
     'settings.myInfo': "Mening ma'lumotlarim (moslashtirilgan tavsiya uchun, ixtiyoriy)",
@@ -2965,6 +3029,8 @@ const I18N = {
     'onboard.greet.start': 'Boshlash',
     'onboard.greet.voice': 'Salom. Men AI raqamli yordamchiman. Haqiqiy ekranlar orqali foydalanish usulini qisqacha tushuntiraman.',
     'onboard.profile.title': "Bir nechta<br>ma'lumot bera olasizmi?",
+    'onboard.access.title': "Bir nechta<br>ma'lumot bera olasizmi?", 'onboard.access.desc': "Agar xohlamasangiz, o'tkazib yuborishingiz mumkin.",
+    'onboard.access.voice': "Ekran shrift o'lchami, ovozli o'qish tezligi va tilni oldindan sozlab qo'yishingiz mumkin. Agar xohlamasangiz, o'tkazib yuborishingiz mumkin.",
     'onboard.profile.desc': "Kiritgan ma'lumotingiz faqat shu qurilma va xavfsiz serverda saqlanadi,<br>faqat sizga mos tushuntirish berish uchun ishlatiladi.<br>Xohlamasangiz o'tkazib yuborishingiz mumkin.",
     'onboard.profile.genderLabel': 'Jinsi', 'onboard.profile.ageLabel': 'Yosh',
     'onboard.profile.agePlaceholder': 'Masalan: 73', 'onboard.profile.ageNote': "Yoshingizni raqam bilan kiriting. Yoshga qarab olinadigan imtiyozlar farq qiladi.",
@@ -3028,6 +3094,7 @@ const I18N = {
     'result.reasonLabel': "Nega xavfli?",
     'result.notifyGuardian': 'Xabarni vasiyga yuborish',
     'result.checkAnotherSms': 'Boshqa SMS ni tekshirish',
+    'result.riskFactorsTitle': "🔴 Xavfli SMS unsurlari", 'result.report118': "118 ga xabar berish (politsiyaga)", 'result.askSms': 'Bu SMS haqida so\'rash',
     'result.legalNote': "Ushbu xulosa sun'iy intellekt tahlili bo'lgani uchun yuridik kuchga ega emas.<br>Shubha tug'ilsa, albatta tegishli idoraga o'zingiz murojaat qiling.",
     'result.textConfirm': 'Tanishib chiqdim', 'result.practiceAgain': 'Qaytadan mashq qilish',
     'sms.permission.voice': "Xabarni tekshirish uchun xabar o'qish ruxsati kerak.",
@@ -3232,6 +3299,8 @@ async function applySmsResultTranslation(data, rows){
     const subtextEl = card.querySelector('.subtext');
     if (subtextEl) subtextEl.textContent = cached.summary;
   }
+  const riskItem = document.getElementById('smsRiskSummaryItem');
+  if (riskItem) riskItem.textContent = cached.summary;
   document.getElementById('screen-result-text').setAttribute(
     'data-voice', [cached.headline, cached.summary].filter(Boolean).join('. ')
   );
@@ -3277,6 +3346,7 @@ function applyLanguage(){
     if (text) el.placeholder = text;
   });
   syncToggleGroupString('languageGroup', lang);
+  syncToggleGroupString('languageGroupOnboard', lang);
 }
 
 function setLanguage(lang){
@@ -3466,7 +3536,7 @@ async function handleSignupSubmit(){
   }
   appState.profile.name = name;
   saveState();
-  goTo('screen-profile');
+  goTo('screen-onboard-access');
 }
 
 async function handleLoginSubmit(){

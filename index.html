@@ -963,6 +963,173 @@
         </div>
       </section>
 
+      <!-- 접근성 설정(글자 크기/음성 속도/언어): 회원가입 직후, 개인정보 입력 전에 먼저 화면을 읽기 편하게
+           맞춰두도록 한다(Figma 시안 반영, 2026-07-31). 여기서 바꾼 값은 appState.settings에 그대로 저장되며
+           screen-settings의 같은 컨트롤과 실시간으로 동기화된다(setFontScale/setVoiceRate/applyLanguage가
+           두 화면의 엘리먼트를 모두 갱신하도록 확장됨). -->
+      <section
+        class="screen"
+        id="screen-onboard-access"
+        data-voice="화면 글자 크기와 음성 읽기 속도, 언어를 미리 맞춰두실 수 있어요. 원하지 않으면 건너뛰어도 됩니다."
+        data-voice-i18n="onboard.access.voice"
+      >
+        <div class="topbar">
+          <span></span
+          ><button class="replay-btn" data-replay aria-label="음성 다시 듣기">
+            <svg class="inline-icon" viewBox="0 0 24 24">
+              <use href="#ic-speaker"></use></svg
+            ><span data-i18n="onboard.replay">다시 듣기</span>
+          </button>
+        </div>
+        <h1 data-i18n="onboard.access.title">몇 가지만<br />알려주시겠어요?</h1>
+        <p class="desc" data-i18n="onboard.access.desc">
+          원하지 않으면 건너뛰어도 됩니다.
+        </p>
+
+        <div class="settings-section">
+          <h2>
+            <svg class="inline-icon" viewBox="0 0 24 24">
+              <use href="#ic-textsize"></use></svg
+            ><span data-i18n="settings.fontSize">화면 글자 크기</span>
+          </h2>
+          <div class="segmented" id="fontScaleGroupOnboard">
+            <button
+              data-scale="1.15"
+              onclick="setFontScale(1.15)"
+              data-i18n="settings.fontNormal"
+            >
+              보통
+            </button>
+            <button
+              data-scale="1.3"
+              onclick="setFontScale(1.3)"
+              data-i18n="settings.fontLarge"
+            >
+              크게
+            </button>
+            <button
+              data-scale="1.45"
+              onclick="setFontScale(1.45)"
+              data-i18n="settings.fontXLarge"
+            >
+              아주 크게
+            </button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h2>
+            <svg class="inline-icon" viewBox="0 0 24 24">
+              <use href="#ic-speaker"></use></svg
+            ><span data-i18n="settings.voiceSpeed">음성 읽기 속도</span>
+          </h2>
+          <div
+            class="segmented"
+            id="voiceRateGroupOnboard"
+            style="flex-wrap: wrap"
+          >
+            <button
+              data-rate="0.7"
+              onclick="setVoiceRate(0.7)"
+              data-i18n="settings.rate05"
+            >
+              0.5배속
+            </button>
+            <button
+              data-rate="1"
+              onclick="setVoiceRate(1)"
+              data-i18n="settings.rate1"
+            >
+              1배속
+            </button>
+            <button
+              data-rate="1.4"
+              onclick="setVoiceRate(1.4)"
+              data-i18n="settings.rate15"
+            >
+              1.5배속
+            </button>
+            <button
+              data-rate="1.8"
+              onclick="setVoiceRate(1.8)"
+              data-i18n="settings.rate2"
+            >
+              2배속
+            </button>
+          </div>
+          <div class="voice-control-row" style="margin-top: 12px">
+            <button class="secondary-btn" onclick="replayCurrentVoice()">
+              <svg class="inline-icon" viewBox="0 0 24 24">
+                <use href="#ic-speaker"></use></svg
+              ><span data-i18n="settings.replay">다시 읽기</span>
+            </button>
+            <button class="secondary-btn" onclick="stopVoice()">
+              <svg class="inline-icon" viewBox="0 0 24 24">
+                <use href="#ic-stop"></use></svg
+              ><span data-i18n="settings.stop">멈추기</span>
+            </button>
+          </div>
+          <div class="toggle-row" style="margin-top: 12px">
+            <span
+              ><svg class="inline-icon" viewBox="0 0 24 24">
+                <use href="#ic-speaker"></use></svg
+              ><span data-i18n="settings.voiceEnable"
+                >음성 안내 사용하기</span
+              ></span
+            >
+            <label class="switch">
+              <input
+                type="checkbox"
+                id="voiceEnabledToggleOnboard"
+                class="voice-enabled-toggle"
+                checked
+                onchange="toggleVoice(this)"
+              />
+              <span class="track"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h2>
+            <svg class="inline-icon" viewBox="0 0 24 24">
+              <use href="#ic-globe"></use></svg
+            ><span data-i18n="settings.language">언어 설정</span>
+          </h2>
+          <div
+            class="segmented"
+            id="languageGroupOnboard"
+            style="flex-wrap: wrap"
+          >
+            <button data-value="ko" onclick="setLanguage('ko')">한국어</button>
+            <button data-value="zh" onclick="setLanguage('zh')">中文</button>
+            <button data-value="vi" onclick="setLanguage('vi')">
+              Tiếng Việt
+            </button>
+            <button data-value="th" onclick="setLanguage('th')">
+              ภาษาไทย
+            </button>
+            <button data-value="uz" onclick="setLanguage('uz')">
+              Oʻzbekcha
+            </button>
+          </div>
+          <p class="settings-save-note" data-i18n="settings.languageNote">
+            경기도 거주 외국인주민 중 비중이 높은 4개 언어를
+            지원합니다(중국·베트남·태국·우즈베키스탄, 공공통계 기준 상위 국적).
+            화면 핵심 문구만 번역되며, AI 분석 결과는 정확성을 위해 한국어로
+            제공됩니다.
+          </p>
+        </div>
+
+        <button
+          class="primary-btn"
+          onclick="goTo('screen-profile')"
+          data-i18n="onboard.profile.next"
+        >
+          다음
+        </button>
+      </section>
+
       <!-- 이름/성별/연령대/지역 입력 (맞춤 안내용, 선택 사항) -->
       <section
         class="screen"
@@ -1338,12 +1505,13 @@
         </div>
       </section>
 
-      <!-- 더보기: 예전에 홈에 있던 오늘 할 일·통계·정보 요약·다가오는 일정을 모아둔 화면.
-           홈을 핵심 3개 기능만 남기고 단순화하면서 여기로 옮겼다. -->
+      <!-- 더보기: 프로필 요약 + 내 정보/통계/정보 메뉴로 이동하는 화면(Figma 시안 반영, 2026-07-30).
+           예전의 오늘 할 일·다가오는 납부·다가오는 일정 카드들은 폐기됐다 — 관련 render 함수
+           (renderTodayTasks/renderUpcomingSchedule)는 대상 엘리먼트가 없으면 조용히 반환한다. -->
       <section
         class="screen"
         id="screen-more"
-        data-voice="오늘 해야 할 일과 다가오는 일정, 정보를 모아뒀어요."
+        data-voice="내 정보와 통계, 알아두면 좋은 정보를 확인할 수 있어요."
       >
         <div class="topbar">
           <button
@@ -1352,89 +1520,78 @@
             data-i18n="common.home"
           >
             ← 홈으로</button
-          ><span></span>
+          ><span class="header-title"
+            ><span data-i18n="home.moreMenu">더보기</span></span
+          ><button
+            class="gear-btn"
+            onclick="goTo('screen-settings')"
+            aria-label="설정"
+          >
+            <svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg>
+          </button>
         </div>
-        <h1 class="page-title" data-i18n="home.moreMenu">더보기</h1>
 
-        <!-- 오늘 해야 할 일 대시보드 카드 -->
-        <div class="dashboard-card">
-          <div class="dashboard-card-title">
-            <svg class="inline-icon" viewBox="0 0 24 24">
-              <use href="#ic-calendar"></use></svg
-            ><span data-i18n="home.todayTasks">오늘 해야 할 일</span>
+        <!-- 프로필 요약 카드: appState.profile(이름/나이/성별/지역)을 그대로 보여준다.
+             값이 비어있으면 '-'로 표시(지어내지 않음) — renderMoreProfileSummary()가 채운다. -->
+        <div class="profile-summary-card">
+          <div class="profile-summary-name">
+            <span data-i18n="home.moreNameLabel">이름 :</span>
+            <strong id="moreProfileName">-</strong>
           </div>
-          <div class="dashboard-list" id="todayTaskList">
-            <div
-              class="empty-state"
-              style="padding: 10px 0"
-              data-i18n="home.noTasksToday"
-            >
-              오늘 할 일이 없습니다.
+          <div class="profile-summary-stats">
+            <div class="profile-summary-stat">
+              <span class="pss-label" data-i18n="home.moreAgeLabel">나이</span>
+              <span class="pss-value" id="moreProfileAge">-</span>
+            </div>
+            <div class="profile-summary-stat">
+              <span class="pss-label" data-i18n="home.moreGenderLabel"
+                >성별</span
+              >
+              <span class="pss-value" id="moreProfileGender">-</span>
+            </div>
+            <div class="profile-summary-stat">
+              <span class="pss-label" data-i18n="home.moreRegionLabel"
+                >지역</span
+              >
+              <span class="pss-value" id="moreProfileRegion">-</span>
             </div>
           </div>
-          <button
-            class="dashboard-more-btn"
-            onclick="openHistory()"
-            data-i18n="home.viewAll"
-          >
-            전체 보기
-          </button>
         </div>
 
-        <!-- 다가오는 납부 기한: 기록에 dueDate 가 있는 항목 중 아직 안 지난 것만. 없으면 카드를 숨긴다.
-             합계 금액보다 "언제까지 뭘 내야 하는지"가 실제로 도움이 되므로 여기 둔다. -->
-        <div class="dashboard-card" id="homeDueCard" style="display: none">
-          <div class="dashboard-card-title">
-            <svg class="inline-icon" viewBox="0 0 24 24">
-              <use href="#ic-calendar"></use></svg
-            ><span data-i18n="home.dueTitle">곧 내야 할 것</span>
-          </div>
-          <div class="group" id="homeDueList" style="background: #fff"></div>
-          <button
-            class="dashboard-more-btn"
-            onclick="goTo('screen-stats')"
-            data-i18n="home.dueMore"
-          >
-            전체 통계 보기
+        <div class="more-menu-list">
+          <button class="more-menu-row" onclick="goTo('screen-settings')">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-user"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="home.moreMyInfo"
+              >내 정보</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
           </button>
-        </div>
-
-        <!-- 정보 요약: 전체 목록은 정보 탭(screen-info)에 있고, 여기서는 앞의 2개만 보여준 뒤 "더보기"로 넘긴다.
-             항목 수를 늘리지 말 것(HOME_INFO_PREVIEW_COUNT). -->
-        <div class="dashboard-card" id="homeInfoCard" style="display: none">
-          <div class="dashboard-card-title" id="homeInfoTitle">
-            <svg class="inline-icon" viewBox="0 0 24 24">
-              <use href="#ic-info"></use></svg
-            ><span data-i18n="home.publicInfoDefault">알아두면 좋은 정보</span>
-          </div>
-          <div class="group" id="homeInfoList" style="background: #fff"></div>
-          <button
-            class="dashboard-more-btn"
-            onclick="goTo('screen-info')"
-            data-i18n="home.infoMore"
-          >
-            정보 더보기
+          <button class="more-menu-row" onclick="goTo('screen-stats')">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-list"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="home.moreStats"
+              >통계</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
           </button>
-        </div>
-
-        <!-- 다가오는 일정 -->
-        <div
-          class="upcoming-schedule"
-          id="upcomingSchedule"
-          style="display: none"
-        >
-          <div class="upcoming-group">
-            <h3>오늘 일정</h3>
-            <div id="scheduleTodayList"></div>
-          </div>
-          <div class="upcoming-group">
-            <h3>내일 일정</h3>
-            <div id="scheduleTomorrowList"></div>
-          </div>
-          <div class="upcoming-group">
-            <h3>다가오는 일정</h3>
-            <div id="scheduleLaterList"></div>
-          </div>
+          <button class="more-menu-row" onclick="goTo('screen-info')">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="home.publicInfoDefault"
+              >알아두면 좋은 정보</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
+          </button>
         </div>
       </section>
 
@@ -3467,6 +3624,8 @@
           >
           <span class="badge">위험 · 응답하지 마세요</span>
           <div class="headline">이 문자는 위험할 수 있어요.</div>
+          <!-- 위험(danger) 상태에서는 이 이유 문장을 아래 "위험 문자 요소" 카드로 대신 보여준다(renderSmsResult()가 토글) —
+               같은 내용을 두 번 보여주지 않기 위함. 정상/정보 상태에서는 그대로 여기에 남는다. -->
           <div class="reason-label" data-i18n="result.reasonLabel">
             왜 위험한가요?
           </div>
@@ -3486,6 +3645,16 @@
           <button type="button" onclick="retrySmsTranslation()" data-i18n="result.translateFailRetry">다시 시도</button>
         </div>
 
+        <!-- 위험 문자 요소: 위험(danger) 판정일 때만 renderSmsResult()가 보여주고 summary를 채운다(Figma 시안 반영). -->
+        <div class="doc-info-card" id="smsRiskCard" style="display: none">
+          <div class="doc-summary" style="box-shadow: none; padding: 0">
+            <h3 data-i18n="result.riskFactorsTitle">🔴 위험 문자 요소</h3>
+            <ul>
+              <li id="smsRiskSummaryItem"></li>
+            </ul>
+          </div>
+        </div>
+
         <!-- 해야 할 일을 대표하는 일러스트. renderSmsResult()가 채우고, 생성에 실패했으면 통째로 숨긴다. -->
         <div
           class="illustration-card"
@@ -3503,6 +3672,24 @@
           >
         </button>
         <p class="guardian-note" id="guardianNoteText"></p>
+        <a
+          class="secondary-btn"
+          style="margin-top: 10px"
+          href="tel:118"
+        >
+          <svg class="inline-icon" viewBox="0 0 24 24">
+            <use href="#ic-phone"></use></svg
+          ><span data-i18n="result.report118">118 신고(경찰청 신고)</span>
+        </a>
+        <button
+          class="secondary-btn"
+          style="margin-top: 10px"
+          onclick="openAsk('sms')"
+        >
+          <svg class="inline-icon" viewBox="0 0 24 24">
+            <use href="#ic-question"></use></svg
+          ><span data-i18n="result.askSms">이 문자에 대해 물어보기</span>
+        </button>
         <button
           class="secondary-btn"
           style="margin-top: 10px"
