@@ -74,11 +74,11 @@
         <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="confirmSkipTutorial()" data-i18n="onboard.skip">건너뛰기</button>
       </section>
 
-      <!-- 회원가입: 전화번호+비밀번호 계정을 만든다. 로그인해야만 앱을 쓸 수 있다. -->
-      <section class="screen" id="screen-signup" data-voice="이름과 전화번호, 4자리 숫자 비밀번호를 입력해서 가입해주세요." data-voice-i18n="onboard.signup.voice">
+      <!-- 회원가입: 전화번호만으로 계정을 만든다(2026-07-30: 비밀번호 제거). 로그인해야만 앱을 쓸 수 있다. -->
+      <section class="screen" id="screen-signup" data-voice="이름과 전화번호를 입력해서 가입해주세요." data-voice-i18n="onboard.signup.voice">
         <div class="topbar"><span></span><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
         <h1 data-i18n="onboard.signup.title">회원가입</h1>
-        <p class="desc" data-i18n="onboard.signup.desc">전화번호와 비밀번호로 계정을 만들어요.<br>이 계정으로 다른 기기에서도 내 정보를 이어서 쓸 수 있어요.</p>
+        <p class="desc" data-i18n="onboard.signup.desc">전화번호로 계정을 만들어요.<br>이 계정으로 다른 기기에서도 내 정보를 이어서 쓸 수 있어요.</p>
 
         <div class="settings-section">
           <h2 data-i18n="settings.nameLabel">이름</h2>
@@ -94,27 +94,17 @@
           </div>
         </div>
 
-        <div class="settings-section">
-          <h2 data-i18n="onboard.signup.pinLabel">비밀번호 (숫자 4자리)</h2>
-          <div class="field-row">
-            <input type="password" inputmode="numeric" maxlength="4" id="signupPin" placeholder="예: 1234" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
-          </div>
-          <div class="field-row" style="margin-top:10px;">
-            <input type="password" inputmode="numeric" maxlength="4" id="signupPinConfirm" placeholder="비밀번호 다시 입력" data-i18n-placeholder="onboard.signup.pinConfirmPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
-          </div>
-        </div>
-
         <p class="settings-save-note" id="signupError" style="display:none;color:var(--danger-strong,#c0392b);"></p>
 
         <button class="primary-btn" onclick="handleSignupSubmit()" data-i18n="onboard.signup.submit">가입하기</button>
         <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="goTo('screen-login')" data-i18n="onboard.signup.toLogin">이미 계정이 있으신가요? 로그인하기</button>
       </section>
 
-      <!-- 로그인 -->
-      <section class="screen" id="screen-login" data-voice="전화번호와 비밀번호를 입력해서 로그인해주세요." data-voice-i18n="onboard.login.voice">
+      <!-- 로그인: 전화번호만으로 로그인(2026-07-30: 비밀번호 제거) -->
+      <section class="screen" id="screen-login" data-voice="전화번호를 입력해서 로그인해주세요." data-voice-i18n="onboard.login.voice">
         <div class="topbar"><span></span><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
         <h1 data-i18n="onboard.login.title">로그인</h1>
-        <p class="desc" data-i18n="onboard.login.desc">가입할 때 쓴 전화번호와 비밀번호를 입력해주세요.</p>
+        <p class="desc" data-i18n="onboard.login.desc">가입할 때 쓴 전화번호를 입력해주세요.</p>
 
         <div class="settings-section">
           <h2 data-i18n="onboard.signup.phoneLabel">전화번호</h2>
@@ -123,55 +113,10 @@
           </div>
         </div>
 
-        <div class="settings-section">
-          <h2 data-i18n="onboard.signup.pinLabel">비밀번호 (숫자 4자리)</h2>
-          <div class="field-row">
-            <input type="password" inputmode="numeric" maxlength="4" id="loginPin" placeholder="예: 1234" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
-          </div>
-        </div>
-
         <p class="settings-save-note" id="loginError" style="display:none;color:var(--danger-strong,#c0392b);"></p>
 
         <button class="primary-btn" onclick="handleLoginSubmit()" data-i18n="onboard.login.submit">로그인</button>
         <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="goTo('screen-signup')" data-i18n="onboard.login.toSignup">계정이 없으신가요? 회원가입</button>
-        <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="goTo('screen-reset-pin')" data-i18n="onboard.login.forgotPin">비밀번호를 잊으셨나요?</button>
-      </section>
-
-      <!-- 비밀번호 재설정: 알리고 OTP 인증 -->
-      <section class="screen" id="screen-reset-pin" data-voice="이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요." data-voice-i18n="onboard.resetPin.voice">
-        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-login')" data-i18n="onboard.login.title">← 로그인</button><span></span></div>
-        <h1 data-i18n="onboard.resetPin.title">비밀번호 재설정</h1>
-        <p class="desc" data-i18n="onboard.resetPin.desc">가입할 때 쓴 이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요.</p>
-
-        <div class="settings-section" id="resetPinStep1">
-          <h2 data-i18n="settings.nameLabel">이름</h2>
-          <div class="field-row">
-            <input type="text" id="resetPinName" placeholder="예: 홍길동" data-i18n-placeholder="settings.namePlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
-          </div>
-          <h2 data-i18n="onboard.signup.phoneLabel">전화번호</h2>
-          <div class="field-row" style="margin-top:10px;">
-            <input type="tel" id="resetPinPhone" placeholder="예: 010-1234-5678" data-i18n-placeholder="settings.guardianPhonePlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
-          </div>
-          <button class="secondary-btn" style="margin-top:12px;" onclick="handleRequestResetOtp()" data-i18n="onboard.resetPin.requestOtp">인증번호 받기</button>
-        </div>
-
-        <div class="settings-section" id="resetPinStep2" style="display:none;">
-          <h2 data-i18n="onboard.resetPin.otpLabel">인증번호 (6자리)</h2>
-          <div class="field-row">
-            <input type="text" inputmode="numeric" maxlength="6" id="resetPinOtp" placeholder="예: 123456" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
-          </div>
-          <h2 style="margin-top:16px;" data-i18n="onboard.signup.pinLabel">비밀번호 (숫자 4자리)</h2>
-          <div class="field-row">
-            <input type="password" inputmode="numeric" maxlength="4" id="resetPinNewPin" placeholder="예: 1234" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
-          </div>
-          <div class="field-row" style="margin-top:10px;">
-            <input type="password" inputmode="numeric" maxlength="4" id="resetPinNewPinConfirm" placeholder="비밀번호 다시 입력" data-i18n-placeholder="onboard.signup.pinConfirmPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
-          </div>
-          <button class="primary-btn" style="margin-top:12px;" onclick="handleVerifyResetOtp()" data-i18n="onboard.resetPin.submit">재설정하기</button>
-        </div>
-
-        <p class="settings-save-note" id="resetPinError" style="display:none;color:var(--danger-strong,#c0392b);"></p>
-        <p class="settings-save-note" id="resetPinNotice" style="display:none;"></p>
       </section>
 
       <!-- 이름/성별/연령대/지역 입력 (맞춤 안내용, 선택 사항) -->
