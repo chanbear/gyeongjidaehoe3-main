@@ -23,6 +23,7 @@ const STORAGE_KEY = 'ai_helper_state_v1';
 const appState = {
   history: [],                                   // 최근 분석/대화 기록 (최대 10개)
   schedule: [],                                   // { id, text, source, date, time, done, createdAt }
+  guardianInbox: [],                              // 보호자 앱으로 전달한 분석 결과
   settings: { fontScale: 1.15, voiceRate: 1, voiceEnabled: true, language: 'ko' }, // 접근성 설정 — 어르신 대상 서비스라 기본 글자 크기 자체를 키움
   guardian: { name: '', phone: '', autoNotify: false },
   profile: { name: '', gender: '', age: '', region: '' }, // 맞춤 안내용(선택 사항): AI 분석 요청에 참고 정보로만 함께 전달됨.
@@ -46,6 +47,7 @@ function saveState(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       history: appState.history,
       schedule: appState.schedule,
+      guardianInbox: appState.guardianInbox,
       settings: appState.settings,
       guardian: appState.guardian,
       profile: appState.profile,
@@ -76,6 +78,7 @@ async function pushStateToServer(){
         state: {
           history: appState.history,
           schedule: appState.schedule,
+          guardianInbox: appState.guardianInbox,
           settings: appState.settings,
           guardian: appState.guardian,
           profile: appState.profile,
@@ -102,6 +105,7 @@ async function pullStateFromServer(){
       const s = data.state;
       if (s.history) appState.history = s.history;
       if (s.schedule) appState.schedule = s.schedule;
+      if (Array.isArray(s.guardianInbox)) appState.guardianInbox = s.guardianInbox;
       if (s.settings) appState.settings = Object.assign(appState.settings, s.settings);
       if (s.guardian) appState.guardian = Object.assign(appState.guardian, s.guardian);
       if (s.profile) appState.profile = Object.assign(appState.profile, s.profile);
@@ -126,6 +130,7 @@ function loadState(){
     const saved = JSON.parse(raw);
     if (saved.history) appState.history = saved.history;
     if (saved.schedule) appState.schedule = saved.schedule;
+    if (Array.isArray(saved.guardianInbox)) appState.guardianInbox = saved.guardianInbox;
     if (saved.settings) appState.settings = Object.assign(appState.settings, saved.settings);
     if (saved.guardian) appState.guardian = Object.assign(appState.guardian, saved.guardian);
     if (saved.profile) appState.profile = Object.assign(appState.profile, saved.profile);
@@ -784,7 +789,7 @@ const HISTORY_LIMIT = 100;
 /** 분석 결과 중 다시 열어볼 때 필요한 것만 골라 기록에 저장한다.
  *  사진 자체는 저장하지 않는다 - 기록을 최대 100건까지 쌓는데 사진(수백 KB씩)을 다 넣으면
  *  localStorage 용량을 금방 넘긴다. 다시 볼 때는 "사진은 다시 보여드릴 수 없어요"로 안내한다. */
-const ANALYSIS_STORE_KEYS = ['status', 'headline', 'summary', 'checklist', 'phone', 'website', 'mapQuery', 'category', 'amount', 'dueDate', 'issuer'];
+const ANALYSIS_STORE_KEYS = ['status', 'headline', 'summary', 'checklist', 'phone', 'website', 'mapQuery', 'category', 'amount', 'dueDate', 'issuer', 'originalText'];
 
 /** 분석 기록 추가.
  *  extra 에 AI 분석 결과 전체(status/headline/summary/checklist/...)를 넘기면
@@ -807,6 +812,9 @@ function addHistory(title, result, extra){
     if (/^\d{4}-\d{2}-\d{2}$/.test(String(extra.dueDate || ''))) entry.dueDate = extra.dueDate;
     if (extra.category) entry.category = String(extra.category);
     if (extra.issuer) entry.issuer = String(extra.issuer);
+    if (typeof extra.photoPreview === 'string' && extra.photoPreview.startsWith('data:image/')) {
+      entry.photoPreview = extra.photoPreview;
+    }
   }
   appState.history.unshift(entry);
   if (appState.history.length > HISTORY_LIMIT) appState.history.length = HISTORY_LIMIT;
@@ -829,6 +837,7 @@ function openHistoryEntry(index){
     goTo('screen-result-text');
   } else {
     lastDocAnalysis = h.analysis;
+    lastDocAnalysis.photoPreview = h.photoPreview || '';
     docAnalyses = [h.analysis];
     docAnalysisIndex = 0;
     historyPreviewMode = true; // applyDocPreview()가 사진 대신 안내 문구를 보여주도록
@@ -1245,6 +1254,7 @@ let lastDocAnalysis = null;
 let docPreviewDefaultHTML = '';
 /** openHistoryEntry()가 켜두는 1회용 플래그. applyDocPreview()가 다음 한 번 읽고 스스로 끈다. */
 let historyPreviewMode = false;
+let historyPreviewPhoto = '';
 
 /** 네이티브 앱(APK)에서만 Camera 플러그인이 존재. 웹/PWA에서는 null. */
 function getCameraPlugin(){
@@ -1461,7 +1471,8 @@ function applyDocPreview(){
   const el = document.getElementById('docPreviewContent');
   const isHistoryPreview = historyPreviewMode;
   historyPreviewMode = false; // 다음 화면 진입에 영향이 남지 않도록 한 번 읽고 바로 끈다
-  const photo = docPreviewPhotoForCurrent();
+  const photo = docPreviewPhotoForCurrent() || historyPreviewPhoto || (lastDocAnalysis && lastDocAnalysis.photoPreview);
+  historyPreviewPhoto = '';
   if (photo) {
     el.innerHTML = `<img src="${photo}" style="width:100%;display:block;">`;
   } else if (isHistoryPreview) {
@@ -1522,6 +1533,31 @@ function dataUrlToBase64(dataUrl){
    보내기 전에 줄이고 JPEG로 다시 인코딩한다. 원본 화면 미리보기에는 영향을 주지 않는다. */
 const UPLOAD_MAX_SIDE = 1600;
 const UPLOAD_JPEG_QUALITY = 0.82;
+const HISTORY_PHOTO_MAX_SIDE = 480;
+const HISTORY_PHOTO_QUALITY = 0.62;
+
+/** 분석 기록과 보호자 화면에서 볼 수 있도록 원본보다 작은 문서 미리보기를 만든다. */
+function prepareHistoryPhoto(src){
+  return new Promise((resolve) => {
+    if (!src) { resolve(null); return; }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, HISTORY_PHOTO_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', HISTORY_PHOTO_QUALITY));
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
 
 function preparePhotoForUpload(src){
   return new Promise((resolve) => {
@@ -1598,6 +1634,11 @@ async function analyzeDocument(input){
     if (!res.ok || data.error) { goToAiError('screen-doc-choice'); return; }
     // 새 형식은 documents 배열, 예전 형식은 단일 객체. 둘 다 받아들인다.
     docAnalyses = Array.isArray(data.documents) && data.documents.length ? data.documents : [data];
+    await Promise.all(docAnalyses.map(async (doc, index) => {
+      const pages = Array.isArray(doc.pages) ? doc.pages : [];
+      const photoIndex = pages.length && pages[0] >= 1 ? pages[0] - 1 : index;
+      doc.photoPreview = await prepareHistoryPhoto(dataUrls[photoIndex] || dataUrls[0]);
+    }));
     docAnalysisIndex = 0;
     lastDocAnalysis = docAnalyses[0];
     finishAllProgress();
@@ -1903,6 +1944,8 @@ async function analyzeSmsText(text){
     });
     const data = await res.json();
     if (!res.ok || data.error) { goToAiError('screen-sms-recent'); return; }
+    // 보호자 받은 연락과 분석 기록에서 AI 요약뿐 아니라 사용자가 붙여넣은 문자 원문도 확인할 수 있게 보관한다.
+    data.originalText = String(text || '').slice(0, 5000);
     lastSmsAnalysis = data;
     finishAllProgress();
     goTo('screen-result-text');
@@ -3609,6 +3652,7 @@ function buildShareText(kind){
 async function shareResult(kind){
   const text = buildShareText(kind);
   if (!text) { speak(t('result.shareNothing')); return; }
+  saveGuardianInboxMessage(kind, kind === 'doc' ? lastDocAnalysis : lastSmsAnalysis, text, '자녀에게 보내기');
 
   // navigator.share 는 HTTPS + 사용자 조작이 있어야 뜬다. 없거나 취소되면 문자 앱으로 대체.
   if (navigator.share) {
@@ -3829,6 +3873,33 @@ function renderHomeInfoCard(){
  *  본문은 보호자가 받아보는 실제 문자 내용이고 AI가 만든 한국어 문장이 섞이므로, 화면 UI와 달리 번역하지 않는다
  *  (CLAUDE.md 9번 항목: AI 분석 결과는 오역 위험 때문에 항상 한국어로 유지). */
 const GUARDIAN_STATUS_LABEL = { danger: '위험', info: '정보', normal: '정상' };
+
+/** 보호자 웹의 받은 연락함에 분석 결과를 저장한다.
+ *  같은 브라우저에서는 즉시 보이고, 추후 서버 동기화 시에도 그대로 전송할 수 있는 형태로 유지한다. */
+function saveGuardianInboxMessage(kind, analysis, body, action){
+  if (!analysis || typeof analysis !== 'object') return;
+  const message = {
+    id: genId(),
+    kind: kind === 'doc' ? 'document' : 'message',
+    action: action || '보호자에게 알리기',
+    sentAt: Date.now(),
+    read: false,
+    body: String(body || ''),
+    analysis: {}
+  };
+  for (const key of ANALYSIS_STORE_KEYS) {
+    if (analysis[key] !== undefined && analysis[key] !== null && analysis[key] !== '') {
+      message.analysis[key] = analysis[key];
+    }
+  }
+  if (typeof analysis.photoPreview === 'string' && analysis.photoPreview.startsWith('data:image/')) {
+    message.image = analysis.photoPreview;
+  }
+  appState.guardianInbox.unshift(message);
+  if (appState.guardianInbox.length > 50) appState.guardianInbox.length = 50;
+  saveState();
+}
+
 function guardianSmsBody(){
   const lines = ['[온담] 방금 확인한 문자를 전달드려요.'];
   if (lastSmsAnalysis) {
@@ -3872,6 +3943,7 @@ function openGuardianSmsApp(){
   const note = document.getElementById('guardianNoteText');
   if (note) note.textContent = t('guardian.smsOpened');
   speak(t('guardian.smsOpened'));
+  saveGuardianInboxMessage('sms', lastSmsAnalysis, guardianSmsBody(), '보호자에게 알리기');
   addHistory(t('guardian.historySmsOpen'), '⚪ 완료');
   window.location.href = buildGuardianSmsHref(appState.guardian.phone, guardianSmsBody());
 }
