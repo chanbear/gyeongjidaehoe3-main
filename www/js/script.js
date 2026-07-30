@@ -2148,6 +2148,7 @@ const I18N = {
     'settings.rate1': '1배속', 'settings.rate15': '1.5배속', 'settings.rate2': '2배속',
     'settings.replay': '다시 읽기', 'settings.stop': '멈추기',
     'settings.voiceEnable': '음성 안내 사용하기',
+    'settings.accountTitle': '계정', 'settings.logout': '로그아웃',
     'settings.myInfo': '내 정보 (맞춤 안내용, 선택 사항)',
     'settings.nameLabel': '이름', 'settings.namePlaceholder': '예: 홍길동',
     'settings.male': '남성', 'settings.female': '여성',
@@ -3120,7 +3121,25 @@ function syncSettingsUI(){
   syncGuardianUI();
   syncVoiceEnabledToggles();
   syncProfileUI();
+  const acct = document.getElementById('accountInfoLine');
+  if (acct) {
+    const auth = getAuth();
+    if (auth && auth.phone) {
+      const digits = auth.phone;
+      const masked = digits.length >= 8
+        ? digits.slice(0, digits.length - 8) + digits.slice(-8, -4) + '****' + digits.slice(-4)
+        : digits;
+      acct.textContent = (auth.name ? auth.name + ' · ' : '') + masked;
+    } else {
+      acct.textContent = '';
+    }
+  }
   applyLanguage();
+}
+
+function handleLogout(){
+  clearAuth();
+  goTo('screen-login');
 }
 
 /* ---- 내 정보(성별/연령대/지역, 선택 사항): 첫 화면 안내와 설정 화면 두 곳에 같은 값을 반영 ---- */
