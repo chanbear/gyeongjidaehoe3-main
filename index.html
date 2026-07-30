@@ -1358,18 +1358,10 @@
 
         <button
           class="primary-btn"
-          onclick="startCoachmark()"
+          onclick="goTo('screen-home')"
           data-i18n="onboard.profile.next"
         >
           다음
-        </button>
-        <button
-          class="nav-btn"
-          style="align-self: center; color: var(--ink-faint)"
-          onclick="startCoachmark()"
-          data-i18n="onboard.skip"
-        >
-          건너뛰기
         </button>
       </section>
 
@@ -1388,16 +1380,10 @@
           >
             <svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg>
           </button>
-          <div class="wordmark">
-            <svg class="mark" viewBox="0 0 24 24">
-              <use href="#ic-shield"></use></svg
-            ><span>온담</span>
-          </div>
           <span class="spacer"></span>
         </div>
 
-        <!-- 인사 카드: 왼쪽은 프로필 사진(로컬에만 저장, 서버로 보내지 않음), 오른쪽은 음성 지원 on/off.
-             설정 화면의 음성 안내 스위치(voiceEnabledToggle)와 같은 상태를 공유한다(toggleVoice/syncVoiceEnabledToggles). -->
+        <!-- 인사 카드: 프로필 사진(로컬에만 저장, 서버로 보내지 않음) + 이름. -->
         <div class="home-greet-row">
           <button
             type="button"
@@ -1415,17 +1401,7 @@
           </button>
           <div class="home-greet-text">
             <div class="home-greet-name" id="homeGreetName"></div>
-            <div class="home-greet-sub">온담 비서가 활성화되었습니다</div>
           </div>
-          <label class="switch" aria-label="음성 지원 켜고 끄기">
-            <input
-              type="checkbox"
-              class="voice-enabled-toggle"
-              checked
-              onchange="toggleVoice(this)"
-            />
-            <span class="track"></span>
-          </label>
         </div>
 
         <div class="large-title" data-i18n="home.sectionTitle">
@@ -1499,10 +1475,6 @@
           </div>
         </div>
 
-        <div class="disclaimer-banner" data-i18n="home.disclaimer">
-          본 서비스는 AI 분석 결과로 참고용이며,<br />중요 문서는 전문가와
-          상담하시기 바랍니다.
-        </div>
       </section>
 
       <!-- 더보기: 프로필 요약 + 내 정보/통계/정보 메뉴로 이동하는 화면(Figma 시안 반영, 2026-07-30).
@@ -1565,6 +1537,17 @@
             ></span>
             <span class="more-menu-label" data-i18n="home.moreMyInfo"
               >내 정보</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
+          </button>
+          <button class="more-menu-row" onclick="goTo('screen-history')">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="home.moreHistory"
+              >분석 기록</span
             >
             <svg class="more-menu-chevron" viewBox="0 0 24 24">
               <use href="#ic-chevron"></use>
@@ -4159,10 +4142,11 @@
       </section>
     </div>
 
-    <!-- 하단 네비게이션 바: 최상위 4개 탭 화면(홈·정보·기록·설정)에서만 보인다(body.has-bottom-nav).
+    <!-- 하단 네비게이션 바: 최상위 4개 탭 화면(도움·홈·정보·더보기)에서만 보인다(body.has-bottom-nav).
        .screen-stack 밖에 하나만 두고 goTo()가 표시/활성 상태를 갱신한다. -->
     <nav class="bottom-nav" id="bottomNav" aria-label="주요 화면 이동">
-      <!-- 순서: 도움 / 정보 / 홈 / 기록 / 설정 — 가장 급할 때 누르는 도움을 엄지가 닿기 쉬운 맨 왼쪽에, 홈을 가운데에 둔다.
+      <!-- 순서: 도움 / 홈 / 정보 / 더보기 — 가장 급할 때 누르는 도움을 엄지가 닿기 쉬운 맨 왼쪽에 둔다.
+         기록·설정은 더보기(screen-more) 메뉴 안으로 옮겼다(각 화면 gear-btn으로도 설정에 접근 가능).
          긴급 도움: 화면을 이동하는 탭이 아니라 바로 시트를 여는 버튼이라 data-tab을 두지 않는다(활성 표시 대상 아님).
          id는 코치마크의 emergency 단계가 참조하므로 그대로 유지한다. -->
       <button
@@ -4178,14 +4162,6 @@
       </button>
       <button
         type="button"
-        data-tab="screen-info"
-        onclick="goTo('screen-info')"
-      >
-        <svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg
-        ><span data-i18n="nav.info">정보</span>
-      </button>
-      <button
-        type="button"
         data-tab="screen-home"
         onclick="goTo('screen-home')"
       >
@@ -4194,19 +4170,19 @@
       </button>
       <button
         type="button"
-        data-tab="screen-history"
-        onclick="goTo('screen-history')"
+        data-tab="screen-info"
+        onclick="goTo('screen-info')"
       >
-        <svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg
-        ><span data-i18n="nav.history">기록</span>
+        <svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg
+        ><span data-i18n="nav.info">정보</span>
       </button>
       <button
         type="button"
-        data-tab="screen-settings"
-        onclick="goTo('screen-settings')"
+        data-tab="screen-more"
+        onclick="goTo('screen-more')"
       >
-        <svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg
-        ><span data-i18n="nav.settings">설정</span>
+        <svg viewBox="0 0 24 24"><use href="#ic-list"></use></svg
+        ><span data-i18n="home.moreMenu">더보기</span>
       </button>
     </nav>
 

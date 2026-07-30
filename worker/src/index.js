@@ -410,7 +410,9 @@ export default {
       }
       const { phone, pin, name } = body || {};
       const phoneDigits = String(phone || '').replace(/\D/g, '');
-      if (phoneDigits.length < 9) return json({ error: 'invalid_phone' }, 400);
+      // 자릿수만 세던 기존 검증은 010이 아닌 임의 숫자로도 가입이 되는 문제가 있었다 —
+      // 실제 국내 휴대폰(010) 형식만 통과시킨다(클라이언트의 isValidKoreanMobilePhone()과 동일 규칙).
+      if (!/^010\d{7,8}$/.test(phoneDigits)) return json({ error: 'invalid_phone' }, 400);
       if (String(pin || '').length < 4) return json({ error: 'invalid_pin' }, 400);
 
       try {

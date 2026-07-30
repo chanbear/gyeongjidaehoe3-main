@@ -211,8 +211,10 @@ function stopVoice(){
 const onboardScreens = new Set(['screen-greet', 'screen-signup', 'screen-login', 'screen-reset-pin', 'screen-onboard-access', 'screen-profile', 'screen-guardian-profile', 'screen-tutorial-ai-notice']);
 
 /* 하단 네비게이션 바를 노출할 최상위 화면. 여기 없는 화면(촬영·로딩·결과 등 흐름 중간)에서는 숨겨서
-   "네비바가 보이면 출발점, 안 보이면 진행 중"이라는 규칙을 만든다. */
-const TAB_SCREENS = new Set(['screen-home', 'screen-info', 'screen-history', 'screen-settings']);
+   "네비바가 보이면 출발점, 안 보이면 진행 중"이라는 규칙을 만든다.
+   기록(screen-history)·설정(screen-settings)은 더보기(screen-more) 메뉴로 옮겨갔다 — 각 화면의
+   gear-btn과 더보기의 "분석 기록" 행으로 여전히 접근 가능하다. */
+const TAB_SCREENS = new Set(['screen-home', 'screen-info', 'screen-more']);
 
 /** 네비바의 활성 탭 표시를 현재 화면에 맞춘다 */
 function syncBottomNav(id){
@@ -2010,6 +2012,12 @@ function closeEmergencySheet(){
 function guardianPhoneDigits(value){
   return String(value || '').replace(/\D/g, '');
 }
+/** 회원가입/PIN 재설정처럼 본인 명의 휴대폰 번호가 실제로 필요한 곳에서 쓰는 엄격한 검증.
+ *  010으로 시작하는 10~11자리 국내 휴대폰 번호 형식만 통과시킨다(자릿수만 세던 기존 방식은
+ *  010이 아닌 임의의 숫자로도 가입이 되는 문제가 있었다). */
+function isValidKoreanMobilePhone(value){
+  return /^010\d{7,8}$/.test(guardianPhoneDigits(value));
+}
 /** 번호를 저장한 뒤에 할 일: 'call'(전화 걸기) 또는 'sms'(보호자에게 알리는 문자 앱 열기) */
 let guardianPhonePromptMode = 'call';
 function showGuardianPhonePrompt(mode){
@@ -2163,7 +2171,7 @@ const I18N = {
     'home.welfareTitle': '주변 복지센터·경로당 찾기',
     'home.moreMenu': '더보기',
     'home.moreNameLabel': '이름 :', 'home.moreAgeLabel': '나이', 'home.moreGenderLabel': '성별', 'home.moreRegionLabel': '지역', 'home.moreAgeUnit': '세',
-    'home.moreMyInfo': '내 정보', 'home.moreStats': '통계',
+    'home.moreMyInfo': '내 정보', 'home.moreHistory': '분석 기록', 'home.moreStats': '통계',
     'home.welfareDesc': '내 위치 주변 복지센터·경로당 위치를 알려드려요',
     'home.todayTasks': '오늘 해야 할 일',
     'home.viewAll': '전체 보기',
@@ -2376,7 +2384,7 @@ const I18N = {
     'home.welfareTitle': '附近福利中心·老人活动中心',
     'home.moreMenu': '更多',
     'home.moreNameLabel': '姓名 :', 'home.moreAgeLabel': '年龄', 'home.moreGenderLabel': '性别', 'home.moreRegionLabel': '地区', 'home.moreAgeUnit': '岁',
-    'home.moreMyInfo': '我的信息', 'home.moreStats': '统计',
+    'home.moreMyInfo': '我的信息', 'home.moreHistory': '分析记录', 'home.moreStats': '统计',
     'home.welfareDesc': '为您查找所在位置附近的福利中心、老人活动中心',
     'home.todayTasks': '今天要做的事',
     'home.viewAll': '查看全部',
@@ -2565,7 +2573,7 @@ const I18N = {
     'home.welfareTitle': 'Tìm trung tâm phúc lợi và nhà sinh hoạt người cao tuổi',
     'home.moreMenu': 'Xem thêm',
     'home.moreNameLabel': 'Tên :', 'home.moreAgeLabel': 'Tuổi', 'home.moreGenderLabel': 'Giới tính', 'home.moreRegionLabel': 'Khu vực', 'home.moreAgeUnit': ' tuổi',
-    'home.moreMyInfo': 'Thông tin của tôi', 'home.moreStats': 'Thống kê',
+    'home.moreMyInfo': 'Thông tin của tôi', 'home.moreHistory': 'Lịch sử phân tích', 'home.moreStats': 'Thống kê',
     'home.welfareDesc': 'Tìm trung tâm phúc lợi, nhà sinh hoạt người cao tuổi gần vị trí của bạn',
     'home.todayTasks': 'Việc cần làm hôm nay',
     'home.viewAll': 'Xem tất cả',
@@ -2754,7 +2762,7 @@ const I18N = {
     'home.welfareTitle': 'ค้นหาศูนย์สวัสดิการ·ศูนย์ผู้สูงอายุใกล้เคียง',
     'home.moreMenu': 'ดูเพิ่มเติม',
     'home.moreNameLabel': 'ชื่อ :', 'home.moreAgeLabel': 'อายุ', 'home.moreGenderLabel': 'เพศ', 'home.moreRegionLabel': 'พื้นที่', 'home.moreAgeUnit': ' ปี',
-    'home.moreMyInfo': 'ข้อมูลของฉัน', 'home.moreStats': 'สถิติ',
+    'home.moreMyInfo': 'ข้อมูลของฉัน', 'home.moreHistory': 'ประวัติการวิเคราะห์', 'home.moreStats': 'สถิติ',
     'home.welfareDesc': 'แจ้งตำแหน่งศูนย์สวัสดิการ·ศูนย์ผู้สูงอายุใกล้ที่อยู่ของคุณ',
     'home.todayTasks': 'สิ่งที่ต้องทำวันนี้',
     'home.viewAll': 'ดูทั้งหมด',
@@ -2943,7 +2951,7 @@ const I18N = {
     'home.welfareTitle': "Yaqin atrofdagi ijtimoiy ta'minot markazlari va keksalar markazini toping",
     'home.moreMenu': "Ko'proq",
     'home.moreNameLabel': 'Ism :', 'home.moreAgeLabel': 'Yosh', 'home.moreGenderLabel': 'Jinsi', 'home.moreRegionLabel': 'Hudud', 'home.moreAgeUnit': ' yosh',
-    'home.moreMyInfo': 'Mening ma\'lumotim', 'home.moreStats': 'Statistika',
+    'home.moreMyInfo': 'Mening ma\'lumotim', 'home.moreHistory': 'Tahlil tarixi', 'home.moreStats': 'Statistika',
     'home.welfareDesc': "Joylashuvingiz yaqinidagi ijtimoiy ta'minot markazlari va keksalar markazini ko'rsatamiz",
     'home.todayTasks': 'Bugungi vazifalar',
     'home.viewAll': "Barchasini ko'rish",
@@ -3523,7 +3531,7 @@ async function handleSignupSubmit(){
   const pin = document.getElementById('signupPin').value.trim();
   const pinConfirm = document.getElementById('signupPinConfirm').value.trim();
 
-  if (guardianPhoneDigits(phone).length < 9) return showFieldError('signupError', t('onboard.signup.errorPhone'));
+  if (!isValidKoreanMobilePhone(phone)) return showFieldError('signupError', t('onboard.signup.errorPhone'));
   if (!/^\d{4}$/.test(pin)) return showFieldError('signupError', t('onboard.signup.errorPinFormat'));
   if (pin !== pinConfirm) return showFieldError('signupError', t('onboard.signup.errorPinMismatch'));
 
@@ -3558,6 +3566,8 @@ async function handleLoginSubmit(){
 async function handleRequestResetOtp(){
   const name = document.getElementById('resetPinName').value.trim();
   const phone = document.getElementById('resetPinPhone').value.trim();
+
+  if (!isValidKoreanMobilePhone(phone)) return showFieldError('resetPinError', t('onboard.signup.errorPhone'));
 
   showFieldError('resetPinError', '');
   const result = await requestPinResetOtp(phone, name);
