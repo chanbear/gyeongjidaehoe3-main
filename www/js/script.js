@@ -257,6 +257,7 @@ function goTo(id){
   if (id === 'screen-settings') syncSettingsUI();
   if (id === 'screen-onboard-access') syncAccessibilityOnboardUI();
   if (id === 'screen-profile') syncProfileUI();
+  if (id === 'screen-my-info') syncProfileUI();
   if (id === 'screen-history') renderHistory();
   if (id === 'screen-welfare-nearby') loadWelfareNearby();
   if (id === 'screen-doc-capture') startInAppCamera();
@@ -2066,7 +2067,7 @@ const I18N = {
     'onboard.profile.next': '다음',
     'onboard.profile.voice': '이름과 성별, 연령대, 사시는 지역을 알려주시면 더 맞춤형으로 도와드릴 수 있어요. 원하지 않으면 건너뛰어도 됩니다.',
     'onboard.guardian.title': '자녀(보호자) 정보도<br>알려주시겠어요?',
-    'onboard.guardian.desc': '위험한 문자를 받았을 때 자녀에게 바로 알리거나,<br>긴급 도움 버튼으로 전화를 걸 때 사용돼요.<br>원하지 않으면 건너뛰어도 됩니다.',
+    'onboard.guardian.desc': '위험한 문자를 받았을 때 자녀에게 바로 알리거나,<br>긴급 도움 버튼으로 전화를 걸 때 사용돼요.',
     'onboard.guardian.voice': '급한 일이 있을 때 알릴 자녀나 보호자의 이름과 전화번호를 알려주시겠어요? 원하지 않으면 건너뛰어도 됩니다.',
     'common.home': '← 홈으로', 'common.back': '← 뒤로',
     'docChoice.title': 'AI 분석하기',
@@ -3261,13 +3262,17 @@ function setValueIfChanged(el, value){
 function syncProfileUI(){
   syncToggleGroupString('profileGenderGroup', appState.profile.gender);
   syncToggleGroupString('profileGenderGroupSettings', appState.profile.gender);
+  syncToggleGroupString('profileGenderGroupMyInfo', appState.profile.gender);
   const ageText = appState.profile.age ? String(appState.profile.age) : '';
   setValueIfChanged(document.getElementById('profileAge'), ageText);
   setValueIfChanged(document.getElementById('profileAgeSettings'), ageText);
+  setValueIfChanged(document.getElementById('profileAgeMyInfo'), ageText);
   setValueIfChanged(document.getElementById('profileName'), appState.profile.name);
   setValueIfChanged(document.getElementById('profileNameSettings'), appState.profile.name);
+  setValueIfChanged(document.getElementById('profileNameMyInfo'), appState.profile.name);
   setValueIfChanged(document.getElementById('profileRegion'), appState.profile.region);
   setValueIfChanged(document.getElementById('profileRegionSettings'), appState.profile.region);
+  setValueIfChanged(document.getElementById('profileRegionMyInfo'), appState.profile.region);
 }
 
 /** 홈 화면 "알아두면 좋은 정보" 카드: 전국 공통으로 실제 확인된 노인 복지·안전 정보만 안내(지역별 실제 데이터는 없어 인사말만 맞춤화).

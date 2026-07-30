@@ -1311,7 +1311,7 @@
         </h1>
         <p class="desc" data-i18n="onboard.guardian.desc">
           위험한 문자를 받았을 때 자녀에게 바로 알리거나,<br />긴급 도움
-          버튼으로 전화를 걸 때 사용돼요.<br />원하지 않으면 건너뛰어도 됩니다.
+          버튼으로 전화를 걸 때 사용돼요.
         </p>
 
         <div class="settings-section">
@@ -1816,9 +1816,6 @@
             id="welfareGyeonggiList"
             style="background: #fff"
           ></div>
-          <p class="settings-save-note" style="margin-top: 8px">
-            경기데이터드림 공공데이터(경로당 현황) 기준입니다.
-          </p>
         </div>
 
         <!-- 주변 복지센터·주민센터: 경로당이 아닌 나머지 Overpass 결과 -->
@@ -1839,10 +1836,6 @@
         >
           다시 찾기
         </button>
-        <p class="settings-save-note" style="margin-top: 10px">
-          OpenStreetMap 공개 데이터를 기준으로 하며, 등록되지 않은 시설은 나오지
-          않을 수 있어요. 정확한 정보는 관할 주민센터에서 확인하세요.
-        </p>
 
         <!-- 다른 지역 경로당 직접 검색 (같은 region-info API, 자유 텍스트) -->
         <div class="section-label" style="margin-top: 22px">
@@ -1884,10 +1877,6 @@
             style="background: #fff"
           ></div>
         </div>
-        <p class="settings-save-note" style="margin-top: 10px">
-          경기데이터드림 공공데이터(경로당 현황) 기준이며, 경기도 지역만
-          안내해드려요.
-        </p>
 
         <button
           class="secondary-btn"
@@ -3947,6 +3936,130 @@
           앱 버전 1.0.0 · © 2026 온담
         </p>
       </section>
+
+      <!-- 내 정보(맞춤 안내용, 선택 사항): 더보기 드로어의 "내 정보"에서 들어온다. 설정 화면 전체가 아니라
+           이 정보만 바로 보고 고칠 수 있게 분리했다. 값은 설정/온보딩과 같은 appState.profile을 공유하며,
+           setProfileField()/syncProfileUI()가 이 화면의 필드도 함께 채우고 갱신한다. -->
+      <section
+        class="screen"
+        id="screen-my-info"
+        data-voice="이름과 성별, 나이, 사시는 지역을 확인하고 고칠 수 있어요."
+      >
+        <div class="topbar">
+          <button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">
+            ← 홈으로</button
+          ><span class="header-title"
+            ><svg viewBox="0 0 24 24"><use href="#ic-user"></use></svg
+            ><span data-i18n="home.moreMyInfo">내 정보</span></span
+          ><span></span>
+        </div>
+
+        <div class="settings-section">
+          <div class="field-row">
+            <label for="profileNameMyInfo" data-i18n="settings.nameLabel"
+              >이름</label
+            >
+            <input
+              type="text"
+              id="profileNameMyInfo"
+              placeholder="예: 홍길동"
+              data-i18n-placeholder="settings.namePlaceholder"
+              oninput="setProfileField('name', this.value)"
+              style="
+                min-height: 56px;
+                border: 2px solid var(--line);
+                border-radius: var(--radius-md);
+                padding: 0 16px;
+                font-size: 18px;
+                color: var(--ink);
+                font-family: inherit;
+              "
+            />
+          </div>
+          <div
+            class="segmented"
+            id="profileGenderGroupMyInfo"
+            style="margin: 10px 0"
+          >
+            <button
+              data-value="남성"
+              onclick="setProfileField('gender', '남성')"
+              data-i18n="settings.male"
+            >
+              남성
+            </button>
+            <button
+              data-value="여성"
+              onclick="setProfileField('gender', '여성')"
+              data-i18n="settings.female"
+            >
+              여성
+            </button>
+          </div>
+          <div class="field-row">
+            <label for="profileAgeMyInfo" data-i18n="onboard.profile.ageLabel"
+              >나이</label
+            >
+            <input
+              type="number"
+              id="profileAgeMyInfo"
+              inputmode="numeric"
+              min="1"
+              max="120"
+              placeholder="예: 73"
+              data-i18n-placeholder="onboard.profile.agePlaceholder"
+              oninput="setProfileAge(this.value)"
+              onblur="syncProfileUI()"
+              style="
+                min-height: 56px;
+                border: 2px solid var(--line);
+                border-radius: var(--radius-md);
+                padding: 0 16px;
+                font-size: 18px;
+                color: var(--ink);
+                font-family: inherit;
+              "
+            />
+          </div>
+          <div class="field-row">
+            <label for="profileRegionMyInfo" data-i18n="settings.regionLabel"
+              >사시는 지역</label
+            >
+            <input
+              type="text"
+              id="profileRegionMyInfo"
+              placeholder="예: 경기도 안산시 상록구"
+              data-i18n-placeholder="settings.regionPlaceholder"
+              oninput="setProfileField('region', this.value)"
+              style="
+                min-height: 56px;
+                border: 2px solid var(--line);
+                border-radius: var(--radius-md);
+                padding: 0 16px;
+                font-size: 18px;
+                color: var(--ink);
+                font-family: inherit;
+              "
+            />
+            <button
+              type="button"
+              class="secondary-btn"
+              style="margin-top: 10px"
+              onclick="useCurrentLocationForRegion()"
+            >
+              <svg class="inline-icon" viewBox="0 0 24 24">
+                <use href="#ic-pin"></use></svg
+              ><span data-i18n="onboard.profile.useLocation"
+                >내 현재 위치 입력하기</span
+              >
+            </button>
+          </div>
+          <p class="settings-save-note" data-i18n="settings.myInfoNote">
+            문서·문자를 분석할 때 이 정보를 함께 참고해서 더 알맞게
+            설명해드려요. 다른 곳에 공유되지 않습니다.
+          </p>
+        </div>
+      </section>
     </div>
 
     <!-- 하단 네비게이션 바: 최상위 화면(홈·정보)에서만 보인다(body.has-bottom-nav).
@@ -4047,7 +4160,7 @@
       </div>
 
       <div class="more-menu-list">
-        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-settings')">
+        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-my-info')">
           <span class="more-menu-icon"
             ><svg viewBox="0 0 24 24"><use href="#ic-user"></use></svg
           ></span>
