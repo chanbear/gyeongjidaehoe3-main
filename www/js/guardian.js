@@ -1,8 +1,6 @@
 (() => {
   'use strict';
 
-  const ELDER_STATE_KEY = 'ai_helper_state_v1';
-  const ELDER_AUTH_KEY = 'ai_helper_auth_v1';
   const GUARDIAN_SESSION_KEY = 'ondam_guardian_session_v1';
   const GUARDIAN_STATE_KEY = 'ondam_guardian_state_v1';
   const AI_WORKER_URL = 'https://ondam-ai.kke88084.workers.dev';
@@ -37,6 +35,7 @@
   let state = null;
   let isDemo = false;
   let historyFilter = 'all';
+  let refreshTimer = null;
 
   const $ = (id) => document.getElementById(id);
   const phoneDigits = (value) => String(value || '').replace(/\D/g, '');
@@ -48,56 +47,78 @@
     return date.toISOString().slice(0, 10);
   }
 
-  function readElderState() {
+  function readGuardianSession() {
     try {
-      const raw = localStorage.getItem(ELDER_STATE_KEY);
+      const raw = localStorage.getItem(GUARDIAN_SESSION_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;
     }
   }
 
-  function readElderAccount() {
-    try {
-      const raw = localStorage.getItem(ELDER_AUTH_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
+  function guardianHeaders(session) {
+    return {
+      'Content-Type': 'application/json',
+      'X-Guardian-Token': session && session.token || '',
+    };
   }
 
-  async function fetchGuardianState(phone) {
-    const response = await fetch(`${AI_WORKER_URL}/guardian-connect`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone })
+  async function fetchGuardianState(session) {
+    if (!session || !session.token) throw new Error('unauthorized');
+    const response = await fetch(`${AI_WORKER_URL}/guardian-state`, {
+      method: 'GET',
+      headers: guardianHeaders(session),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || 'connect_failed');
     return data.state;
   }
 
-  async function connect(phone) {
-    const entered = phoneDigits(phone);
-    if (entered.length < 9) return showConnectError('어르신 전화번호를 정확히 입력해주세요.');
+  async function connect({ seniorPhone, code, guardianName, guardianPhone }) {
+    const entered = phoneDigits(seniorPhone);
+    const guardianDigits = phoneDigits(guardianPhone);
+    const pairingCode = phoneDigits(code);
+    const name = String(guardianName || '').trim();
+    if (entered.length < 9) return showConnectError('어르신 전화번호를 정확히 입력해주세요.', 'seniorPhoneInput');
+    if (!/^\d{6}$/.test(pairingCode)) return showConnectError('어르신에게 받은 6자리 연결번호를 입력해주세요.', 'pairingCodeInput');
+    if (!name) return showConnectError('보호자 이름을 입력해주세요.', 'guardianNameInput');
+    if (guardianDigits.length < 9) return showConnectError('보호자 전화번호를 정확히 입력해주세요.', 'guardianPhoneInput');
     $('connectError').textContent = '어르신 계정을 확인하고 있어요.';
-    let elder;
     try {
-      elder = await fetchGuardianState(entered);
+      const response = await fetch(`${AI_WORKER_URL}/guardian-connect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: entered,
+          code: pairingCode,
+          guardianName: name,
+          guardianPhone: guardianDigits,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'connect_failed');
+      localStorage.setItem(GUARDIAN_SESSION_KEY, JSON.stringify(data.session));
+      localStorage.setItem(GUARDIAN_STATE_KEY, JSON.stringify(data.state));
+      state = data.state;
     } catch (error) {
       if (error.message === 'not_found') return showConnectError('해당 전화번호로 가입한 어르신 계정을 찾지 못했어요.');
+      if (error.message === 'pair_code_expired') return showConnectError('연결번호가 만료됐어요. 어르신 앱에서 새 번호를 만들어주세요.', 'pairingCodeInput');
+      if (error.message === 'pair_code_invalid' || error.message === 'pair_code_required') {
+        return showConnectError('연결번호가 맞지 않아요. 어르신 앱에 표시된 번호를 다시 확인해주세요.', 'pairingCodeInput');
+      }
+      if (error.message === 'pair_code_locked') {
+        return showConnectError('연결번호를 여러 번 잘못 입력해 사용할 수 없어요. 어르신 앱에서 새 번호를 만들어주세요.', 'pairingCodeInput');
+      }
       return showConnectError('서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.');
     }
-    localStorage.setItem(GUARDIAN_SESSION_KEY, JSON.stringify({ elderPhone: entered, connectedAt: Date.now() }));
-    localStorage.setItem(GUARDIAN_STATE_KEY, JSON.stringify(elder));
-    state = elder;
     isDemo = false;
     openApp();
   }
 
-  function showConnectError(message) {
+  function showConnectError(message, focusId = 'seniorPhoneInput') {
     $('connectError').textContent = message;
-    $('guardianPhoneLogin').focus();
+    const target = $(focusId);
+    if (target) target.focus();
   }
 
   function openDemo() {
@@ -140,21 +161,40 @@
     $('guardianApp').hidden = false;
     window.scrollTo({ top: 0 });
     renderAll();
+    startAutoRefresh();
   }
 
   async function refreshState(showMessage = false) {
+    let refreshed = true;
     if (!isDemo) {
-      const session = JSON.parse(localStorage.getItem(GUARDIAN_SESSION_KEY) || 'null');
+      const session = readGuardianSession();
       try {
-        const next = await fetchGuardianState(session && session.elderPhone);
+        const beforeIds = new Set(((state && state.guardianInbox) || []).map((message) => String(message.id)));
+        const next = await fetchGuardianState(session);
         if (next) {
           state = next;
           localStorage.setItem(GUARDIAN_STATE_KEY, JSON.stringify(next));
+          const newDanger = (next.guardianInbox || []).find((message) =>
+            !beforeIds.has(String(message.id)) && message.analysis && message.analysis.status === 'danger'
+          );
+          if (newDanger) notifyNewDanger(newDanger);
         }
-      } catch {}
+      } catch (error) {
+        refreshed = false;
+        if (error && error.message === 'unauthorized') disconnectLocal();
+        else if (showMessage) toast('서버 연결을 확인해주세요.');
+      }
     }
     renderAll();
-    if (showMessage) toast('최신 정보를 불러왔어요.');
+    if (showMessage && refreshed) toast('최신 정보를 불러왔어요.');
+  }
+
+  function startAutoRefresh() {
+    clearInterval(refreshTimer);
+    if (isDemo) return;
+    refreshTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') refreshState(false);
+    }, 30000);
   }
 
   function renderAll() {
@@ -168,10 +208,16 @@
     $('seniorMeta').textContent = [profile.age ? `${profile.age}세` : '', profile.region || '지역 미등록'].filter(Boolean).join(' · ');
     $('connectionText').textContent = isDemo ? '미리보기 데이터' : '부모님 앱과 연결됨';
     $('testControls').hidden = !isDemo;
-    $('lastUpdatedText').textContent = formatUpdated(new Date());
-    const elderAccount = readElderAccount();
-    const elderPhone = phoneDigits(elderAccount && elderAccount.phone);
-    $('guardianCallLink').href = elderPhone ? `tel:${elderPhone}` : 'index.html';
+    const updatedValue = state.updatedAt && String(state.updatedAt).replace(' ', 'T') + (String(state.updatedAt).includes('Z') ? '' : 'Z');
+    const updatedDate = new Date(updatedValue || Date.now());
+    $('lastUpdatedText').textContent = formatUpdated(Number.isNaN(updatedDate.getTime()) ? new Date() : updatedDate);
+    const elderPhone = phoneDigits(state.senior && state.senior.phone);
+    $('guardianCallLink').href = elderPhone ? `tel:${elderPhone}` : '#';
+    $('guardianCallLink').classList.toggle('disabled', !elderPhone);
+    const notificationEnabled = state.guardian && state.guardian.notificationEnabled !== false;
+    const notificationToggle = $('notificationToggle').querySelector('.toggle');
+    notificationToggle.classList.toggle('on', notificationEnabled);
+    $('notificationState').textContent = notificationEnabled ? '새 위험 문자가 있으면 알려드려요' : '위험 알림이 꺼져 있어요';
     renderStatus();
     renderActivities();
     renderInbox();
@@ -184,7 +230,15 @@
   }
 
   function renderStatus() {
-    const danger = (state.history || []).find((item) => getStatus(item) === 'danger');
+    const unreadDanger = (state.guardianInbox || []).find((item) =>
+      !item.read && item.analysis && item.analysis.status === 'danger'
+    );
+    const recentDanger = (state.history || []).find((item) => {
+      if (getStatus(item) !== 'danger') return false;
+      const timestamp = new Date(item.createdAt || item.ts || 0).getTime();
+      return timestamp && Date.now() - timestamp < 24 * 60 * 60 * 1000;
+    });
+    const danger = unreadDanger || recentDanger;
     const card = $('statusCard');
     card.classList.toggle('danger', Boolean(danger));
     $('statusIcon').textContent = danger ? '!' : '✓';
@@ -349,11 +403,19 @@
     });
   }
 
-  function openInboxDetail(id) {
+  async function openInboxDetail(id) {
     const message = (state.guardianInbox || []).find((item) => String(item.id) === String(id));
     if (!message) return;
     message.read = true;
-    if (!isDemo) localStorage.setItem(ELDER_STATE_KEY, JSON.stringify(state));
+    if (!isDemo) {
+      localStorage.setItem(GUARDIAN_STATE_KEY, JSON.stringify(state));
+      const session = readGuardianSession();
+      fetch(`${AI_WORKER_URL}/guardian-message-read`, {
+        method: 'POST',
+        headers: guardianHeaders(session),
+        body: JSON.stringify({ messageId: String(id) }),
+      }).catch(() => {});
+    }
     renderInbox();
     openAnalysisDetail(message.analysis, {
       type: message.kind === 'document' ? '부모님이 보낸 문서' : '부모님이 보낸 문자',
@@ -406,12 +468,49 @@
     toastTimer = setTimeout(() => element.classList.remove('show'), 1800);
   }
 
+  function notifyNewDanger(message) {
+    toast('부모님에게 새 위험 연락이 도착했어요.');
+    const enabled = state && state.guardian && state.guardian.notificationEnabled !== false;
+    if (!enabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+    const analysis = message && message.analysis || {};
+    new Notification('온담 보호자 · 위험 확인 필요', {
+      body: analysis.headline || analysis.summary || '부모님이 위험한 문자를 공유했습니다.',
+      tag: `ondam-danger-${message.id || Date.now()}`,
+    });
+  }
+
+  function disconnectLocal() {
+    clearInterval(refreshTimer);
+    localStorage.removeItem(GUARDIAN_SESSION_KEY);
+    localStorage.removeItem(GUARDIAN_STATE_KEY);
+    sessionStorage.removeItem('ondam_guardian_demo');
+    location.href = 'guardian.html';
+  }
+
   function openGuide() { $('guideModal').hidden = false; }
   function closeGuide() { $('guideModal').hidden = true; }
 
-  $('connectForm').addEventListener('submit', (event) => {
+  $('connectForm').addEventListener('submit', async (event) => {
     event.preventDefault();
-    connect($('guardianPhoneLogin').value);
+    const button = $('connectForm').querySelector('button[type="submit"]');
+    if (button.disabled) return;
+    button.disabled = true;
+    button.textContent = '연결하고 있어요…';
+    try {
+      await connect({
+        seniorPhone: $('seniorPhoneInput').value,
+        code: $('pairingCodeInput').value,
+        guardianName: $('guardianNameInput').value,
+        guardianPhone: $('guardianPhoneInput').value,
+      });
+    } finally {
+      button.disabled = false;
+      button.textContent = '부모님과 연결하기';
+    }
+  });
+  $('pairingCodeInput').addEventListener('input', (event) => {
+    const digits = phoneDigits(event.target.value).slice(0, 6);
+    event.target.value = digits.length > 3 ? `${digits.slice(0, 3)} ${digits.slice(3)}` : digits;
   });
   $('demoButton').addEventListener('click', openDemo);
   document.querySelectorAll('.guardian-nav button').forEach((button) => button.addEventListener('click', () => switchView(button.dataset.view)));
@@ -447,24 +546,47 @@
   $('confirmDetailButton').addEventListener('click', closeDetail);
   $('detailModal').addEventListener('click', (event) => { if (event.target === $('detailModal')) closeDetail(); });
   $('detailPhoto').addEventListener('click', () => $('detailPhoto').classList.toggle('zoomed'));
-  $('notificationToggle').addEventListener('click', () => {
+  $('notificationToggle').addEventListener('click', async () => {
     const toggle = $('notificationToggle').querySelector('.toggle');
-    toggle.classList.toggle('on');
-    $('notificationState').textContent = toggle.classList.contains('on') ? '새 위험 문자가 있으면 알려드려요' : '위험 알림이 꺼져 있어요';
-    toast(toggle.classList.contains('on') ? '위험 알림을 켰어요.' : '위험 알림을 껐어요.');
+    const nextEnabled = !toggle.classList.contains('on');
+    if (nextEnabled && 'Notification' in window && Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      if (permission === 'denied') toast('기기 알림 권한은 꺼져 있지만 앱 안의 새 연락 표시는 유지됩니다.');
+    }
+    toggle.classList.toggle('on', nextEnabled);
+    if (state.guardian) state.guardian.notificationEnabled = nextEnabled;
+    $('notificationState').textContent = nextEnabled ? '새 위험 문자가 있으면 알려드려요' : '위험 알림이 꺼져 있어요';
+    if (!isDemo) {
+      const session = readGuardianSession();
+      try {
+        const response = await fetch(`${AI_WORKER_URL}/guardian-settings`, {
+          method: 'POST',
+          headers: guardianHeaders(session),
+          body: JSON.stringify({ notificationEnabled: nextEnabled }),
+        });
+        if (!response.ok) throw new Error('settings_failed');
+      } catch {
+        toggle.classList.toggle('on', !nextEnabled);
+        if (state.guardian) state.guardian.notificationEnabled = !nextEnabled;
+        return toast('알림 설정을 저장하지 못했어요.');
+      }
+    }
+    localStorage.setItem(GUARDIAN_STATE_KEY, JSON.stringify(state));
+    toast(nextEnabled ? '위험 알림을 켰어요.' : '위험 알림을 껐어요.');
   });
-  $('disconnectButton').addEventListener('click', () => {
-    localStorage.removeItem(GUARDIAN_SESSION_KEY);
-    localStorage.removeItem(GUARDIAN_STATE_KEY);
-    sessionStorage.removeItem('ondam_guardian_demo');
-    location.href = 'guardian.html';
+  $('disconnectButton').addEventListener('click', async () => {
+    if (!isDemo) {
+      const session = readGuardianSession();
+      await fetch(`${AI_WORKER_URL}/guardian-disconnect`, {
+        method: 'POST',
+        headers: guardianHeaders(session),
+        body: '{}',
+      }).catch(() => {});
+    }
+    disconnectLocal();
   });
-  window.addEventListener('storage', (event) => {
-    if (event.key !== ELDER_STATE_KEY || isDemo) return;
-    const beforeUnread = (state && state.guardianInbox || []).filter((message) => !message.read).length;
-    refreshState(false);
-    const afterUnread = (state.guardianInbox || []).filter((message) => !message.read).length;
-    if (afterUnread > beforeUnread) toast('부모님에게 새 연락이 도착했어요.');
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state && !isDemo) refreshState(false);
   });
 
   try {
@@ -473,13 +595,14 @@
       openDemo();
       return;
     }
-    const session = JSON.parse(localStorage.getItem(GUARDIAN_SESSION_KEY) || 'null');
+    const session = readGuardianSession();
     const elder = JSON.parse(localStorage.getItem(GUARDIAN_STATE_KEY) || 'null');
-    const savedElderPhone = phoneDigits(session && (session.elderPhone || session.phone));
-    if (session && elder && savedElderPhone) {
+    if (session && session.token && elder) {
       state = elder;
       openApp();
       refreshState(false);
+    } else if (session) {
+      disconnectLocal();
     }
   } catch {}
 })();

@@ -348,6 +348,11 @@
   background:var(--accent-soft); border-radius:var(--radius-md); padding:18px; margin-bottom:18px;
 }
 .dashboard-card-title{ font-size:calc(17px * var(--scale)); font-weight:700; color:var(--accent-strong); margin-bottom:10px; }
+/* 정보 탭의 "알아두면 좋은 정보" 카드: .screen의 좌우 padding(20px)을 상쇄해 화면 폭을 꽉 채우고, 글자도 더 크게 */
+.dashboard-card.full-bleed{ margin-left:-20px; margin-right:-20px; border-radius:0; }
+#screen-info .dashboard-card-title{ font-size:calc(19px * var(--scale)); }
+#screen-info .row .text .t1{ font-size:calc(18px * var(--scale)); }
+#screen-info .row .text .t2{ font-size:calc(14.5px * var(--scale)); }
 .dashboard-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
 .dashboard-item{
   display:flex; align-items:center; gap:10px; background:#fff; border-radius:12px; padding:10px 12px;
@@ -800,6 +805,31 @@ body.has-bottom-nav .screen.active{
 /* 튜토리얼 건너뛰기 확인 시트는 코치마크 진행 중에도 열리므로 오버레이(500)보다 위에 있어야 한다 */
 #skipConfirmBackdrop{ z-index:600; }
 #skipConfirmSheet{ z-index:610; }
+
+.guardian-link-code{
+  margin-top:14px; padding:18px; border:2px solid var(--accent);
+  border-radius:var(--radius-md); background:var(--accent-soft);
+  text-align:center;
+}
+.guardian-link-code span,
+.guardian-link-code small{ display:block; color:var(--ink-soft); }
+.guardian-link-code strong{
+  display:block; margin:8px 0; color:var(--accent-strong);
+  font-size:calc(34px * var(--scale)); letter-spacing:.14em;
+}
+.guardian-link-list{ display:grid; gap:8px; margin-top:12px; }
+.guardian-link-person{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:12px 14px; border:1px solid var(--line); border-radius:var(--radius-md);
+  background:#fff;
+}
+.guardian-link-person span,
+.guardian-link-person small{ display:block; }
+.guardian-link-person small{ margin-top:3px; color:var(--ink-faint); }
+.guardian-link-person button{
+  border:1px solid var(--danger); border-radius:999px; background:#fff;
+  color:var(--danger-strong); min-height:40px; padding:0 14px; font-weight:700;
+}
 .coach-hole{
   position:fixed; border-radius:16px; pointer-events:none;
   box-shadow:0 0 0 9999px rgba(10,14,20,.6);
