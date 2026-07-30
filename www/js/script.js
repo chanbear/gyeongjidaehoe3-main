@@ -1223,6 +1223,7 @@ const AI_WORKER_URL = 'https://ondam-ai.kke88084.workers.dev';
 
 let lastCapturedPhoto = null;
 let lastDocAnalysis = null;
+let lastDocChecklistRows = [];
 let docPreviewDefaultHTML = '';
 /** openHistoryEntry()가 켜두는 1회용 플래그. applyDocPreview()가 다음 한 번 읽고 스스로 끈다. */
 let historyPreviewMode = false;
@@ -1763,6 +1764,8 @@ function renderDocResult(){
   // 표시 언어가 한국어가 아니면 위에서 그린 한국어 결과 위에 번역을 덧입힌다(비동기, 실패해도 한국어 그대로 유지).
   // analyzeDocument()가 goTo('screen-result-doc')를 부를 때 이미 appState.settings.language가 반영돼 있으므로
   // 언어를 바꾼 뒤 분석한 경우든, 이미 다른 언어에서 분석한 경우든 여기서 자연스럽게 처리된다.
+  // retryDocTranslation()이 체크박스 상태를 잃지 않고 재시도할 수 있도록 rows 참조를 기억해둔다.
+  lastDocChecklistRows = checklistRows;
   applyDocResultTranslation(data, checklistRows);
 }
 
@@ -1777,6 +1780,7 @@ function currentDocShareText(){
    --------------------------------------------------------- */
 let pendingSmsText = '';
 let lastSmsAnalysis = null;
+let lastSmsChecklistRows = [];
 
 function getSmsReaderPlugin(){
   return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SmsReader) || null;
@@ -1943,6 +1947,7 @@ function renderSmsResult(){
 
   // 표시 언어가 한국어가 아니면 위 한국어 결과 위에 번역을 덧입힌다(비동기, 실패해도 한국어 그대로 유지).
   // SMS_DEFAULT_TIPS로 채워진 경우에도 화면에 실제로 보이는 문구를 그대로 번역 대상에 넣는다.
+  lastSmsChecklistRows = todoRows;
   applySmsResultTranslation(data, todoRows);
 }
 
@@ -2275,6 +2280,7 @@ const I18N = {
     'loadingDoc.headline': 'AI가 문서를 읽고,<br />그림도 함께 준비하고 있습니다',
     'loadingText.headline': 'AI가 문자를 확인하고,<br />그림도 함께 준비하고 있습니다',
     'result.docTitle': '분석 결과', 'result.readAloud': '큰 소리로 읽어주기',
+    'result.translateFailNotice': '번역을 실패했습니다. 다시 시도하시겠습니까?', 'result.translateFailRetry': '다시 시도',
     'result.docKind': '문서 종류', 'result.viewPhoto': '사진 보기',
     'result.amountLabel': '납부할 금액', 'result.dueLabel': '납부 기한',
     'result.aiSummaryTitle': '⚪ AI가 정리한 내용',
@@ -2458,6 +2464,7 @@ const I18N = {
     'loadingDoc.headline': 'AI正在阅读文件，<br />同时也在准备插图',
     'loadingText.headline': 'AI正在确认短信，<br />同时也在准备插图',
     'result.docTitle': '分析结果', 'result.readAloud': '大声朗读',
+    'result.translateFailNotice': '翻译失败了。要重试吗?', 'result.translateFailRetry': '重试',
     'result.docKind': '文件种类', 'result.viewPhoto': '查看照片',
     'result.amountLabel': '应缴金额', 'result.dueLabel': '缴纳期限',
     'result.aiSummaryTitle': '⚪ AI整理的内容',
@@ -2641,6 +2648,7 @@ const I18N = {
     'loadingDoc.headline': 'AI đang đọc tài liệu,<br />đồng thời chuẩn bị hình minh họa',
     'loadingText.headline': 'AI đang kiểm tra tin nhắn,<br />đồng thời chuẩn bị hình minh họa',
     'result.docTitle': 'Kết quả phân tích', 'result.readAloud': 'Đọc to lên',
+    'result.translateFailNotice': 'Dịch thất bại. Bạn có muốn thử lại không?', 'result.translateFailRetry': 'Thử lại',
     'result.docKind': 'Loại tài liệu', 'result.viewPhoto': 'Xem ảnh',
     'result.amountLabel': 'Số tiền phải nộp', 'result.dueLabel': 'Hạn nộp',
     'result.aiSummaryTitle': '⚪ Nội dung AI đã tóm tắt',
@@ -2824,6 +2832,7 @@ const I18N = {
     'loadingDoc.headline': 'AI กำลังอ่านเอกสาร<br />และเตรียมภาพประกอบไปพร้อมกัน',
     'loadingText.headline': 'AI กำลังตรวจสอบข้อความ<br />และเตรียมภาพประกอบไปพร้อมกัน',
     'result.docTitle': 'ผลการวิเคราะห์', 'result.readAloud': 'อ่านออกเสียงดัง',
+    'result.translateFailNotice': 'แปลไม่สำเร็จ ต้องการลองใหม่ไหม?', 'result.translateFailRetry': 'ลองอีกครั้ง',
     'result.docKind': 'ประเภทเอกสาร', 'result.viewPhoto': 'ดูรูปภาพ',
     'result.amountLabel': 'จำนวนเงินที่ต้องชำระ', 'result.dueLabel': 'กำหนดชำระ',
     'result.aiSummaryTitle': '⚪ เนื้อหาที่ AI สรุปให้',
@@ -3007,6 +3016,7 @@ const I18N = {
     'loadingDoc.headline': "AI hujjatni o'qimoqda,<br />shu bilan birga rasm ham tayyorlanmoqda",
     'loadingText.headline': "AI xabarni tekshirmoqda,<br />shu bilan birga rasm ham tayyorlanmoqda",
     'result.docTitle': 'Tahlil natijasi', 'result.readAloud': "Baland ovozda o'qib berish",
+    'result.translateFailNotice': "Tarjima muvaffaqiyatsiz tugadi. Qayta urinib ko'rasizmi?", 'result.translateFailRetry': 'Qayta urinish',
     'result.docKind': 'Hujjat turi', 'result.viewPhoto': "Rasmni ko'rish",
     'result.amountLabel': "To'lanadigan summa", 'result.dueLabel': "To'lov muddati",
     'result.aiSummaryTitle': '⚪ AI jamlagan mazmun',
@@ -3125,6 +3135,7 @@ async function translateAnalysisTexts(lang, texts){
  *  data._translated[lang]에 캐시해 같은 결과를 같은 언어로 다시 보여줄 때(뒤로가기 등) 재호출하지 않는다. */
 async function applyDocResultTranslation(data, rows){
   const lang = appState.settings.language;
+  setTranslateFailNoticeVisible('docTranslateFailNotice', false);
   if (!lang || lang === 'ko') return;
 
   data._translated = data._translated || {};
@@ -3132,7 +3143,13 @@ async function applyDocResultTranslation(data, rows){
   if (!cached) {
     const texts = [data.headline || '', data.summary || '', ...(data.checklist || [])];
     const translations = await translateAnalysisTexts(lang, texts);
-    if (!translations) return; // 실패: 한국어 원문을 그대로 유지
+    if (!translations) {
+      // 실패: 한국어 원문을 그대로 유지하되, 아직 같은 결과/언어/화면을 보고 있으면 재시도 안내를 띄운다
+      if (lastDocAnalysis === data && appState.settings.language === lang) {
+        setTranslateFailNoticeVisible('docTranslateFailNotice', true);
+      }
+      return;
+    }
     const items = data.checklist || [];
     cached = {
       headline: translations[0] || data.headline || '',
@@ -3178,6 +3195,7 @@ async function applyDocResultTranslation(data, rows){
  *  (AI checklist든 SMS_DEFAULT_TIPS 폴백이든, 실제로 화면에 그려진 문구를 그대로 번역 대상으로 삼는다). */
 async function applySmsResultTranslation(data, rows){
   const lang = appState.settings.language;
+  setTranslateFailNoticeVisible('smsTranslateFailNotice', false);
   if (!lang || lang === 'ko') return;
 
   data._translated = data._translated || {};
@@ -3186,7 +3204,13 @@ async function applySmsResultTranslation(data, rows){
     const items = rows.map(r => r.item);
     const texts = [data.headline || '', data.summary || '', ...items];
     const translations = await translateAnalysisTexts(lang, texts);
-    if (!translations) return; // 실패: 한국어 원문을 그대로 유지
+    if (!translations) {
+      // 실패: 한국어 원문을 그대로 유지하되, 아직 같은 결과/언어/화면을 보고 있으면 재시도 안내를 띄운다
+      if (lastSmsAnalysis === data && appState.settings.language === lang) {
+        setTranslateFailNoticeVisible('smsTranslateFailNotice', true);
+      }
+      return;
+    }
     cached = {
       headline: translations[0] || data.headline || '',
       summary: translations[1] || data.summary || '',
@@ -3216,6 +3240,21 @@ async function applySmsResultTranslation(data, rows){
     const translated = cached.items[i];
     if (translated != null && row.label) row.label.textContent = translated;
   });
+}
+
+function setTranslateFailNoticeVisible(id, visible){
+  const el = document.getElementById(id);
+  if (el) el.style.display = visible ? 'flex' : 'none';
+}
+
+/** "다시 시도" 버튼 — 캐시된 실패는 없으므로(실패는 캐시하지 않음) 그냥 다시 호출하면 재시도된다 */
+function retryDocTranslation(){
+  if (!lastDocAnalysis) return;
+  applyDocResultTranslation(lastDocAnalysis, lastDocChecklistRows);
+}
+function retrySmsTranslation(){
+  if (!lastSmsAnalysis) return;
+  applySmsResultTranslation(lastSmsAnalysis, lastSmsChecklistRows);
 }
 
 function t(key){

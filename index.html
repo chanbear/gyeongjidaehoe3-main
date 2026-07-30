@@ -3082,6 +3082,12 @@
           ><span data-i18n="result.readAloud">큰 소리로 읽어주기</span>
         </button>
 
+        <!-- 번역(Claude API 실시간 번역) 실패 시에만 applyDocResultTranslation()이 보여준다. 원문(한국어)은 그대로 위에 남아있다. -->
+        <div class="translate-fail-notice" id="docTranslateFailNotice" style="display: none">
+          <span data-i18n="result.translateFailNotice">번역을 실패했습니다. 다시 시도하시겠습니까?</span>
+          <button type="button" onclick="retryDocTranslation()" data-i18n="result.translateFailRetry">다시 시도</button>
+        </div>
+
         <!-- 해야 할 일을 대표하는 일러스트. renderDocResult()가 채우고, 생성에 실패했으면(키 없음 등) 통째로 숨긴다 —
              지도 렌더링 실패 시 숨기는 것과 같은 원칙(없는 그림을 지어내 보여주지 않음). -->
         <div
@@ -3473,6 +3479,12 @@
           <svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg
           ><span data-i18n="result.listenVoice">음성으로 듣기</span>
         </button>
+
+        <!-- 번역(Claude API 실시간 번역) 실패 시에만 applySmsResultTranslation()이 보여준다. 원문(한국어)은 그대로 위에 남아있다. -->
+        <div class="translate-fail-notice" id="smsTranslateFailNotice" style="display: none">
+          <span data-i18n="result.translateFailNotice">번역을 실패했습니다. 다시 시도하시겠습니까?</span>
+          <button type="button" onclick="retrySmsTranslation()" data-i18n="result.translateFailRetry">다시 시도</button>
+        </div>
 
         <!-- 해야 할 일을 대표하는 일러스트. renderSmsResult()가 채우고, 생성에 실패했으면 통째로 숨긴다. -->
         <div
