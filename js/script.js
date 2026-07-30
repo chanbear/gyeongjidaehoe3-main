@@ -153,16 +153,22 @@ function toggleVoice(el){
 }
 
 function syncVoiceEnabledToggles(){
-  document.querySelectorAll('.voice-enabled-toggle').forEach(t => { t.checked = appState.settings.voiceEnabled; });
+  document.querySelectorAll('.voice-enabled-toggle').forEach(el => { el.checked = appState.settings.voiceEnabled; });
+  const sub = document.querySelector('.home-greet-sub');
+  if (sub) sub.textContent = t(appState.settings.voiceEnabled ? 'home.assistantActive' : 'home.assistantInactive');
+  const rateSection = document.getElementById('voiceRateSection');
+  if (rateSection) rateSection.style.display = appState.settings.voiceEnabled ? '' : 'none';
 }
 
 /** 번역된 문구(온보딩/튜토리얼)를 읽어줄 때만 언어별 TTS lang을 쓰고, 그 외(AI 분석 결과 등 항상 한국어인 문구)는 기본값(한국어)을 유지한다 */
 const TTS_LANG_MAP = { ko: 'ko-KR', zh: 'zh-CN', vi: 'vi-VN', th: 'th-TH', uz: 'uz-UZ' };
 function currentTtsLang(){ return TTS_LANG_MAP[appState.settings.language] || 'ko-KR'; }
 
-function speak(text, lang){
+/** force=true면 "음성 안내 사용하기"가 꺼져 있어도 읽는다 - "다시 듣기" 버튼처럼 사용자가 직접 눌러 요청한 경우에만 쓴다.
+ *  화면 진입 시 자동으로 읽어주는 것(force 없음)은 토글을 그대로 따른다. */
+function speak(text, lang, force){
   const liveRegion = document.getElementById('liveRegion');
-  if (!appState.settings.voiceEnabled || !window.speechSynthesis || !text) {
+  if ((!force && !appState.settings.voiceEnabled) || !window.speechSynthesis || !text) {
     if (text && liveRegion) liveRegion.textContent = text;
     return;
   }
@@ -190,7 +196,7 @@ function screenVoiceLang(screenEl){
 
 function replayCurrentVoice(){
   const active = document.querySelector('.screen.active');
-  if (active) speak(screenVoiceText(active), screenVoiceLang(active));
+  if (active) speak(screenVoiceText(active), screenVoiceLang(active), true);
 }
 
 /** 음성 읽기 멈추기 */
@@ -257,7 +263,7 @@ function goTo(id){
   if (id === 'screen-loading-doc') startLoadingProgress('progressFillLoadDoc');
   if (id === 'screen-doc-collect') renderPendingPhotos();
   if (id === 'screen-ask') renderAskScreen();
-  if (id === 'screen-result-doc') { renderDocResult(); setDocView('easy'); applyDocPreview(); renderDocPager(); }
+  if (id === 'screen-result-doc') { renderDocResult(); applyDocPreview(); renderDocPager(); }
   if (id === 'screen-loading-text') startLoadingProgress('progressFillLoadText');
   if (id === 'screen-result-text') {
     renderSmsResult();
@@ -296,29 +302,6 @@ function acceptSkipConfirm(){
 /** 첫 화면의 "건너뛰기": 실수로 누르는 경우가 많아 같은 문구로 한 번 더 확인한다 */
 function confirmSkipTutorial(){
   openSkipConfirm(() => goTo('screen-home'));
-}
-
-/** 설정 화면 "로그아웃": 이 앱엔 로그인 계정이 없으므로 실제로는 이 기기에 저장된 데이터(기록·일정·설정·
- *  프로필·deviceId)를 모두 지우고 새로 시작하는 "기기 초기화"다. 되돌릴 수 없어 한 번 더 확인한다. */
-function confirmResetDevice(){
-  document.getElementById('resetConfirmBackdrop').style.display = 'block';
-  document.getElementById('resetConfirmSheet').style.display = 'block';
-  speak(t('resetConfirm.title'));
-}
-
-function closeResetConfirm(){
-  document.getElementById('resetConfirmBackdrop').style.display = 'none';
-  document.getElementById('resetConfirmSheet').style.display = 'none';
-}
-
-/** localStorage(appState + deviceId)를 지우고 새로고침한다.
- *  reload를 쓰는 이유: appState의 모든 필드를 일일이 기본값으로 되돌리는 대신,
- *  스크립트 로드 시 정의된 기본값(appState 리터럴)과 window.load의 onboardingDone 분기를
- *  그대로 재사용해 화면 전환·네비바 표시 등을 빠짐없이 초기 상태로 맞추기 위함이다. */
-function acceptResetConfirm(){
-  localStorage.removeItem(STORAGE_KEY);
-  localStorage.removeItem(DEVICE_ID_KEY);
-  location.reload();
 }
 
 /** AI 분석 대기 화면의 진행바: 실제로 언제 끝날지 모르니 90%까지만 천천히 채워두고,
@@ -1016,23 +999,24 @@ function finishSmsResult(){
    --------------------------------------------------------- */
 /** title/desc/voice는 더 이상 문구를 직접 담지 않고, key(coach.<key>.title/desc/voice)로 t()를 통해 언어 설정에 맞는 문구를 가져온다.
  *  cat은 왼쪽 카테고리 사이드바에서 어느 카테고리를 강조할지 표시하는 데 쓰인다. */
+// 2026-07-30: 튜토리얼에서 실제 하드웨어/권한/데이터를 건드리는 시연(카메라 촬영, 문자 읽기 권한 요청, 실제 문자 선택)을
+// 요구하던 단계(옛 doc3/smsPermission/sms2)를 없앴다. 나머지 단계는 화면과 화면 사이를 안내하는 정상적인 실제 내비게이션이라
+// 그대로 두되, 그중 강제 클릭(advance:'click')으로 진행을 막던 voice1·finish는 skippable(다음 버튼)로 바꿨다 —
+// 단, skippable은 다음 단계가 "같은 화면"이거나 "투어의 마지막"일 때만 안전하다(다른 화면으로 넘어가야 하는 단계에서
+// 건너뛰기를 누르면 실제로는 그 화면으로 이동하지 않아 오버레이가 조용히 숨겨진 채 멈추는 버그가 생긴다 - showCoachStep()의
+// 화면 일치 검사 참고). 그래서 원래부터 같은 화면 안에서 이어지던 단계(emergency1/fontsize/rate/guardian)만
+// skippable을 유지하고, 화면을 실제로 옮겨야 하는 단계는 실제 내비게이션(코치마크가 아니라 평소 앱 사용)으로만 진행된다.
 const fullCoachSteps = [
   { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-doc-choice"]', cat: 'doc', key: 'doc1' },
   { screen: 'screen-doc-choice', target: '#screen-doc-choice .feature-card[onclick*="screen-doc-capture"]', cat: 'doc', key: 'doc2' },
-  { screen: 'screen-doc-capture', target: '#screen-doc-capture .camera-shutter', cat: 'doc', key: 'doc3', advance: 'click' },
-  // 2026-07-29: 문자 확인이 복사/붙여넣기 대신 최근 문자 목록에서 바로 고르는 방식으로 바뀌면서
-  // 입구도 screen-doc-choice가 아니라 홈의 "문자 내용 요약" 카드(openSmsCheck())로 옮겨졌다.
-  // 권한이 이미 있으면 smsPermission 단계 자체가 통째로 건너뛰어진다(coachOnNavigate의 2단계 lookahead가 처리).
   { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="openSmsCheck"]', cat: 'sms', key: 'sms1' },
-  { screen: 'screen-sms-permission-needed', target: '#smsPermissionRetryBtn', cat: 'sms', key: 'smsPermission', skippable: true },
-  { screen: 'screen-sms-recent', target: '#screen-sms-recent .row:first-child', cat: 'sms', key: 'sms2' },
   { screen: 'screen-home', target: '#bottomNav [data-tab="screen-history"]', cat: 'history', key: 'history1' },
   { screen: 'screen-history', target: '#screen-history .nav-btn', cat: 'history', key: 'history2' },
   { screen: 'screen-info', target: '#publicInfoList .row:first-child', cat: 'info', key: 'info1' },
   { screen: 'screen-info-pension', target: '#screen-info-pension .primary-btn', cat: 'info', key: 'info2' },
   { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-welfare-nearby"]', cat: 'welfare', key: 'welfare1' },
   { screen: 'screen-welfare-nearby', target: '#screen-welfare-nearby .secondary-btn[onclick*="screen-home"]', cat: 'welfare', key: 'welfare2' },
-  { screen: 'screen-home', target: '#screen-home .topbar [data-replay]', cat: 'voice', key: 'voice1', advance: 'click' },
+  { screen: 'screen-home', target: '#screen-home .topbar [data-replay]', cat: 'voice', key: 'voice1', skippable: true },
   { screen: 'screen-home', target: '#emergencyFab', cat: 'emergency', key: 'emergency1', skippable: true },
   { screen: 'screen-home', target: '#bottomNav [data-tab="screen-settings"]', cat: 'settings', key: 'settingsIntro' },
   { screen: 'screen-settings', target: '#fontScaleGroup', cat: 'settings', key: 'fontsize', skippable: true },
@@ -1040,20 +1024,20 @@ const fullCoachSteps = [
   { screen: 'screen-settings', target: '#guardianName', cat: 'settings', key: 'guardian', skippable: true },
   { screen: 'screen-settings', target: '#screen-settings .settings-link-row[onclick*="screen-help"]', cat: 'settings', key: 'helplink' },
   { screen: 'screen-help', target: '#screen-help .nav-btn', cat: 'settings', key: 'helpback' },
-  { screen: 'screen-settings', target: '#screen-settings .topbar .nav-btn', cat: 'settings', key: 'finish', advance: 'click' }
+  { screen: 'screen-settings', target: '#screen-settings .topbar .nav-btn', cat: 'settings', key: 'finish', skippable: true }
 ];
 
 /** "사용 방법 안내"의 각 항목별 "체험해보기": 전체 투어(fullCoachSteps)에서 해당 구간만 골라 재사용한다.
  *  아래 slice/인덱스는 fullCoachSteps의 순서에 의존하므로, 그 배열의 항목을 지우거나 순서를 바꾸지 말 것. */
-const docMiniCoachSteps = fullCoachSteps.slice(0, 3);
-const smsMiniCoachSteps = fullCoachSteps.slice(3, 6);
-const historyMiniCoachSteps = fullCoachSteps.slice(6, 8);
-const publicInfoMiniCoachSteps = fullCoachSteps.slice(8, 10);
-const welfareMiniCoachSteps = fullCoachSteps.slice(10, 12);
-const voiceMiniCoachSteps = [fullCoachSteps[12]];
-const emergencyMiniCoachSteps = [fullCoachSteps[13]];
+const docMiniCoachSteps = fullCoachSteps.slice(0, 2);
+const smsMiniCoachSteps = fullCoachSteps.slice(2, 3);
+const historyMiniCoachSteps = fullCoachSteps.slice(3, 5);
+const publicInfoMiniCoachSteps = fullCoachSteps.slice(5, 7);
+const welfareMiniCoachSteps = fullCoachSteps.slice(7, 9);
+const voiceMiniCoachSteps = [fullCoachSteps[9]];
+const emergencyMiniCoachSteps = [fullCoachSteps[10]];
 const settingsLanguageMiniStep = { screen: 'screen-settings', target: '#languageGroup', cat: 'settings', key: 'language', skippable: true };
-const settingsMiniCoachSteps = [fullCoachSteps[15], fullCoachSteps[16], fullCoachSteps[17], settingsLanguageMiniStep, fullCoachSteps[20]];
+const settingsMiniCoachSteps = [fullCoachSteps[12], fullCoachSteps[13], fullCoachSteps[14], settingsLanguageMiniStep, fullCoachSteps[17]];
 
 /** 첫 실행 안내: 앱의 핵심인 문서 촬영·문자 확인만 다루고 마지막에 "나머지는 여기서 볼 수 있어요"로 마무리한다.
  *  예전에는 8개 분류 25단계를 첫 실행에 한 번에 보여줬는데, 처음 쓰는 어르신에게는 부담이 컸다.
@@ -1064,10 +1048,7 @@ const firstRunHelpStep = {
   cat: 'help', key: 'moreHelp', skippable: true
 };
 
-// 촬영(doc3) 다음 단계(sms1)는 이제 screen-home을 기다린다. 촬영 후 실제 흐름은
-// screen-doc-collect(찍은 사진 모아보기) → 분석하거나 취소 → 결국 screen-home으로 돌아오므로,
-// 예전처럼 screen-doc-choice로 돌아오길 기다리다 끊기는 다리(bridge) 단계가 더 이상 필요 없다.
-const firstRunCoachSteps = [...fullCoachSteps.slice(0, 6), firstRunHelpStep];
+const firstRunCoachSteps = [...fullCoachSteps.slice(0, 3), firstRunHelpStep];
 
 let coachSteps = firstRunCoachSteps;
 let coachIndex = -1;
@@ -1618,7 +1599,6 @@ function showDocAnalysis(index){
   docAnalysisIndex = index;
   lastDocAnalysis = docAnalyses[index];
   renderDocResult();
-  setDocView('easy');
   applyDocPreview();
   renderDocPager();
 }
@@ -1724,9 +1704,6 @@ function renderDocResult(){
   applyIllustration('docIllustration', 'docIllustrationImg', data.illustration);
 
   document.querySelector('#docEasyView p').textContent = data.summary || '';
-
-  // ponytail: API가 사진 속 원문 텍스트를 따로 반환하지 않음. 위 "사진 보기"로 대체. 백엔드가 원문 OCR도 반환하게 되면 여기 채우기
-  document.querySelector('#docOriginalView p').textContent = '원문 텍스트는 위 사진을 참고해주세요.';
 
   const checklistEl = document.querySelector('#screen-result-doc .checklist');
   checklistEl.innerHTML = '';
@@ -2112,7 +2089,7 @@ function setGuardianField(field, value){
 const I18N = {
   ko: {
     'home.sectionTitle': '무엇을 도와드릴까요?',
-    'home.assistantActive': '온담 비서가 활성화되었습니다',
+    'home.assistantActive': '온담 비서가 활성화되었습니다', 'home.assistantInactive': '온담 비서가 비활성화되었습니다',
     'home.greetDefault': '어르신',
     'home.greetNameSuffix': '님', 'home.greetAge': '{age}대 어르신', 'home.greetAgeGender': '{age}대 {gender} 어르신',
     'home.docCaptureTitle': '문서 촬영',
@@ -2201,34 +2178,28 @@ const I18N = {
     'settings.supportHelp': '사용 방법 안내',
     'settings.supportOnboarding': '화면 안내(첫 실행 안내) 다시 보기',
     'settings.supportCenter': '고객센터 연결',
-    'settings.account': '계정',
-    'settings.accountLogout': '로그아웃 (이 기기 데이터 초기화)',
-    'settings.accountLogoutNote': "이 앱은 별도 로그인이 없어요. '로그아웃'을 누르면 이 기기에 저장된 기록·일정·설정·내 정보가 모두 지워지고, 처음 사용하는 것처럼 다시 시작돼요.",
-    'resetConfirm.title': '기기 데이터를 모두 지울까요?',
-    'resetConfirm.body': '기록·일정·설정·내 정보가 모두 지워지고 되돌릴 수 없어요. 처음 사용하는 것처럼 다시 시작돼요.',
-    'resetConfirm.confirm': '초기화', 'resetConfirm.cancel': '취소',
     'onboard.replay': '다시 듣기', 'onboard.skip': '건너뛰기',
     'onboard.greet.title': '안녕하세요.<br>AI 디지털 도우미입니다.',
     'onboard.greet.desc': '문서를 쉽게 이해하고<br>해야 할 일을 알려드리겠습니다.',
     'onboard.greet.start': '시작하기',
     'onboard.greet.voice': '안녕하세요. AI 디지털 도우미입니다. 실제 화면을 보여드리며 사용 방법을 간단히 안내해드릴게요.',
-    'onboard.signup.title': '회원가입', 'onboard.signup.desc': '전화번호와 PIN 번호로 계정을 만들어요.<br>이 계정으로 다른 기기에서도 내 정보를 이어서 쓸 수 있어요.',
+    'onboard.signup.title': '회원가입', 'onboard.signup.desc': '전화번호와 비밀번호로 계정을 만들어요.<br>이 계정으로 다른 기기에서도 내 정보를 이어서 쓸 수 있어요.',
     'onboard.signup.phoneLabel': '전화번호',
-    'onboard.signup.pinLabel': 'PIN 번호 (숫자 4자리)', 'onboard.signup.pinConfirmPlaceholder': 'PIN 다시 입력',
+    'onboard.signup.pinLabel': '비밀번호', 'onboard.signup.pinPlaceholder': '비밀번호 입력', 'onboard.signup.pinConfirmPlaceholder': '비밀번호 다시 입력',
     'onboard.signup.submit': '가입하기', 'onboard.signup.toLogin': '이미 계정이 있으신가요? 로그인하기',
-    'onboard.signup.errorPhone': '전화번호를 다시 확인해주세요', 'onboard.signup.errorPinFormat': 'PIN은 숫자 4자리로 입력해주세요',
-    'onboard.signup.errorPinMismatch': '입력하신 PIN이 서로 달라요', 'onboard.signup.errorPhoneExists': '이미 가입된 전화번호예요. 로그인해주세요',
+    'onboard.signup.errorPhone': '전화번호를 다시 확인해주세요', 'onboard.signup.errorPinFormat': '비밀번호를 4자 이상 입력해주세요',
+    'onboard.signup.errorPinMismatch': '입력하신 비밀번호가 서로 달라요', 'onboard.signup.errorPhoneExists': '이미 가입된 전화번호예요. 로그인해주세요',
     'onboard.signup.errorGeneric': '가입에 실패했어요. 잠시 후 다시 시도해주세요',
-    'onboard.login.title': '로그인', 'onboard.login.desc': '가입할 때 쓴 전화번호와 PIN 번호를 입력해주세요.',
-    'onboard.login.submit': '로그인', 'onboard.login.toSignup': '계정이 없으신가요? 회원가입', 'onboard.login.forgotPin': 'PIN을 잊으셨나요?',
-    'onboard.login.errorInvalid': '전화번호 또는 PIN이 올바르지 않습니다', 'onboard.login.errorLocked': '너무 여러 번 틀렸어요. 15분 후 다시 시도해주세요',
-    'onboard.resetPin.title': 'PIN 재설정', 'onboard.resetPin.desc': '가입할 때 쓴 이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요.',
+    'onboard.login.title': '로그인', 'onboard.login.desc': '가입할 때 쓴 전화번호와 비밀번호를 입력해주세요.',
+    'onboard.login.submit': '로그인', 'onboard.login.toSignup': '계정이 없으신가요? 회원가입', 'onboard.login.forgotPin': '비밀번호를 잊으셨나요?',
+    'onboard.login.errorInvalid': '전화번호 또는 비밀번호가 올바르지 않습니다', 'onboard.login.errorLocked': '너무 여러 번 틀렸어요. 15분 후 다시 시도해주세요',
+    'onboard.resetPin.title': '비밀번호 재설정', 'onboard.resetPin.desc': '가입할 때 쓴 이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요.',
     'onboard.resetPin.requestOtp': '인증번호 받기', 'onboard.resetPin.otpLabel': '인증번호 (6자리)', 'onboard.resetPin.submit': '재설정하기',
     'onboard.resetPin.otpSentNotice': '인증번호를 보냈습니다', 'onboard.resetPin.errorSmsFailed': '문자 발송에 실패했어요. 잠시 후 다시 시도해주세요',
     'onboard.resetPin.errorOtpExpired': '인증번호가 만료됐어요. 다시 받아주세요', 'onboard.resetPin.errorOtpLocked': '너무 여러 번 틀렸어요. 처음부터 다시 시도해주세요',
     'onboard.resetPin.errorOtpInvalid': '인증번호가 올바르지 않습니다 ({n}회 남음)',
-    'onboard.signup.voice': '이름과 전화번호, 4자리 숫자 PIN을 입력해서 가입해주세요.',
-    'onboard.login.voice': '전화번호와 PIN 번호를 입력해서 로그인해주세요.',
+    'onboard.signup.voice': '이름과 전화번호, 비밀번호를 입력해서 가입해주세요.',
+    'onboard.login.voice': '전화번호와 비밀번호를 입력해서 로그인해주세요.',
     'onboard.resetPin.voice': '이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요.',
     'onboard.profile.title': '몇 가지만<br>알려주시겠어요?',
     'onboard.profile.desc': '입력하신 정보는 이 기기와 안전한 서버에만 저장되고,<br>더 알맞은 설명을 드리는 데만 사용돼요.<br>원하지 않으면 건너뛰어도 됩니다.',
@@ -2250,10 +2221,7 @@ const I18N = {
     'coach.next': '다음으로 넘어가기', 'coach.skipTutorial': '튜토리얼 건너뛰기',
     'coach.doc1.title': '문서를 촬영해보세요', 'coach.doc1.desc': '이 카드를 누르면 문서를 찍어 AI에게 분석을 맡길 수 있어요.', 'coach.doc1.voice': '문서 촬영 카드를 눌러보세요.',
     'coach.doc2.title': '직접 촬영해볼게요', 'coach.doc2.desc': '카메라로 문서를 찍어보세요.', 'coach.doc2.voice': '직접 촬영하기를 눌러보세요.',
-    'coach.doc3.title': '촬영 버튼을 눌러주세요', 'coach.doc3.desc': '문서가 화면 가운데 오도록 맞추고 눌러주세요.', 'coach.doc3.voice': '촬영 버튼을 눌러주세요.',
     'coach.sms1.title': '문자도 확인해보세요', 'coach.sms1.desc': '받은 문자가 안전한지도 여기서 확인할 수 있어요.', 'coach.sms1.voice': '문자 내용 불러오기 카드를 눌러보세요.',
-    'coach.smsPermission.title': '문자 읽기를 허용해주세요', 'coach.smsPermission.desc': '허용하면 최근 문자를 바로 보여드려요.', 'coach.smsPermission.voice': '허용을 눌러주세요.',
-    'coach.sms2.title': '이 문자를 눌러 확인해보세요', 'coach.sms2.desc': '탭 한 번으로 바로 확인할 수 있어요.', 'coach.sms2.voice': '문자를 눌러 확인해보세요.',
     'coach.history1.title': '기록도 볼 수 있어요', 'coach.history1.desc': '지금까지 확인한 문서와 문자 기록을 모아볼 수 있어요.', 'coach.history1.voice': '아래 기록 버튼을 눌러보세요.',
     'coach.history2.title': '다시 홈으로 돌아가볼게요', 'coach.history2.desc': '← 홈으로 버튼을 누르면 언제든 돌아갈 수 있어요.', 'coach.history2.voice': '홈으로 버튼을 눌러 돌아가보세요.',
     'coach.info1.title': '알아두면 좋은 정보도 있어요', 'coach.info1.desc': '기초연금, 건강검진 같은 유용한 정보를 안내해드려요.', 'coach.info1.voice': '알아두면 좋은 정보를 눌러보세요.',
@@ -2288,8 +2256,7 @@ const I18N = {
     'result.docTitle': '분석 결과', 'result.readAloud': '큰 소리로 읽어주기',
     'result.docKind': '문서 종류', 'result.viewPhoto': '사진 보기',
     'result.amountLabel': '납부할 금액', 'result.dueLabel': '납부 기한',
-    'result.viewEasy': '쉬운 설명', 'result.viewOriginal': '원문 보기',
-    'result.aiSummaryTitle': '⚪ AI가 정리한 내용', 'result.originalTitle': '원문',
+    'result.aiSummaryTitle': '⚪ AI가 정리한 내용',
     'result.todoLabel': '해야 할 일',
     'result.actionPhone': '전화하기', 'result.actionWebsite': '홈페이지', 'result.actionMap': '길찾기',
     'result.shareTitle': '공유하기', 'result.shareSms': '문자', 'result.shareKakao': '💛 카카오톡', 'result.shareCopy': '복사하기',
@@ -2325,7 +2292,7 @@ const I18N = {
   },
   zh: {
     'home.sectionTitle': '需要什么帮助？',
-    'home.assistantActive': '온담 助手已启用',
+    'home.assistantActive': '온담 助手已启用', 'home.assistantInactive': '온담 助手已停用',
     'home.greetDefault': '您好',
     'home.greetNameSuffix': '', 'home.greetAge': '{age}多岁的您', 'home.greetAgeGender': '{age}多岁的{gender}士',
     'home.docCaptureTitle': '文件拍摄',
@@ -2413,12 +2380,6 @@ const I18N = {
     'settings.supportHelp': '使用方法说明',
     'settings.supportOnboarding': '重新查看画面指南（首次使用指南）',
     'settings.supportCenter': '联系客服中心',
-    'settings.account': '账户',
-    'settings.accountLogout': '登出（清除本设备数据）',
-    'settings.accountLogoutNote': '本应用没有单独的登录账户。点击"登出"会清除本设备保存的记录·日程·设置·个人信息，并像首次使用一样重新开始。',
-    'resetConfirm.title': '要清除全部设备数据吗？',
-    'resetConfirm.body': '记录·日程·设置·个人信息将全部清除且无法恢复，将像首次使用一样重新开始。',
-    'resetConfirm.confirm': '初始化', 'resetConfirm.cancel': '取消',
     'onboard.replay': '再听一次', 'onboard.skip': '跳过',
     'onboard.greet.title': '您好。<br>我是AI数字助手。',
     'onboard.greet.desc': '帮您轻松理解文件，<br>并告诉您需要做的事。',
@@ -2441,10 +2402,7 @@ const I18N = {
     'coach.next': '继续下一步', 'coach.skipTutorial': '跳过教程',
     'coach.doc1.title': '拍摄文件试试看', 'coach.doc1.desc': '点击此卡片可以拍摄文件并交给AI分析。', 'coach.doc1.voice': '请点击拍摄文件卡片。',
     'coach.doc2.title': '直接拍摄一下', 'coach.doc2.desc': '用相机拍摄文件吧。', 'coach.doc2.voice': '请点击直接拍摄。',
-    'coach.doc3.title': '请按拍摄按钮', 'coach.doc3.desc': '将文件对准屏幕中央后按下按钮。', 'coach.doc3.voice': '请按拍摄按钮。',
     'coach.sms1.title': '短信也可以确认', 'coach.sms1.desc': '也可以在这里确认收到的短信是否安全。', 'coach.sms1.voice': '请点击导入短信内容卡片。',
-    'coach.smsPermission.title': '请允许读取短信', 'coach.smsPermission.desc': '允许后会立即显示最近的短信。', 'coach.smsPermission.voice': '请点击允许。',
-    'coach.sms2.title': '点击这条短信确认', 'coach.sms2.desc': '轻触一下即可确认。', 'coach.sms2.voice': '请点击短信确认。',
     'coach.history1.title': '也可以查看记录', 'coach.history1.desc': '可以汇总查看至今确认过的文件和短信记录。', 'coach.history1.voice': '请点击下方的记录按钮。',
     'coach.history2.title': '我们再回到首页', 'coach.history2.desc': '点击←返回首页按钮可以随时返回。', 'coach.history2.voice': '请点击返回首页按钮。',
     'coach.info1.title': '还有值得了解的信息', 'coach.info1.desc': '为您提供基础养老金、健康体检等实用信息。', 'coach.info1.voice': '请点击值得了解的信息。',
@@ -2479,8 +2437,7 @@ const I18N = {
     'result.docTitle': '分析结果', 'result.readAloud': '大声朗读',
     'result.docKind': '文件种类', 'result.viewPhoto': '查看照片',
     'result.amountLabel': '应缴金额', 'result.dueLabel': '缴纳期限',
-    'result.viewEasy': '简单说明', 'result.viewOriginal': '查看原文',
-    'result.aiSummaryTitle': '⚪ AI整理的内容', 'result.originalTitle': '原文',
+    'result.aiSummaryTitle': '⚪ AI整理的内容',
     'result.todoLabel': '要做的事',
     'result.actionPhone': '拨打电话', 'result.actionWebsite': '官方网站', 'result.actionMap': '查找路线',
     'result.shareTitle': '分享', 'result.shareSms': '短信', 'result.shareKakao': '💛 KakaoTalk', 'result.shareCopy': '复制',
@@ -2516,7 +2473,7 @@ const I18N = {
   },
   vi: {
     'home.sectionTitle': 'Bạn cần giúp gì?',
-    'home.assistantActive': 'Trợ lý 온담 đã được kích hoạt',
+    'home.assistantActive': 'Trợ lý 온담 đã được kích hoạt', 'home.assistantInactive': 'Trợ lý 온담 đã bị tắt',
     'home.greetDefault': 'Cô/Chú',
     'home.greetNameSuffix': '', 'home.greetAge': 'Cô/Chú khoảng {age} tuổi', 'home.greetAgeGender': '{gender} khoảng {age} tuổi',
     'home.docCaptureTitle': 'Chụp tài liệu',
@@ -2604,12 +2561,6 @@ const I18N = {
     'settings.supportHelp': 'Hướng dẫn sử dụng',
     'settings.supportOnboarding': 'Xem lại hướng dẫn màn hình (hướng dẫn lần đầu)',
     'settings.supportCenter': 'Kết nối trung tâm hỗ trợ',
-    'settings.account': 'Tài khoản',
-    'settings.accountLogout': 'Đăng xuất (xóa dữ liệu trên thiết bị này)',
-    'settings.accountLogoutNote': 'Ứng dụng này không có tài khoản đăng nhập riêng. Nhấn "Đăng xuất" sẽ xóa toàn bộ lịch sử·lịch trình·cài đặt·thông tin cá nhân đã lưu trên thiết bị này, và bắt đầu lại như lần đầu sử dụng.',
-    'resetConfirm.title': 'Xóa toàn bộ dữ liệu thiết bị?',
-    'resetConfirm.body': 'Lịch sử·lịch trình·cài đặt·thông tin cá nhân sẽ bị xóa hết và không thể khôi phục. Sẽ bắt đầu lại như lần đầu sử dụng.',
-    'resetConfirm.confirm': 'Khởi tạo lại', 'resetConfirm.cancel': 'Hủy',
     'onboard.replay': 'Nghe lại', 'onboard.skip': 'Bỏ qua',
     'onboard.greet.title': 'Xin chào.<br>Tôi là trợ lý số AI.',
     'onboard.greet.desc': 'Tôi sẽ giúp bạn dễ dàng hiểu tài liệu<br>và biết việc cần làm.',
@@ -2632,10 +2583,7 @@ const I18N = {
     'coach.next': 'Chuyển sang bước tiếp theo', 'coach.skipTutorial': 'Bỏ qua hướng dẫn',
     'coach.doc1.title': 'Hãy thử chụp tài liệu', 'coach.doc1.desc': 'Nhấn vào thẻ này để chụp tài liệu và nhờ AI phân tích.', 'coach.doc1.voice': 'Hãy nhấn vào thẻ chụp tài liệu.',
     'coach.doc2.title': 'Chúng ta chụp trực tiếp nhé', 'coach.doc2.desc': 'Hãy chụp tài liệu bằng camera.', 'coach.doc2.voice': 'Hãy nhấn chụp trực tiếp.',
-    'coach.doc3.title': 'Hãy nhấn nút chụp', 'coach.doc3.desc': 'Canh tài liệu vào giữa màn hình rồi nhấn nút.', 'coach.doc3.voice': 'Hãy nhấn nút chụp.',
     'coach.sms1.title': 'Cũng có thể kiểm tra tin nhắn', 'coach.sms1.desc': 'Bạn cũng có thể kiểm tra ở đây xem tin nhắn nhận được có an toàn không.', 'coach.sms1.voice': 'Hãy nhấn vào thẻ tải nội dung tin nhắn.',
-    'coach.smsPermission.title': 'Hãy cho phép đọc tin nhắn', 'coach.smsPermission.desc': 'Cho phép thì sẽ hiện tin nhắn gần đây ngay.', 'coach.smsPermission.voice': 'Hãy nhấn cho phép.',
-    'coach.sms2.title': 'Nhấn vào tin nhắn này để kiểm tra', 'coach.sms2.desc': 'Chỉ cần chạm một lần là kiểm tra được ngay.', 'coach.sms2.voice': 'Hãy nhấn vào tin nhắn để kiểm tra.',
     'coach.history1.title': 'Cũng có thể xem lịch sử', 'coach.history1.desc': 'Bạn có thể xem lại các tài liệu và tin nhắn đã kiểm tra.', 'coach.history1.voice': 'Hãy nhấn nút Lịch sử ở bên dưới.',
     'coach.history2.title': 'Chúng ta quay lại trang chủ nhé', 'coach.history2.desc': 'Nhấn nút ← Về trang chủ để quay lại bất cứ lúc nào.', 'coach.history2.voice': 'Hãy nhấn nút về trang chủ.',
     'coach.info1.title': 'Cũng có thông tin nên biết', 'coach.info1.desc': 'Chúng tôi cung cấp thông tin hữu ích như lương hưu cơ bản, khám sức khỏe.', 'coach.info1.voice': 'Hãy nhấn vào thông tin nên biết.',
@@ -2670,8 +2618,7 @@ const I18N = {
     'result.docTitle': 'Kết quả phân tích', 'result.readAloud': 'Đọc to lên',
     'result.docKind': 'Loại tài liệu', 'result.viewPhoto': 'Xem ảnh',
     'result.amountLabel': 'Số tiền phải nộp', 'result.dueLabel': 'Hạn nộp',
-    'result.viewEasy': 'Giải thích dễ hiểu', 'result.viewOriginal': 'Xem nguyên văn',
-    'result.aiSummaryTitle': '⚪ Nội dung AI đã tóm tắt', 'result.originalTitle': 'Nguyên văn',
+    'result.aiSummaryTitle': '⚪ Nội dung AI đã tóm tắt',
     'result.todoLabel': 'Việc cần làm',
     'result.actionPhone': 'Gọi điện', 'result.actionWebsite': 'Trang chủ', 'result.actionMap': 'Tìm đường',
     'result.shareTitle': 'Chia sẻ', 'result.shareSms': 'Tin nhắn', 'result.shareKakao': '💛 KakaoTalk', 'result.shareCopy': 'Sao chép',
@@ -2707,7 +2654,7 @@ const I18N = {
   },
   th: {
     'home.sectionTitle': 'ต้องการความช่วยเหลือเรื่องอะไร?',
-    'home.assistantActive': 'ผู้ช่วย 온담 เปิดใช้งานแล้ว',
+    'home.assistantActive': 'ผู้ช่วย 온담 เปิดใช้งานแล้ว', 'home.assistantInactive': 'ผู้ช่วย 온담 ปิดใช้งานแล้ว',
     'home.greetDefault': 'คุณลูกค้า',
     'home.greetNameSuffix': '', 'home.greetAge': 'ผู้สูงอายุวัย {age} ปีขึ้นไป', 'home.greetAgeGender': 'ผู้สูงอายุเพศ{gender} วัย {age} ปีขึ้นไป',
     'home.docCaptureTitle': 'ถ่ายภาพเอกสาร',
@@ -2795,12 +2742,6 @@ const I18N = {
     'settings.supportHelp': 'คำแนะนำการใช้งาน',
     'settings.supportOnboarding': 'ดูคำแนะนำหน้าจออีกครั้ง (คำแนะนำการใช้งานครั้งแรก)',
     'settings.supportCenter': 'ติดต่อศูนย์บริการลูกค้า',
-    'settings.account': 'บัญชี',
-    'settings.accountLogout': 'ออกจากระบบ (ล้างข้อมูลในเครื่องนี้)',
-    'settings.accountLogoutNote': 'แอปนี้ไม่มีบัญชีเข้าสู่ระบบแยกต่างหาก การกด "ออกจากระบบ" จะลบประวัติ·กำหนดการ·การตั้งค่า·ข้อมูลส่วนตัวที่บันทึกไว้ในเครื่องนี้ทั้งหมด และเริ่มต้นใหม่เหมือนใช้งานครั้งแรก',
-    'resetConfirm.title': 'ต้องการล้างข้อมูลอุปกรณ์ทั้งหมดหรือไม่?',
-    'resetConfirm.body': 'ประวัติ·กำหนดการ·การตั้งค่า·ข้อมูลส่วนตัวจะถูกลบทั้งหมดและกู้คืนไม่ได้ จะเริ่มต้นใหม่เหมือนใช้งานครั้งแรก',
-    'resetConfirm.confirm': 'ล้างข้อมูล', 'resetConfirm.cancel': 'ยกเลิก',
     'onboard.replay': 'ฟังอีกครั้ง', 'onboard.skip': 'ข้าม',
     'onboard.greet.title': 'สวัสดีค่ะ.<br>ฉันคือผู้ช่วยดิจิทัล AI',
     'onboard.greet.desc': 'ช่วยให้คุณเข้าใจเอกสารได้ง่าย<br>และแจ้งสิ่งที่ต้องทำให้ทราบ',
@@ -2823,10 +2764,7 @@ const I18N = {
     'coach.next': 'ไปขั้นตอนถัดไป', 'coach.skipTutorial': 'ข้ามบทเรียน',
     'coach.doc1.title': 'ลองถ่ายภาพเอกสารดูสิ', 'coach.doc1.desc': 'กดการ์ดนี้เพื่อถ่ายภาพเอกสารและให้ AI วิเคราะห์', 'coach.doc1.voice': 'กรุณากดการ์ดถ่ายภาพเอกสาร',
     'coach.doc2.title': 'ลองถ่ายภาพเองดูนะ', 'coach.doc2.desc': 'ถ่ายภาพเอกสารด้วยกล้อง', 'coach.doc2.voice': 'กรุณากดถ่ายภาพเอง',
-    'coach.doc3.title': 'กรุณากดปุ่มถ่ายภาพ', 'coach.doc3.desc': 'จัดเอกสารให้อยู่กลางจอแล้วกดปุ่ม', 'coach.doc3.voice': 'กรุณากดปุ่มถ่ายภาพ',
     'coach.sms1.title': 'ตรวจสอบข้อความได้เช่นกัน', 'coach.sms1.desc': 'สามารถตรวจสอบที่นี่ได้ว่าข้อความที่ได้รับปลอดภัยหรือไม่', 'coach.sms1.voice': 'กรุณากดการ์ดนำเข้าข้อความ',
-    'coach.smsPermission.title': 'กรุณาอนุญาตให้อ่านข้อความ', 'coach.smsPermission.desc': 'หากอนุญาตจะแสดงข้อความล่าสุดทันที', 'coach.smsPermission.voice': 'กรุณากดอนุญาต',
-    'coach.sms2.title': 'กดข้อความนี้เพื่อตรวจสอบ', 'coach.sms2.desc': 'แตะเพียงครั้งเดียวก็ตรวจสอบได้ทันที', 'coach.sms2.voice': 'กรุณากดข้อความเพื่อตรวจสอบ',
     'coach.history1.title': 'ดูประวัติได้เช่นกัน', 'coach.history1.desc': 'สามารถดูเอกสารและข้อความที่ตรวจสอบมาแล้วทั้งหมด', 'coach.history1.voice': 'กรุณากดปุ่มประวัติด้านล่าง',
     'coach.history2.title': 'กลับไปหน้าหลักกันเถอะ', 'coach.history2.desc': 'กดปุ่ม ← กลับหน้าหลักเพื่อย้อนกลับได้ทุกเมื่อ', 'coach.history2.voice': 'กรุณากดปุ่มกลับหน้าหลัก',
     'coach.info1.title': 'มีข้อมูลที่ควรรู้ด้วย', 'coach.info1.desc': 'แนะนำข้อมูลที่เป็นประโยชน์ เช่น เงินบำนาญพื้นฐาน การตรวจสุขภาพ', 'coach.info1.voice': 'กรุณากดข้อมูลที่ควรรู้',
@@ -2861,8 +2799,7 @@ const I18N = {
     'result.docTitle': 'ผลการวิเคราะห์', 'result.readAloud': 'อ่านออกเสียงดัง',
     'result.docKind': 'ประเภทเอกสาร', 'result.viewPhoto': 'ดูรูปภาพ',
     'result.amountLabel': 'จำนวนเงินที่ต้องชำระ', 'result.dueLabel': 'กำหนดชำระ',
-    'result.viewEasy': 'คำอธิบายง่ายๆ', 'result.viewOriginal': 'ดูต้นฉบับ',
-    'result.aiSummaryTitle': '⚪ เนื้อหาที่ AI สรุปให้', 'result.originalTitle': 'ต้นฉบับ',
+    'result.aiSummaryTitle': '⚪ เนื้อหาที่ AI สรุปให้',
     'result.todoLabel': 'สิ่งที่ต้องทำ',
     'result.actionPhone': 'โทรออก', 'result.actionWebsite': 'เว็บไซต์', 'result.actionMap': 'ค้นหาเส้นทาง',
     'result.shareTitle': 'แชร์', 'result.shareSms': 'ข้อความ', 'result.shareKakao': '💛 KakaoTalk', 'result.shareCopy': 'คัดลอก',
@@ -2898,7 +2835,7 @@ const I18N = {
   },
   uz: {
     'home.sectionTitle': 'Sizga qanday yordam kerak?',
-    'home.assistantActive': "온담 yordamchisi faollashtirildi",
+    'home.assistantActive': "온담 yordamchisi faollashtirildi", 'home.assistantInactive': "온담 yordamchisi faolsizlantirildi",
     'home.greetDefault': 'Foydalanuvchi',
     'home.greetNameSuffix': '', 'home.greetAge': '{age} yoshli foydalanuvchi', 'home.greetAgeGender': '{age} yoshli {gender}',
     'home.docCaptureTitle': "Hujjat suratga olish",
@@ -2986,12 +2923,6 @@ const I18N = {
     'settings.supportHelp': "Foydalanish bo'yicha qo'llanma",
     'settings.supportOnboarding': "Ekran qo'llanmasini qayta ko'rish (birinchi marta ishlatish qo'llanmasi)",
     'settings.supportCenter': "Mijozlarga xizmat ko'rsatish markazi bilan bog'lanish",
-    'settings.account': 'Hisob',
-    'settings.accountLogout': "Chiqish (bu qurilmadagi ma'lumotlarni tozalash)",
-    'settings.accountLogoutNote': "Bu ilovada alohida kirish hisobi yo'q. \"Chiqish\"ni bossangiz, bu qurilmada saqlangan tarix·jadval·sozlamalar·shaxsiy ma'lumotlar butunlay o'chiriladi va ilova birinchi marta ishlatilayotgandek qaytadan boshlanadi.",
-    'resetConfirm.title': "Qurilmadagi barcha ma'lumotlar tozalansinmi?",
-    'resetConfirm.body': "Tarix·jadval·sozlamalar·shaxsiy ma'lumotlar butunlay o'chiriladi va qaytarib bo'lmaydi. Ilova birinchi marta ishlatilayotgandek qaytadan boshlanadi.",
-    'resetConfirm.confirm': "Tozalash", 'resetConfirm.cancel': 'Bekor qilish',
     'onboard.replay': 'Qayta eshitish', 'onboard.skip': "O'tkazib yuborish",
     'onboard.greet.title': 'Salom.<br>Men AI raqamli yordamchiman.',
     'onboard.greet.desc': 'Hujjatlarni oson tushunishga<br>va nima qilish kerakligini aytishga yordam beraman.',
@@ -3014,10 +2945,7 @@ const I18N = {
     'coach.next': "Keyingi bosqichga o'tish", 'coach.skipTutorial': "Qo'llanmani o'tkazib yuborish",
     'coach.doc1.title': 'Hujjatni suratga olib ko\'ring', 'coach.doc1.desc': 'Ushbu kartani bosib hujjatni suratga olib AI tahliliga topshirishingiz mumkin.', 'coach.doc1.voice': 'Hujjat suratga olish kartasini bosing.',
     'coach.doc2.title': 'Bevosita suratga olamiz', 'coach.doc2.desc': 'Kamera bilan hujjatni suratga oling.', 'coach.doc2.voice': 'Bevosita suratga olishni bosing.',
-    'coach.doc3.title': 'Suratga olish tugmasini bosing', 'coach.doc3.desc': "Hujjatni ekran markaziga to'g'rilab tugmani bosing.", 'coach.doc3.voice': 'Suratga olish tugmasini bosing.',
     'coach.sms1.title': 'SMS xabarni ham tekshirish mumkin', 'coach.sms1.desc': 'Kelgan SMS xavfsizligini shu yerda ham tekshirish mumkin.', 'coach.sms1.voice': "SMS matnini yuklash kartasini bosing.",
-    'coach.smsPermission.title': "Xabar o'qishga ruxsat bering", 'coach.smsPermission.desc': "Ruxsat bersangiz so'nggi xabarlar darhol ko'rsatiladi.", 'coach.smsPermission.voice': "Ruxsat berishni bosing.",
-    'coach.sms2.title': 'Ushbu xabarni tekshirish uchun bosing', 'coach.sms2.desc': "Bir marta bosish bilan darhol tekshirish mumkin.", 'coach.sms2.voice': 'Xabarni tekshirish uchun bosing.',
     'coach.history1.title': 'Tarixni ham ko\'rish mumkin', 'coach.history1.desc': 'Hozirgacha tekshirilgan hujjat va SMS tarixini birgalikda ko\'rish mumkin.', 'coach.history1.voice': 'Pastdagi Tarix tugmasini bosing.',
     'coach.history2.title': 'Yana bosh sahifaga qaytamiz', 'coach.history2.desc': "← Bosh sahifaga tugmasini bosib istalgan vaqtda qaytish mumkin.", 'coach.history2.voice': 'Bosh sahifaga qaytish tugmasini bosing.',
     'coach.info1.title': "Bilish foydali ma'lumotlar ham bor", 'coach.info1.desc': "Asosiy pensiya, sog'liqni tekshirish kabi foydali ma'lumotlarni taqdim etamiz.", 'coach.info1.voice': "Bilish foydali ma'lumotlarni bosing.",
@@ -3052,8 +2980,7 @@ const I18N = {
     'result.docTitle': 'Tahlil natijasi', 'result.readAloud': "Baland ovozda o'qib berish",
     'result.docKind': 'Hujjat turi', 'result.viewPhoto': "Rasmni ko'rish",
     'result.amountLabel': "To'lanadigan summa", 'result.dueLabel': "To'lov muddati",
-    'result.viewEasy': 'Sodda tushuntirish', 'result.viewOriginal': "Asl matnni ko'rish",
-    'result.aiSummaryTitle': '⚪ AI jamlagan mazmun', 'result.originalTitle': 'Asl matn',
+    'result.aiSummaryTitle': '⚪ AI jamlagan mazmun',
     'result.todoLabel': "Bajarish kerak bo'lgan ishlar",
     'result.actionPhone': "Qo'ng'iroq qilish", 'result.actionWebsite': 'Veb-sayt', 'result.actionMap': "Yo'lni topish",
     'result.shareTitle': 'Ulashish', 'result.shareSms': 'SMS', 'result.shareKakao': '💛 KakaoTalk', 'result.shareCopy': 'Nusxa olish',
@@ -3336,7 +3263,7 @@ async function handleSignupSubmit(){
   const pinConfirm = document.getElementById('signupPinConfirm').value.trim();
 
   if (guardianPhoneDigits(phone).length < 9) return showFieldError('signupError', t('onboard.signup.errorPhone'));
-  if (!/^\d{4}$/.test(pin)) return showFieldError('signupError', t('onboard.signup.errorPinFormat'));
+  if (pin.length < 4) return showFieldError('signupError', t('onboard.signup.errorPinFormat'));
   if (pin !== pinConfirm) return showFieldError('signupError', t('onboard.signup.errorPinMismatch'));
 
   showFieldError('signupError', '');
@@ -3386,7 +3313,7 @@ async function handleVerifyResetOtp(){
   const newPin = document.getElementById('resetPinNewPin').value.trim();
   const newPinConfirm = document.getElementById('resetPinNewPinConfirm').value.trim();
 
-  if (!/^\d{4}$/.test(newPin)) return showFieldError('resetPinError', t('onboard.signup.errorPinFormat'));
+  if (newPin.length < 4) return showFieldError('resetPinError', t('onboard.signup.errorPinFormat'));
   if (newPin !== newPinConfirm) return showFieldError('resetPinError', t('onboard.signup.errorPinMismatch'));
 
   showFieldError('resetPinError', '');
@@ -3900,18 +3827,6 @@ function callGuardian(){
   }
   window.location.href = 'tel:' + appState.guardian.phone;
 }
-
-/* ---------------------------------------------------------
-   13. 쉬운 설명 ↔ 원문 토글
-   --------------------------------------------------------- */
-function setView(scopeSelector, view, easyId, originalId){
-  document.querySelectorAll(scopeSelector + ' .view-toggle button').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.view === view);
-  });
-  document.getElementById(easyId).style.display = view === 'easy' ? 'block' : 'none';
-  document.getElementById(originalId).style.display = view === 'original' ? 'block' : 'none';
-}
-function setDocView(view){ setView('#screen-result-doc', view, 'docEasyView', 'docOriginalView'); }
 
 /* ---------------------------------------------------------
    14. 공통 유틸: 토스트 + 버튼 리플

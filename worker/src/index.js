@@ -415,7 +415,7 @@ export default {
       const { phone, pin, name } = body || {};
       const phoneDigits = String(phone || '').replace(/\D/g, '');
       if (phoneDigits.length < 9) return json({ error: 'invalid_phone' }, 400);
-      if (!/^\d{4}$/.test(String(pin || ''))) return json({ error: 'invalid_pin' }, 400);
+      if (String(pin || '').length < 4) return json({ error: 'invalid_pin' }, 400);
 
       try {
         const existing = await env.ansim_doumi_db.prepare(
@@ -526,7 +526,7 @@ export default {
       }
       const { phone, otp, newPin } = body || {};
       const phoneDigits = String(phone || '').replace(/\D/g, '');
-      if (!/^\d{4}$/.test(String(newPin || ''))) return json({ error: 'invalid_pin' }, 400);
+      if (String(newPin || '').length < 4) return json({ error: 'invalid_pin' }, 400);
 
       try {
         const user = await env.ansim_doumi_db.prepare(

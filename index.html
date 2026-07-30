@@ -75,10 +75,10 @@
       </section>
 
       <!-- 회원가입: 전화번호+PIN 계정을 만든다. 로그인해야만 앱을 쓸 수 있다. -->
-      <section class="screen" id="screen-signup" data-voice="이름과 전화번호, 4자리 숫자 PIN을 입력해서 가입해주세요." data-voice-i18n="onboard.signup.voice">
+      <section class="screen" id="screen-signup" data-voice="이름과 전화번호, 비밀번호를 입력해서 가입해주세요." data-voice-i18n="onboard.signup.voice">
         <div class="topbar"><span></span><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
         <h1 data-i18n="onboard.signup.title">회원가입</h1>
-        <p class="desc" data-i18n="onboard.signup.desc">전화번호와 PIN 번호로 계정을 만들어요.<br>이 계정으로 다른 기기에서도 내 정보를 이어서 쓸 수 있어요.</p>
+        <p class="desc" data-i18n="onboard.signup.desc">전화번호와 비밀번호로 계정을 만들어요.<br>이 계정으로 다른 기기에서도 내 정보를 이어서 쓸 수 있어요.</p>
 
         <div class="settings-section">
           <h2 data-i18n="settings.nameLabel">이름</h2>
@@ -95,12 +95,12 @@
         </div>
 
         <div class="settings-section">
-          <h2 data-i18n="onboard.signup.pinLabel">PIN 번호 (숫자 4자리)</h2>
+          <h2 data-i18n="onboard.signup.pinLabel">비밀번호</h2>
           <div class="field-row">
-            <input type="password" inputmode="numeric" maxlength="4" id="signupPin" placeholder="예: 1234" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+            <input type="password" id="signupPin" placeholder="비밀번호 입력" data-i18n-placeholder="onboard.signup.pinPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
           </div>
           <div class="field-row" style="margin-top:10px;">
-            <input type="password" inputmode="numeric" maxlength="4" id="signupPinConfirm" placeholder="PIN 다시 입력" data-i18n-placeholder="onboard.signup.pinConfirmPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+            <input type="password" id="signupPinConfirm" placeholder="비밀번호 다시 입력" data-i18n-placeholder="onboard.signup.pinConfirmPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
           </div>
         </div>
 
@@ -111,10 +111,10 @@
       </section>
 
       <!-- 로그인 -->
-      <section class="screen" id="screen-login" data-voice="전화번호와 PIN 번호를 입력해서 로그인해주세요." data-voice-i18n="onboard.login.voice">
+      <section class="screen" id="screen-login" data-voice="전화번호와 비밀번호를 입력해서 로그인해주세요." data-voice-i18n="onboard.login.voice">
         <div class="topbar"><span></span><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
         <h1 data-i18n="onboard.login.title">로그인</h1>
-        <p class="desc" data-i18n="onboard.login.desc">가입할 때 쓴 전화번호와 PIN 번호를 입력해주세요.</p>
+        <p class="desc" data-i18n="onboard.login.desc">가입할 때 쓴 전화번호와 비밀번호를 입력해주세요.</p>
 
         <div class="settings-section">
           <h2 data-i18n="onboard.signup.phoneLabel">전화번호</h2>
@@ -124,9 +124,9 @@
         </div>
 
         <div class="settings-section">
-          <h2 data-i18n="onboard.signup.pinLabel">PIN 번호 (숫자 4자리)</h2>
+          <h2 data-i18n="onboard.signup.pinLabel">비밀번호</h2>
           <div class="field-row">
-            <input type="password" inputmode="numeric" maxlength="4" id="loginPin" placeholder="예: 1234" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+            <input type="password" id="loginPin" placeholder="비밀번호 입력" data-i18n-placeholder="onboard.signup.pinPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
           </div>
         </div>
 
@@ -134,13 +134,13 @@
 
         <button class="primary-btn" onclick="handleLoginSubmit()" data-i18n="onboard.login.submit">로그인</button>
         <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="goTo('screen-signup')" data-i18n="onboard.login.toSignup">계정이 없으신가요? 회원가입</button>
-        <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="goTo('screen-reset-pin')" data-i18n="onboard.login.forgotPin">PIN을 잊으셨나요?</button>
+        <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="goTo('screen-reset-pin')" data-i18n="onboard.login.forgotPin">비밀번호를 잊으셨나요?</button>
       </section>
 
       <!-- PIN 재설정: 알리고 OTP 인증 -->
       <section class="screen" id="screen-reset-pin" data-voice="이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요." data-voice-i18n="onboard.resetPin.voice">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-login')" data-i18n="onboard.login.title">← 로그인</button><span></span></div>
-        <h1 data-i18n="onboard.resetPin.title">PIN 재설정</h1>
+        <h1 data-i18n="onboard.resetPin.title">비밀번호 재설정</h1>
         <p class="desc" data-i18n="onboard.resetPin.desc">가입할 때 쓴 이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요.</p>
 
         <div class="settings-section" id="resetPinStep1">
@@ -160,12 +160,12 @@
           <div class="field-row">
             <input type="text" inputmode="numeric" maxlength="6" id="resetPinOtp" placeholder="예: 123456" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
           </div>
-          <h2 style="margin-top:16px;" data-i18n="onboard.signup.pinLabel">PIN 번호 (숫자 4자리)</h2>
+          <h2 style="margin-top:16px;" data-i18n="onboard.signup.pinLabel">비밀번호</h2>
           <div class="field-row">
-            <input type="password" inputmode="numeric" maxlength="4" id="resetPinNewPin" placeholder="예: 1234" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+            <input type="password" id="resetPinNewPin" placeholder="새 비밀번호 입력" data-i18n-placeholder="onboard.signup.pinPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
           </div>
           <div class="field-row" style="margin-top:10px;">
-            <input type="password" inputmode="numeric" maxlength="4" id="resetPinNewPinConfirm" placeholder="PIN 다시 입력" data-i18n-placeholder="onboard.signup.pinConfirmPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+            <input type="password" id="resetPinNewPinConfirm" placeholder="비밀번호 다시 입력" data-i18n-placeholder="onboard.signup.pinConfirmPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
           </div>
           <button class="primary-btn" style="margin-top:12px;" onclick="handleVerifyResetOtp()" data-i18n="onboard.resetPin.submit">재설정하기</button>
         </div>
@@ -260,7 +260,7 @@
           </button>
           <div class="home-greet-text">
             <div class="home-greet-name" id="homeGreetName"></div>
-            <div class="home-greet-sub" data-i18n="home.assistantActive">온담 비서가 활성화되었습니다</div>
+            <div class="home-greet-sub">온담 비서가 활성화되었습니다</div>
           </div>
           <label class="switch" aria-label="음성 지원 켜고 끄기">
             <input type="checkbox" class="voice-enabled-toggle" checked onchange="toggleVoice(this)">
@@ -288,8 +288,6 @@
             <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
           </div>
         </div>
-
-        <button class="dashboard-more-btn" style="margin-top:6px;" onclick="goTo('screen-more')" data-i18n="home.moreMenu">더보기</button>
 
         <div class="disclaimer-banner" data-i18n="home.disclaimer">본 서비스는 AI 분석 결과로 참고용이며,<br>중요 문서는 전문가와 상담하시기 바랍니다.</div>
       </section>
@@ -430,10 +428,9 @@
         <div class="large-title" data-i18n="info.sectionTitle">알아두면 좋은 정보</div>
 
         <!-- 맞춤 공공 정보 안내 (전국 공통 정보, 프로필 입력 시 인사말만 맞춤화) -->
-        <div class="dashboard-card" id="publicInfoCard" style="display:none;">
+        <div class="dashboard-card full-bleed" id="publicInfoCard" style="display:none;">
           <div class="dashboard-card-title" id="publicInfoTitle"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-info"></use></svg>알아두면 좋은 정보</div>
           <div class="group" id="publicInfoList" style="background:#fff;"></div>
-          <p class="settings-save-note" style="margin:8px 0 0;">지역을 입력하지 않아도 보이는 전국 공통 정보이며, 자세한 내용은 관할 주민센터에서 확인하세요.</p>
         </div>
 
         <!-- 지역 맞춤 정보 (경기데이터드림 실제 공공데이터: 경로당 현황). 경기도 시/군이 매칭될 때만 표시 -->
@@ -751,18 +748,14 @@
       <section class="screen" id="screen-doc-choice" data-voice="사진 촬영하기, 사진 불러오기 중에서 골라주세요." data-voice-i18n="docChoice.voice">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg><span data-i18n="docChoice.title">AI 분석하기</span></span><button class="gear-btn" onclick="goTo('screen-settings')" aria-label="설정"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg></button></div>
 
-        <div class="hero-card">
-          <div class="hero-icon"><svg viewBox="0 0 24 24"><use href="#ic-doc"></use></svg></div>
-          <p class="desc" data-i18n="docChoice.desc">분석하고 싶은 문서를 촬영하거나 사진첩에서 불러오세요.</p>
-        </div>
         <button class="voice-pill block" data-replay><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="docChoice.voicePill">음성 안내 다시 듣기</span></button>
 
-        <div class="feature-card" onclick="goTo('screen-doc-capture')" role="button" tabindex="0">
+        <div class="feature-card home-big-card" id="upload" onclick="goTo('screen-doc-capture')" role="button" tabindex="0">
           <div class="fc-icon"><svg viewBox="0 0 24 24"><use href="#ic-camera"></use></svg></div>
           <div class="fc-text"><div class="fc-title" data-i18n="docChoice.cameraTitle">사진 촬영하기</div><div class="fc-desc" data-i18n="docChoice.cameraDesc">카메라로 문서를 찍습니다</div></div>
           <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
         </div>
-        <div class="feature-card" onclick="pickFromGallery()" role="button" tabindex="0">
+        <div class="feature-card home-big-card" id="picture" onclick="pickFromGallery()" role="button" tabindex="0">
           <div class="fc-icon soft"><svg viewBox="0 0 24 24"><use href="#ic-image"></use></svg></div>
           <div class="fc-text"><div class="fc-title" data-i18n="docChoice.galleryTitle">사진 불러오기</div><div class="fc-desc" data-i18n="docChoice.galleryDesc">저장된 사진을 불러옵니다</div></div>
           <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
@@ -918,17 +911,9 @@
               ※ 미수검 시 건강보험료 할증</p>
             </div>
           </div>
-          <div class="view-toggle">
-            <button class="active" data-view="easy" onclick="setDocView('easy')" data-i18n="result.viewEasy">쉬운 설명</button>
-            <button data-view="original" onclick="setDocView('original')" data-i18n="result.viewOriginal">원문 보기</button>
-          </div>
           <div class="doc-summary" id="docEasyView" style="box-shadow:none;padding:14px 0 0;">
             <h3 data-i18n="result.aiSummaryTitle">⚪ AI가 정리한 내용</h3>
             <p>올해 안에 <strong>건강검진</strong>을 받으셔야 합니다. 가까운 검진기관에 예약하시고, 신분증을 준비해주세요.</p>
-          </div>
-          <div class="doc-summary" id="docOriginalView" style="display:none;box-shadow:none;padding:14px 0 0;">
-            <h3><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-doc"></use></svg><span data-i18n="result.originalTitle">원문</span></h3>
-            <p>건강검진 대상자 안내 / 대상: 만 40세 이상 / 기간: 2026.1.1~12.31 / 방법: 가까운 검진기관 예약 / 미수검 시 건강보험료 할증</p>
           </div>
         </div>
 
@@ -1056,11 +1041,13 @@
         </div>
 
         <div class="settings-section">
-          <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="settings.voiceSpeed">음성 읽기 속도</span></h2>
-          <div class="segmented" id="voiceRateGroup">
-            <button data-rate="1" onclick="setVoiceRate(1)" data-i18n="settings.rate1">1배속</button>
-            <button data-rate="1.4" onclick="setVoiceRate(1.4)" data-i18n="settings.rate15">1.5배속</button>
-            <button data-rate="1.8" onclick="setVoiceRate(1.8)" data-i18n="settings.rate2">2배속</button>
+          <div id="voiceRateSection">
+            <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="settings.voiceSpeed">음성 읽기 속도</span></h2>
+            <div class="segmented" id="voiceRateGroup">
+              <button data-rate="1" onclick="setVoiceRate(1)" data-i18n="settings.rate1">1배속</button>
+              <button data-rate="1.4" onclick="setVoiceRate(1.4)" data-i18n="settings.rate15">1.5배속</button>
+              <button data-rate="1.8" onclick="setVoiceRate(1.8)" data-i18n="settings.rate2">2배속</button>
+            </div>
           </div>
           <div class="voice-control-row">
             <button class="secondary-btn" onclick="replayCurrentVoice()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="settings.replay">다시 읽기</span></button>
@@ -1098,6 +1085,7 @@
           <div class="field-row">
             <label for="profileRegionSettings" data-i18n="settings.regionLabel">사시는 지역</label>
             <input type="text" id="profileRegionSettings" placeholder="예: 경기도 안산시 상록구" data-i18n-placeholder="settings.regionPlaceholder" oninput="setProfileField('region', this.value)" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+            <button type="button" class="secondary-btn" style="margin-top:10px;" onclick="useCurrentLocationForRegion()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-pin"></use></svg><span data-i18n="onboard.profile.useLocation">내 현재 위치 입력하기</span></button>
           </div>
           <p class="settings-save-note" data-i18n="settings.myInfoNote">문서·문자를 분석할 때 이 정보를 함께 참고해서 더 알맞게 설명해드려요. 다른 곳에 공유되지 않습니다.</p>
         </div>
@@ -1138,6 +1126,10 @@
 
         <div class="settings-section">
           <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-question"></use></svg><span data-i18n="settings.support">고객 지원</span></h2>
+          <div class="settings-link-row" onclick="goTo('screen-more')" role="button" tabindex="0">
+            <span><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-calendar"></use></svg><span data-i18n="home.moreMenu">더보기</span></span>
+            <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+          </div>
           <div class="settings-link-row" onclick="goTo('screen-help')" role="button" tabindex="0">
             <span><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-question"></use></svg><span data-i18n="settings.supportHelp">사용 방법 안내</span></span>
             <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
@@ -1150,17 +1142,6 @@
             <span><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg><span data-i18n="settings.supportCenter">고객센터 연결</span></span>
             <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
           </div>
-        </div>
-
-        <div class="settings-section">
-          <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-gear"></use></svg><span data-i18n="settings.account">계정</span></h2>
-          <div class="settings-link-row" onclick="confirmResetDevice()" role="button" tabindex="0">
-            <span><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-refresh"></use></svg><span data-i18n="settings.accountLogout">로그아웃 (이 기기 데이터 초기화)</span></span>
-            <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
-          </div>
-          <!-- 로그인 계정이 없는 앱이라 "로그아웃"의 실제 동작은 이 기기의 데이터(기록·일정·설정·프로필)를 지우고
-               새 기기로 처음부터 시작하는 것뿐이다. 오해를 막기 위해 버튼 문구에도 그 의미를 그대로 적는다. -->
-          <p class="settings-save-note" data-i18n="settings.accountLogoutNote">이 앱은 별도 로그인이 없어요. '로그아웃'을 누르면 이 기기에 저장된 기록·일정·설정·내 정보가 모두 지워지고, 처음 사용하는 것처럼 다시 시작돼요.</p>
         </div>
 
         <p class="settings-save-note" style="margin-top:6px;">앱 버전 1.0.0 · © 2026 온담</p>
@@ -1250,15 +1231,6 @@
     <div class="bottom-sheet-title"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-question"></use></svg><span data-i18n="skipConfirm.title">튜토리얼을 건너뛸까요?</span></div>
     <button class="sheet-btn" onclick="acceptSkipConfirm()" data-i18n="onboard.skip">건너뛰기</button>
     <button class="sheet-btn sheet-btn-cancel" onclick="closeSkipConfirm()" data-i18n="skipConfirm.keep">계속 보기</button>
-  </div>
-
-  <!-- 계정 초기화("로그아웃") 확인: 되돌릴 수 없는 삭제라 실수로 누르는 것을 막기 위해 한 번 더 확인한다 -->
-  <div class="sheet-backdrop" id="resetConfirmBackdrop" style="display:none;" onclick="closeResetConfirm()"></div>
-  <div class="bottom-sheet" id="resetConfirmSheet" style="display:none;">
-    <div class="bottom-sheet-title"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-alert"></use></svg><span data-i18n="resetConfirm.title">기기 데이터를 모두 지울까요?</span></div>
-    <p class="settings-save-note" data-i18n="resetConfirm.body">기록·일정·설정·내 정보가 모두 지워지고 되돌릴 수 없어요. 처음 사용하는 것처럼 다시 시작돼요.</p>
-    <button class="sheet-btn" onclick="acceptResetConfirm()" data-i18n="resetConfirm.confirm">초기화</button>
-    <button class="sheet-btn sheet-btn-cancel" onclick="closeResetConfirm()" data-i18n="resetConfirm.cancel">취소</button>
   </div>
 
 <!-- 코치마크 튜토리얼: 실제 화면 위에 스포트라이트 + 말풍선으로 사용법을 안내(가짜 미리보기 화면 대신 실제 버튼을 직접 눌러보며 학습).
