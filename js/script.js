@@ -1034,19 +1034,15 @@ function pickWebPhoto(captureMode){
   });
 }
 
-/** 카메라/갤러리 공용: 네이티브 플러그인이 있으면 그걸로, 없으면 웹 표준 파일 선택으로 사진을 얻는다 */
+/** 카메라/갤러리 공용: 네이티브 플러그인이 있으면 그걸로, 없으면 웹 표준 파일 선택으로 사진을 얻는다.
+ *  @capacitor/camera의 실제 API는 getPhoto({ source }) 하나뿐이다 — 이전에 쓰던 takePhoto()/chooseFromGallery()는
+ *  이 플러그인에 존재하지 않는 메서드라 네이티브 앱(APK)에서는 항상 실패했다(브라우저 폴백만 테스트돼 발견되지 않음). */
 async function pickPhoto(useCamera, webCaptureMode){
   const Camera = getCameraPlugin();
   if (Camera) {
     try {
-      if (useCamera) {
-        const result = await Camera.takePhoto({ quality: 80 });
-        lastCapturedPhoto = result.webPath;
-      } else {
-        const { results } = await Camera.chooseFromGallery({ quality: 80 });
-        if (!results || !results.length) return;
-        lastCapturedPhoto = results[0].webPath;
-      }
+      const result = await Camera.getPhoto({ quality: 80, resultType: 'uri', source: useCamera ? 'CAMERA' : 'PHOTOS' });
+      lastCapturedPhoto = result.webPath;
     } catch (err) {
       return; // 사용자가 촬영/선택을 취소한 경우 등: 화면 유지
     }
@@ -1179,9 +1175,8 @@ async function pickAvatarPhoto(){
   let raw = null;
   try {
     if (Camera) {
-      const { results } = await Camera.chooseFromGallery({ quality: 80 });
-      if (!results || !results.length) return;
-      raw = results[0].webPath;
+      const result = await Camera.getPhoto({ quality: 80, resultType: 'uri', source: 'PHOTOS' });
+      raw = result.webPath;
     } else {
       raw = await pickWebPhoto(null);
       if (!raw) return;
