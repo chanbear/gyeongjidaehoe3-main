@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS users (
   pin_hash TEXT NOT NULL,
   pin_salt TEXT NOT NULL,
   name TEXT DEFAULT '',
+  role TEXT NOT NULL DEFAULT 'senior' CHECK(role IN ('senior', 'guardian')),
   token TEXT,
   failed_attempts INTEGER DEFAULT 0,
   locked_until TEXT,
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS guardian_pair_codes (
 CREATE TABLE IF NOT EXISTS guardian_links (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   senior_user_id INTEGER NOT NULL REFERENCES users(id),
+  guardian_user_id INTEGER REFERENCES users(id),
   guardian_name TEXT DEFAULT '',
   guardian_phone TEXT DEFAULT '',
   token_hash TEXT UNIQUE NOT NULL,

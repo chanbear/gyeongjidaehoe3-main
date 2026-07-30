@@ -3,6 +3,7 @@
 
   const GUARDIAN_SESSION_KEY = 'ondam_guardian_session_v1';
   const GUARDIAN_STATE_KEY = 'ondam_guardian_state_v1';
+  const AUTH_KEY = 'ai_helper_auth_v1';
   const AI_WORKER_URL = 'https://ondam-ai.kke88084.workers.dev';
   const DEMO_STATE = {
     profile: { name: '김온담', gender: '여성', age: 72, region: '경기도 안산시' },
@@ -56,6 +57,23 @@
     }
   }
 
+  function readAccount() {
+    try {
+      const raw = localStorage.getItem(AUTH_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function accountHeaders(account) {
+    return {
+      'Content-Type': 'application/json',
+      'X-User-Id': String(account && account.userId || ''),
+      'X-Auth-Token': account && account.token || '',
+    };
+  }
+
   function guardianHeaders(session) {
     return {
       'Content-Type': 'application/json',
@@ -75,10 +93,15 @@
   }
 
   async function connect({ seniorPhone, code, guardianName, guardianPhone }) {
+    const account = readAccount();
+    if (!account || account.role !== 'guardian') {
+      location.replace('index.html');
+      return;
+    }
     const entered = phoneDigits(seniorPhone);
-    const guardianDigits = phoneDigits(guardianPhone);
+    const guardianDigits = phoneDigits(account.phone || guardianPhone);
     const pairingCode = phoneDigits(code);
-    const name = String(guardianName || '').trim();
+    const name = String(account.name || guardianName || '').trim();
     if (entered.length < 9) return showConnectError('어르신 전화번호를 정확히 입력해주세요.', 'seniorPhoneInput');
     if (!/^\d{6}$/.test(pairingCode)) return showConnectError('어르신에게 받은 6자리 연결번호를 입력해주세요.', 'pairingCodeInput');
     if (!name) return showConnectError('보호자 이름을 입력해주세요.', 'guardianNameInput');
@@ -87,7 +110,7 @@
     try {
       const response = await fetch(`${AI_WORKER_URL}/guardian-connect`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: accountHeaders(account),
         body: JSON.stringify({
           phone: entered,
           code: pairingCode,
@@ -108,6 +131,10 @@
       }
       if (error.message === 'pair_code_locked') {
         return showConnectError('연결번호를 여러 번 잘못 입력해 사용할 수 없어요. 어르신 앱에서 새 번호를 만들어주세요.', 'pairingCodeInput');
+      }
+      if (error.message === 'unauthorized' || error.message === 'guardian_only') {
+        logoutGuardian();
+        return;
       }
       return showConnectError('서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.');
     }
@@ -487,6 +514,44 @@
     location.href = 'guardian.html';
   }
 
+  function logoutGuardian() {
+    clearInterval(refreshTimer);
+    localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem(GUARDIAN_SESSION_KEY);
+    localStorage.removeItem(GUARDIAN_STATE_KEY);
+    sessionStorage.removeItem('ondam_guardian_demo');
+    location.replace('index.html');
+  }
+
+  async function resumeGuardianAccount(account) {
+    const response = await fetch(`${AI_WORKER_URL}/guardian-resume`, {
+      method: 'POST',
+      headers: accountHeaders(account),
+      body: '{}',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(data.error || 'guardian_resume_failed');
+      error.status = response.status;
+      throw error;
+    }
+    localStorage.setItem(GUARDIAN_SESSION_KEY, JSON.stringify(data.session));
+    localStorage.setItem(GUARDIAN_STATE_KEY, JSON.stringify(data.state));
+    return data.state;
+  }
+
+  function renderGuardianAccount(account) {
+    $('guardianAccountCard').hidden = false;
+    $('guardianAccountName').textContent = `${account.name || '보호자'}님`;
+    const digits = phoneDigits(account.phone);
+    $('guardianAccountPhone').textContent = digits.length >= 8
+      ? `${digits.slice(0, 3)}-${digits.slice(3, -4)}-${digits.slice(-4)}`
+      : digits;
+    $('legacyGuardianFields').hidden = true;
+    $('guardianNameInput').value = account.name || '';
+    $('guardianPhoneInput').value = account.phone || '';
+  }
+
   function openGuide() { $('guideModal').hidden = false; }
   function closeGuide() { $('guideModal').hidden = true; }
 
@@ -585,11 +650,19 @@
     }
     disconnectLocal();
   });
+  $('guardianLogoutButton').addEventListener('click', logoutGuardian);
+  $('connectLogoutButton').addEventListener('click', logoutGuardian);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && state && !isDemo) refreshState(false);
   });
 
-  try {
+  async function bootstrapGuardian() {
+    const account = readAccount();
+    if (!account || account.role !== 'guardian') {
+      location.replace('index.html');
+      return;
+    }
+    renderGuardianAccount(account);
     const params = new URLSearchParams(location.search);
     if (params.get('demo') === '1') {
       openDemo();
@@ -602,7 +675,23 @@
       openApp();
       refreshState(false);
     } else if (session) {
-      disconnectLocal();
+      localStorage.removeItem(GUARDIAN_SESSION_KEY);
+      localStorage.removeItem(GUARDIAN_STATE_KEY);
     }
-  } catch {}
+    if (!state) {
+      try {
+        state = await resumeGuardianAccount(account);
+        openApp();
+      } catch (error) {
+        if (error && error.status === 401) {
+          logoutGuardian();
+          return;
+        }
+        if (!error || error.message !== 'no_guardian_link') {
+          showConnectError('연결 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요.');
+        }
+      }
+    }
+  }
+  bootstrapGuardian().catch(() => showConnectError('보호자 화면을 시작하지 못했어요.'));
 })();

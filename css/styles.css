@@ -830,6 +830,27 @@ body.has-bottom-nav .screen.active{
   border:1px solid var(--danger); border-radius:999px; background:#fff;
   color:var(--danger-strong); min-height:40px; padding:0 14px; font-weight:700;
 }
+.role-choice{
+  display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px;
+}
+.role-choice-card{
+  min-height:142px; padding:16px 10px; border:2px solid var(--line);
+  border-radius:var(--radius-md); background:#fff; color:var(--ink);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:7px; text-align:center; font-family:inherit;
+}
+.role-choice-card.active{
+  border-color:var(--accent); background:var(--accent-soft);
+  box-shadow:0 0 0 3px rgba(61,107,245,.1);
+}
+.role-choice-icon{
+  min-width:44px; height:44px; padding:0 9px; border-radius:15px;
+  display:grid; place-items:center; background:var(--surface-soft);
+  color:var(--accent-strong); font-size:14px; font-weight:900;
+}
+.role-choice-card.active .role-choice-icon{ background:var(--accent); color:#fff; }
+.role-choice-card strong{ font-size:18px; }
+.role-choice-card small{ color:var(--ink-faint); font-size:12px; line-height:1.4; }
 .coach-hole{
   position:fixed; border-radius:16px; pointer-events:none;
   box-shadow:0 0 0 9999px rgba(10,14,20,.6);

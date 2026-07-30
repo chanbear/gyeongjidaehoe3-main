@@ -212,6 +212,14 @@ async function authenticateRequest(env, request) {
   return row ? row.id : null;
 }
 
+async function authenticatedUser(env, request) {
+  const userId = await authenticateRequest(env, request);
+  if (!userId) return null;
+  return env.ansim_doumi_db.prepare(
+    `SELECT id, phone, name, role FROM users WHERE id = ?`
+  ).bind(userId).first();
+}
+
 /** 보호자 토큰을 검증하고 활성 연결 정보를 반환한다. 토큰 평문은 DB에 저장하지 않는다. */
 async function authenticateGuardian(env, request) {
   const token = request.headers.get('X-Guardian-Token');
@@ -510,9 +518,11 @@ export default {
         return json({ error: '잘못된 요청입니다.' }, 400);
       }
       const { phone, pin, name } = body || {};
+      const role = body && body.role === 'guardian' ? 'guardian' : 'senior';
       const phoneDigits = String(phone || '').replace(/\D/g, '');
       if (phoneDigits.length < 9) return json({ error: 'invalid_phone' }, 400);
       if (String(pin || '').length < 4) return json({ error: 'invalid_pin' }, 400);
+      if (role === 'guardian' && !String(name || '').trim()) return json({ error: 'invalid_name' }, 400);
 
       try {
         const existing = await env.ansim_doumi_db.prepare(
@@ -525,20 +535,21 @@ export default {
         const token = randomHex(32);
 
         const inserted = await env.ansim_doumi_db.prepare(
-          `INSERT INTO users (phone, pin_hash, pin_salt, name, token)
-           VALUES (?, ?, ?, ?, ?)`
-        ).bind(phoneDigits, pinHash, pinSalt, name || '', token).run();
+          `INSERT INTO users (phone, pin_hash, pin_salt, name, role, token)
+           VALUES (?, ?, ?, ?, ?, ?)`
+        ).bind(phoneDigits, pinHash, pinSalt, name || '', role, token).run();
 
         const userId = inserted.meta.last_row_id;
-        return json({ userId, token, name: name || '' }, 200);
+        return json({ userId, token, name: name || '', role }, 200);
       } catch (err) {
         return json({ error: '가입에 실패했습니다.', detail: String(err && err.message || err) }, 502);
       }
     }
 
     if (url.pathname === '/guardian-pair-code' && request.method === 'POST') {
-      const userId = await authenticateRequest(env, request);
-      if (!userId) return json({ error: 'unauthorized' }, 401);
+      const user = await authenticatedUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (user.role !== 'senior') return json({ error: 'senior_only' }, 403);
       try {
         const code = generateOtp();
         const codeSalt = randomHex(8);
@@ -553,7 +564,7 @@ export default {
              expires_at = excluded.expires_at,
              failed_attempts = 0,
              created_at = excluded.created_at`
-        ).bind(userId, codeHash, codeSalt, expiresAt).run();
+        ).bind(user.id, codeHash, codeSalt, expiresAt).run();
         return json({ code, expiresAt }, 200);
       } catch (err) {
         return json({ error: 'pair_code_failed', detail: String(err && err.message || err) }, 502);
@@ -561,15 +572,16 @@ export default {
     }
 
     if (url.pathname === '/guardian-links' && request.method === 'GET') {
-      const userId = await authenticateRequest(env, request);
-      if (!userId) return json({ error: 'unauthorized' }, 401);
+      const user = await authenticatedUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (user.role !== 'senior') return json({ error: 'senior_only' }, 403);
       try {
         const rows = await env.ansim_doumi_db.prepare(
           `SELECT id, guardian_name, guardian_phone, notification_enabled, created_at, last_seen_at
              FROM guardian_links
             WHERE senior_user_id = ? AND active = 1
             ORDER BY created_at DESC`
-        ).bind(userId).all();
+        ).bind(user.id).all();
         return json({ links: (rows && rows.results) || [] }, 200);
       } catch (err) {
         return json({ error: 'guardian_links_failed', detail: String(err && err.message || err) }, 502);
@@ -577,8 +589,9 @@ export default {
     }
 
     if (url.pathname === '/guardian-unlink' && request.method === 'POST') {
-      const userId = await authenticateRequest(env, request);
-      if (!userId) return json({ error: 'unauthorized' }, 401);
+      const user = await authenticatedUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (user.role !== 'senior') return json({ error: 'senior_only' }, 403);
       let body;
       try {
         body = await request.json();
@@ -589,11 +602,14 @@ export default {
       if (!linkId) return json({ error: 'invalid_link' }, 400);
       await env.ansim_doumi_db.prepare(
         `UPDATE guardian_links SET active = 0 WHERE id = ? AND senior_user_id = ?`
-      ).bind(linkId, userId).run();
+      ).bind(linkId, user.id).run();
       return json({ ok: true }, 200);
     }
 
     if (url.pathname === '/guardian-connect' && request.method === 'POST') {
+      const guardianUser = await authenticatedUser(env, request);
+      if (!guardianUser) return json({ error: 'unauthorized' }, 401);
+      if (guardianUser.role !== 'guardian') return json({ error: 'guardian_only' }, 403);
       let body;
       try {
         body = await request.json();
@@ -601,8 +617,8 @@ export default {
         return json({ error: 'invalid_request' }, 400);
       }
       const phoneDigits = String(body && body.phone || '').replace(/\D/g, '');
-      const guardianPhone = String(body && body.guardianPhone || '').replace(/\D/g, '');
-      const guardianName = String(body && body.guardianName || '').trim().slice(0, 40);
+      const guardianPhone = String(guardianUser.phone || '').replace(/\D/g, '');
+      const guardianName = String(guardianUser.name || '').trim().slice(0, 40);
       const code = String(body && body.code || '').replace(/\D/g, '');
       if (phoneDigits.length < 9) return json({ error: 'invalid_phone' }, 400);
       if (guardianPhone.length < 9) return json({ error: 'invalid_guardian_phone' }, 400);
@@ -614,6 +630,7 @@ export default {
           `SELECT id, name FROM users WHERE phone = ?`
         ).bind(phoneDigits).first();
         if (!user) return json({ error: 'not_found' }, 404);
+        if (Number(user.id) === Number(guardianUser.id)) return json({ error: 'cannot_link_self' }, 400);
 
         const pair = await env.ansim_doumi_db.prepare(
           `SELECT code_hash, code_salt, expires_at, failed_attempts FROM guardian_pair_codes WHERE senior_user_id = ?`
@@ -640,15 +657,16 @@ export default {
         const tokenHash = await sha256Hex(guardianToken);
         await env.ansim_doumi_db.prepare(
           `INSERT INTO guardian_links
-             (senior_user_id, guardian_name, guardian_phone, token_hash, notification_enabled, active, created_at, last_seen_at)
-           VALUES (?, ?, ?, ?, 1, 1, datetime('now'), datetime('now'))
+             (senior_user_id, guardian_user_id, guardian_name, guardian_phone, token_hash, notification_enabled, active, created_at, last_seen_at)
+           VALUES (?, ?, ?, ?, ?, 1, 1, datetime('now'), datetime('now'))
            ON CONFLICT(senior_user_id, guardian_phone) DO UPDATE SET
+             guardian_user_id = excluded.guardian_user_id,
              guardian_name = excluded.guardian_name,
              token_hash = excluded.token_hash,
              notification_enabled = 1,
              active = 1,
              last_seen_at = datetime('now')`
-        ).bind(user.id, guardianName, guardianPhone, tokenHash).run();
+        ).bind(user.id, guardianUser.id, guardianName, guardianPhone, tokenHash).run();
         await env.ansim_doumi_db.prepare(
           `DELETE FROM guardian_pair_codes WHERE senior_user_id = ?`
         ).bind(user.id).run();
@@ -672,6 +690,41 @@ export default {
         }, 200);
       } catch (err) {
         return json({ error: 'connect_failed', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
+    if (url.pathname === '/guardian-resume' && request.method === 'POST') {
+      const guardianUser = await authenticatedUser(env, request);
+      if (!guardianUser) return json({ error: 'unauthorized' }, 401);
+      if (guardianUser.role !== 'guardian') return json({ error: 'guardian_only' }, 403);
+      try {
+        const guardianToken = randomHex(32);
+        const tokenHash = await sha256Hex(guardianToken);
+        const link = await env.ansim_doumi_db.prepare(
+          `SELECT gl.id, gl.senior_user_id, gl.guardian_name, gl.guardian_phone,
+                  gl.notification_enabled, u.name AS senior_name, u.phone AS senior_phone
+             FROM guardian_links gl
+             JOIN users u ON u.id = gl.senior_user_id
+            WHERE gl.guardian_user_id = ? AND gl.active = 1
+            ORDER BY COALESCE(gl.last_seen_at, gl.created_at) DESC
+            LIMIT 1`
+        ).bind(guardianUser.id).first();
+        if (!link) return json({ error: 'no_guardian_link' }, 404);
+        await env.ansim_doumi_db.prepare(
+          `UPDATE guardian_links SET token_hash = ?, last_seen_at = datetime('now') WHERE id = ?`
+        ).bind(tokenHash, link.id).run();
+        const state = await guardianStateForLink(env, link);
+        return json({
+          session: {
+            token: guardianToken,
+            linkId: link.id,
+            seniorName: state.senior.name,
+            seniorPhone: state.senior.phone,
+          },
+          state,
+        }, 200);
+      } catch (err) {
+        return json({ error: 'guardian_resume_failed', detail: String(err && err.message || err) }, 502);
       }
     }
 
@@ -740,7 +793,7 @@ export default {
 
       try {
         const user = await env.ansim_doumi_db.prepare(
-          `SELECT id, pin_hash, pin_salt, name, failed_attempts, locked_until FROM users WHERE phone = ?`
+          `SELECT id, pin_hash, pin_salt, name, role, failed_attempts, locked_until FROM users WHERE phone = ?`
         ).bind(phoneDigits).first();
 
         if (!user) return json({ error: 'invalid' }, 401);
@@ -766,7 +819,7 @@ export default {
           `UPDATE users SET token = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?`
         ).bind(token, user.id).run();
 
-        return json({ userId: user.id, token, name: user.name || '' }, 200);
+        return json({ userId: user.id, token, name: user.name || '', role: user.role || 'senior' }, 200);
       } catch (err) {
         return json({ error: '로그인에 실패했습니다.', detail: String(err && err.message || err) }, 502);
       }

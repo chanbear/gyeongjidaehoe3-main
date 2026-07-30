@@ -81,6 +81,24 @@
         <p class="desc" data-i18n="onboard.signup.desc">전화번호와 비밀번호로 계정을 만들어요.<br>이 계정으로 다른 기기에서도 내 정보를 이어서 쓸 수 있어요.</p>
 
         <div class="settings-section">
+          <h2>누가 사용하시나요?</h2>
+          <p class="settings-save-note">선택한 역할에 맞는 화면으로 자동 연결해드려요.</p>
+          <div class="role-choice" id="signupRoleGroup">
+            <button type="button" class="role-choice-card active" data-role="senior" onclick="selectSignupRole('senior')">
+              <span class="role-choice-icon" aria-hidden="true">나</span>
+              <strong>어르신</strong>
+              <small>문자와 문서를 확인할게요</small>
+            </button>
+            <button type="button" class="role-choice-card" data-role="guardian" onclick="selectSignupRole('guardian')">
+              <span class="role-choice-icon" aria-hidden="true">가족</span>
+              <strong>보호자</strong>
+              <small>부모님의 안전을 살펴볼게요</small>
+            </button>
+          </div>
+          <input type="hidden" id="signupRole" value="senior">
+        </div>
+
+        <div class="settings-section">
           <h2 data-i18n="settings.nameLabel">이름</h2>
           <div class="field-row">
             <input type="text" id="signupName" placeholder="예: 홍길동" data-i18n-placeholder="settings.namePlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">

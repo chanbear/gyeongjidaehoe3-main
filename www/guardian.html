@@ -19,6 +19,11 @@
         <h1>부모님 곁에<br>한 걸음 더 가까이</h1>
         <p>어르신 앱에서 만든 6자리 연결번호로 동의를 확인한 뒤 안전하게 연결합니다.</p>
       </div>
+      <div class="guardian-account-card" id="guardianAccountCard" hidden>
+        <span>로그인한 보호자 계정</span>
+        <strong id="guardianAccountName"></strong>
+        <small id="guardianAccountPhone"></small>
+      </div>
       <form class="connect-card" id="connectForm">
         <label for="seniorPhoneInput">어르신 전화번호</label>
         <input id="seniorPhoneInput" type="tel" inputmode="numeric"
@@ -26,18 +31,20 @@
         <label for="pairingCodeInput">어르신에게 받은 연결번호</label>
         <input id="pairingCodeInput" type="text" inputmode="numeric" maxlength="7"
                autocomplete="one-time-code" placeholder="123 456">
-        <label for="guardianNameInput">보호자 이름</label>
-        <input id="guardianNameInput" type="text" maxlength="40" autocomplete="name"
-               placeholder="예: 김민수">
-        <label for="guardianPhoneInput">보호자 전화번호</label>
-        <input id="guardianPhoneInput" type="tel" inputmode="numeric" autocomplete="tel"
-               placeholder="010-1234-5678">
+        <div id="legacyGuardianFields">
+          <label for="guardianNameInput">보호자 이름</label>
+          <input id="guardianNameInput" type="text" maxlength="40" autocomplete="name"
+                 placeholder="예: 김민수">
+          <label for="guardianPhoneInput">보호자 전화번호</label>
+          <input id="guardianPhoneInput" type="tel" inputmode="numeric" autocomplete="tel"
+                 placeholder="010-1234-5678">
+        </div>
         <p class="field-help" id="connectHelp">어르신 앱의 설정 → 보호자 앱 연결에서 연결번호를 만들 수 있습니다.</p>
         <p class="form-error" id="connectError" role="alert"></p>
         <button class="primary-action" type="submit">부모님과 연결하기</button>
         <button class="demo-action" type="button" id="demoButton">연결 전 화면 미리보기</button>
       </form>
-      <a class="elder-link" href="index.html">어르신용 온담으로 돌아가기</a>
+      <button class="elder-link guardian-logout-link" type="button" id="connectLogoutButton">다른 계정으로 로그인</button>
     </section>
 
     <section class="app-screen" id="guardianApp" hidden>
@@ -151,6 +158,7 @@
         <section class="menu-card">
           <button id="notificationToggle"><span class="menu-icon">♬</span><span><strong>위험 알림</strong><small id="notificationState">새 위험 문자가 있으면 알려드려요</small></span><i class="toggle on" aria-hidden="true"></i></button>
           <button id="disconnectButton"><span class="menu-icon danger">×</span><span><strong>연결 해제</strong><small>이 기기의 보호자 연결을 종료합니다</small></span><b>›</b></button>
+          <button id="guardianLogoutButton"><span class="menu-icon danger">↪</span><span><strong>로그아웃</strong><small>보호자 계정에서 로그아웃합니다</small></span><b>›</b></button>
         </section>
         <p class="privacy-note">온담은 부모님의 분석 결과 중 보호자에게 필요한 내용만 보여줍니다.</p>
       </div>

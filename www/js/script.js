@@ -3326,17 +3326,35 @@ async function revokeGuardianLink(linkId){
   }
 }
 
-async function signupRequest(phone, pin, name){
+function selectSignupRole(role){
+  const selected = role === 'guardian' ? 'guardian' : 'senior';
+  const input = document.getElementById('signupRole');
+  if (input) input.value = selected;
+  document.querySelectorAll('#signupRoleGroup [data-role]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.role === selected);
+    button.setAttribute('aria-pressed', button.dataset.role === selected ? 'true' : 'false');
+  });
+}
+
+function openHomeForRole(role){
+  if (role === 'guardian') {
+    window.location.replace('guardian.html');
+    return true;
+  }
+  return false;
+}
+
+async function signupRequest(phone, pin, name, role){
   try {
     const res = await fetch(AI_WORKER_URL + '/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, pin, name }),
+      body: JSON.stringify({ phone, pin, name, role }),
     });
     const data = await res.json();
     if (!res.ok) return { ok: false, error: data.error || 'unknown' };
-    setAuth({ userId: data.userId, token: data.token, name: data.name, phone: phone.replace(/\D/g, '') });
-    return { ok: true };
+    setAuth({ userId: data.userId, token: data.token, name: data.name, role: data.role || role || 'senior', phone: phone.replace(/\D/g, '') });
+    return { ok: true, role: data.role || role || 'senior' };
   } catch (err) {
     return { ok: false, error: 'network' };
   }
@@ -3351,8 +3369,8 @@ async function loginRequest(phone, pin){
     });
     const data = await res.json();
     if (!res.ok) return { ok: false, error: data.error || 'unknown' };
-    setAuth({ userId: data.userId, token: data.token, name: data.name, phone: phone.replace(/\D/g, '') });
-    return { ok: true };
+    setAuth({ userId: data.userId, token: data.token, name: data.name, role: data.role || 'senior', phone: phone.replace(/\D/g, '') });
+    return { ok: true, role: data.role || 'senior' };
   } catch (err) {
     return { ok: false, error: 'network' };
   }
@@ -3400,17 +3418,20 @@ async function handleSignupSubmit(){
   const phone = document.getElementById('signupPhone').value.trim();
   const pin = document.getElementById('signupPin').value.trim();
   const pinConfirm = document.getElementById('signupPinConfirm').value.trim();
+  const role = document.getElementById('signupRole').value === 'guardian' ? 'guardian' : 'senior';
 
+  if (!name) return showFieldError('signupError', '이름을 입력해주세요.');
   if (guardianPhoneDigits(phone).length < 9) return showFieldError('signupError', t('onboard.signup.errorPhone'));
   if (pin.length < 4) return showFieldError('signupError', t('onboard.signup.errorPinFormat'));
   if (pin !== pinConfirm) return showFieldError('signupError', t('onboard.signup.errorPinMismatch'));
 
   showFieldError('signupError', '');
-  const result = await signupRequest(phone, pin, name);
+  const result = await signupRequest(phone, pin, name, role);
   if (!result.ok) {
     if (result.error === 'phone_exists') return showFieldError('signupError', t('onboard.signup.errorPhoneExists'));
     return showFieldError('signupError', t('onboard.signup.errorGeneric'));
   }
+  if (openHomeForRole(result.role)) return;
   appState.profile.name = name;
   saveState();
   goTo('screen-profile');
@@ -3426,6 +3447,7 @@ async function handleLoginSubmit(){
     if (result.error === 'locked') return showFieldError('loginError', t('onboard.login.errorLocked'));
     return showFieldError('loginError', t('onboard.login.errorInvalid'));
   }
+  if (openHomeForRole(result.role)) return;
   await pullStateFromServer();
   saveState();
   syncSettingsUI();
@@ -4053,7 +4075,12 @@ window.addEventListener('load', async () => {
   // 로그인 토큰이 있으면 홈에서 시작(서버 상태를 조용히 불러온다), 없으면 인사 화면(회원가입 유도)에서 시작한다.
   // goTo()를 쓰지 않는 이유: 앱을 열자마자 안내 음성이 재생되는 걸 막기 위함(기존 동작 유지).
   let firstScreenId = 'screen-greet';
-  if (getAuth()) {
+  const currentAuth = getAuth();
+  if (currentAuth && currentAuth.role === 'guardian') {
+    window.location.replace('guardian.html');
+    return;
+  }
+  if (currentAuth) {
     const stillValid = await pullStateFromServer();
     firstScreenId = stillValid ? 'screen-home' : 'screen-login';
     if (!stillValid) clearAuth();
