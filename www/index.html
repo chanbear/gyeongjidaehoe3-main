@@ -259,7 +259,7 @@
           </button>
           <div class="home-greet-text">
             <div class="home-greet-name" id="homeGreetName"></div>
-            <div class="home-greet-sub" data-i18n="home.assistantActive">온담 비서가 활성화되었습니다</div>
+            <div class="home-greet-sub" id="homeAssistantStatus">온담 비서가 활성화되었습니다</div>
           </div>
           <label class="switch" aria-label="음성 지원 켜고 끄기">
             <input type="checkbox" class="voice-enabled-toggle" checked onchange="toggleVoice(this)">
@@ -1032,22 +1032,25 @@
         </div>
 
         <div class="settings-section">
-          <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="settings.voiceSpeed">음성 읽기 속도</span></h2>
-          <div class="segmented" id="voiceRateGroup">
-            <button data-rate="1" onclick="setVoiceRate(1)" data-i18n="settings.rate1">1배속</button>
-            <button data-rate="1.4" onclick="setVoiceRate(1.4)" data-i18n="settings.rate15">1.5배속</button>
-            <button data-rate="1.8" onclick="setVoiceRate(1.8)" data-i18n="settings.rate2">2배속</button>
-          </div>
-          <div class="voice-control-row">
-            <button class="secondary-btn" onclick="replayCurrentVoice()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="settings.replay">다시 읽기</span></button>
-            <button class="secondary-btn" onclick="stopVoice()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-stop"></use></svg><span data-i18n="settings.stop">멈추기</span></button>
-          </div>
-          <div class="toggle-row" style="margin-top:12px;">
+          <div class="toggle-row">
             <span><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="settings.voiceEnable">음성 안내 사용하기</span></span>
             <label class="switch">
               <input type="checkbox" id="voiceEnabledToggle" class="voice-enabled-toggle" checked onchange="toggleVoice(this)">
               <span class="track"></span>
             </label>
+          </div>
+          <!-- 음성 안내 사용하기가 꺼지면 이 아래(속도 조절/다시읽기/멈추기)는 숨긴다(syncVoiceRateVisibility) -->
+          <div id="voiceRateSection" style="margin-top:12px;">
+            <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="settings.voiceSpeed">음성 읽기 속도</span></h2>
+            <div class="segmented" id="voiceRateGroup">
+              <button data-rate="1" onclick="setVoiceRate(1)" data-i18n="settings.rate1">1배속</button>
+              <button data-rate="1.4" onclick="setVoiceRate(1.4)" data-i18n="settings.rate15">1.5배속</button>
+              <button data-rate="1.8" onclick="setVoiceRate(1.8)" data-i18n="settings.rate2">2배속</button>
+            </div>
+            <div class="voice-control-row">
+              <button class="secondary-btn" onclick="replayCurrentVoice()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="settings.replay">다시 읽기</span></button>
+              <button class="secondary-btn" onclick="stopVoice()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-stop"></use></svg><span data-i18n="settings.stop">멈추기</span></button>
+            </div>
           </div>
         </div>
 

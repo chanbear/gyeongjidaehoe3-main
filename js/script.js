@@ -142,38 +142,74 @@ function loadState(){
 function loadVoices(){ voices = window.speechSynthesis ? speechSynthesis.getVoices() : []; }
 if (window.speechSynthesis) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
 
+/** 안드로이드 시스템 WebView는 Web Speech API(window.speechSynthesis)를 안정적으로 지원하지 않아
+ *  APK에서 음성 안내가 무음이 되는 문제가 있었다 — 네이티브 TTS 플러그인이 있으면 그걸 쓰고,
+ *  없으면(웹 브라우저) 기존 speechSynthesis로 폴백한다. */
+function getTtsPlugin(){
+  return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Tts) || null;
+}
+
 /** 음성 지원 on/off 스위치는 홈 화면과 설정 화면 두 곳에 있다(voice-enabled-toggle 클래스로 묶임).
  *  el을 넘기면 그 스위치가 지금 누른 것이고, 나머지 스위치도 같은 상태로 맞춘다. */
 function toggleVoice(el){
   const checked = el ? el.checked : !appState.settings.voiceEnabled;
   appState.settings.voiceEnabled = checked;
   syncVoiceEnabledToggles();
-  if (!checked && window.speechSynthesis) speechSynthesis.cancel();
+  syncVoiceRateVisibility();
+  if (!checked) stopSpeaking();
   saveState();
+}
+
+function stopSpeaking(){
+  const Tts = getTtsPlugin();
+  if (Tts) Tts.stop();
+  else if (window.speechSynthesis) speechSynthesis.cancel();
 }
 
 function syncVoiceEnabledToggles(){
   document.querySelectorAll('.voice-enabled-toggle').forEach(t => { t.checked = appState.settings.voiceEnabled; });
+  syncAssistantStatusText();
+  syncVoiceRateVisibility();
+}
+
+/** 홈 화면 좌측 "온담 비서가 활성화/비활성화되었습니다" 문구를 토글 상태에 맞게 갱신한다 */
+function syncAssistantStatusText(){
+  const el = document.getElementById('homeAssistantStatus');
+  if (!el) return;
+  el.textContent = t(appState.settings.voiceEnabled ? 'home.assistantActive' : 'home.assistantInactive');
+}
+
+/** 음성 안내가 꺼져 있으면 설정 화면의 "음성 읽기 속도"/다시읽기/멈추기 컨트롤을 숨긴다 */
+function syncVoiceRateVisibility(){
+  const el = document.getElementById('voiceRateSection');
+  if (el) el.style.display = appState.settings.voiceEnabled ? '' : 'none';
 }
 
 /** 번역된 문구(온보딩/튜토리얼)를 읽어줄 때만 언어별 TTS lang을 쓰고, 그 외(AI 분석 결과 등 항상 한국어인 문구)는 기본값(한국어)을 유지한다 */
 const TTS_LANG_MAP = { ko: 'ko-KR', zh: 'zh-CN', vi: 'vi-VN', th: 'th-TH', uz: 'uz-UZ' };
 function currentTtsLang(){ return TTS_LANG_MAP[appState.settings.language] || 'ko-KR'; }
 
-function speak(text, lang){
+/** force=true면 음성 안내 켬/끔 설정과 무관하게 읽어준다("다시 듣기" 버튼 전용 — 21번 항목) */
+function speak(text, lang, force){
   const liveRegion = document.getElementById('liveRegion');
-  if (!appState.settings.voiceEnabled || !window.speechSynthesis || !text) {
+  if ((!force && !appState.settings.voiceEnabled) || !text) {
     if (text && liveRegion) liveRegion.textContent = text;
     return;
   }
-  speechSynthesis.cancel();
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = lang || 'ko-KR';
-  utter.rate = appState.settings.voiceRate;
-  const langPrefix = utter.lang.split('-')[0];
-  const matchVoice = voices.find(v => v.lang && v.lang.startsWith(langPrefix));
-  if (matchVoice) utter.voice = matchVoice;
-  speechSynthesis.speak(utter);
+  const ttsLang = lang || 'ko-KR';
+  const Tts = getTtsPlugin();
+  if (Tts) {
+    Tts.speak({ text, lang: ttsLang, rate: appState.settings.voiceRate });
+  } else if (window.speechSynthesis) {
+    speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = ttsLang;
+    utter.rate = appState.settings.voiceRate;
+    const langPrefix = utter.lang.split('-')[0];
+    const matchVoice = voices.find(v => v.lang && v.lang.startsWith(langPrefix));
+    if (matchVoice) utter.voice = matchVoice;
+    speechSynthesis.speak(utter);
+  }
   if (liveRegion) liveRegion.textContent = text;
 }
 
@@ -188,9 +224,11 @@ function screenVoiceLang(screenEl){
   return screenEl.hasAttribute('data-voice-i18n') ? currentTtsLang() : 'ko-KR';
 }
 
+/** 자동 음성 안내(화면 진입 시)는 voiceEnabled 토글을 따르지만, "다시 듣기"는 수동으로 누른
+ *  동작이라 음성 안내가 꺼져 있어도 항상 소리가 나야 한다(사용자 요청). */
 function replayCurrentVoice(){
   const active = document.querySelector('.screen.active');
-  if (active) speak(screenVoiceText(active), screenVoiceLang(active));
+  if (active) speak(screenVoiceText(active), screenVoiceLang(active), true);
 }
 
 /** 음성 읽기 멈추기 */
@@ -1867,6 +1905,7 @@ const I18N = {
   ko: {
     'home.sectionTitle': '무엇을 도와드릴까요?',
     'home.assistantActive': '온담 비서가 활성화되었습니다',
+    'home.assistantInactive': '온담 비서가 비활성화되었습니다',
     'home.greetDefault': '어르신',
     'home.greetNameSuffix': '님', 'home.greetAge': '{age}대 어르신', 'home.greetAgeGender': '{age}대 {gender} 어르신',
     'home.docCaptureTitle': '문서 촬영',
@@ -2052,6 +2091,7 @@ const I18N = {
   zh: {
     'home.sectionTitle': '需要什么帮助？',
     'home.assistantActive': '온담 助手已启用',
+    'home.assistantInactive': '온담 助手已停用',
     'home.greetDefault': '您好',
     'home.greetNameSuffix': '', 'home.greetAge': '{age}多岁的您', 'home.greetAgeGender': '{age}多岁的{gender}士',
     'home.docCaptureTitle': '文件拍摄',
@@ -2215,6 +2255,7 @@ const I18N = {
   vi: {
     'home.sectionTitle': 'Bạn cần giúp gì?',
     'home.assistantActive': 'Trợ lý 온담 đã được kích hoạt',
+    'home.assistantInactive': 'Trợ lý 온담 đã bị tắt',
     'home.greetDefault': 'Cô/Chú',
     'home.greetNameSuffix': '', 'home.greetAge': 'Cô/Chú khoảng {age} tuổi', 'home.greetAgeGender': '{gender} khoảng {age} tuổi',
     'home.docCaptureTitle': 'Chụp tài liệu',
@@ -2378,6 +2419,7 @@ const I18N = {
   th: {
     'home.sectionTitle': 'ต้องการความช่วยเหลือเรื่องอะไร?',
     'home.assistantActive': 'ผู้ช่วย 온담 เปิดใช้งานแล้ว',
+    'home.assistantInactive': 'ผู้ช่วย 온담 ถูกปิดใช้งานแล้ว',
     'home.greetDefault': 'คุณลูกค้า',
     'home.greetNameSuffix': '', 'home.greetAge': 'ผู้สูงอายุวัย {age} ปีขึ้นไป', 'home.greetAgeGender': 'ผู้สูงอายุเพศ{gender} วัย {age} ปีขึ้นไป',
     'home.docCaptureTitle': 'ถ่ายภาพเอกสาร',
@@ -2541,6 +2583,7 @@ const I18N = {
   uz: {
     'home.sectionTitle': 'Sizga qanday yordam kerak?',
     'home.assistantActive': "온담 yordamchisi faollashtirildi",
+    'home.assistantInactive': "온담 yordamchisi faolsizlantirildi",
     'home.greetDefault': 'Foydalanuvchi',
     'home.greetNameSuffix': '', 'home.greetAge': '{age} yoshli foydalanuvchi', 'home.greetAgeGender': '{age} yoshli {gender}',
     'home.docCaptureTitle': "Hujjat suratga olish",
