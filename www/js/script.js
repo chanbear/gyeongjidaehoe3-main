@@ -206,7 +206,7 @@ const onboardScreens = new Set(['screen-greet', 'screen-signup', 'screen-login',
 
 /* 하단 네비게이션 바를 노출할 최상위 화면. 여기 없는 화면(촬영·로딩·결과 등 흐름 중간)에서는 숨겨서
    "네비바가 보이면 출발점, 안 보이면 진행 중"이라는 규칙을 만든다. */
-const TAB_SCREENS = new Set(['screen-home', 'screen-info', 'screen-history', 'screen-settings']);
+const TAB_SCREENS = new Set(['screen-home', 'screen-info', 'screen-more']);
 
 /** 네비바의 활성 탭 표시를 현재 화면에 맞춘다 */
 function syncBottomNav(id){
@@ -1915,7 +1915,7 @@ const I18N = {
     'stats.upcoming': '다가오는 납부 기한',
     'stats.empty': '아직 금액이나 기한이 적힌 문서를 확인한 적이 없어요.<br>고지서를 촬영하면 여기에 모아서 보여드릴게요.',
     'home.disclaimer': '본 서비스는 AI 분석 결과로 참고용이며,<br>중요 문서는 전문가와 상담하시기 바랍니다.',
-    'nav.home': '홈', 'nav.info': '정보', 'nav.help': '도움', 'nav.history': '기록', 'nav.settings': '설정',
+    'nav.home': '홈', 'nav.info': '정보', 'nav.help': '도움',
     'info.sectionTitle': '알아두면 좋은 정보',
     'info.empty': '표시할 정보를 불러오지 못했어요.<br>설정에서 사시는 지역을 입력하시면 더 많은 정보를 볼 수 있어요.',
     'settings.title': '설정',
@@ -2100,7 +2100,7 @@ const I18N = {
     'stats.upcoming': '临近的缴纳期限',
     'stats.empty': '还没有确认过记有金额或期限的文件。<br>拍摄缴费单后就会汇总显示在这里。',
     'home.disclaimer': '本服务为AI分析结果，仅供参考，<br>重要文件请咨询专业人士。',
-    'nav.home': '主页', 'nav.info': '信息', 'nav.help': '帮助', 'nav.history': '记录', 'nav.settings': '设置',
+    'nav.home': '主页', 'nav.info': '信息', 'nav.help': '帮助',
     'info.sectionTitle': '需要了解的信息',
     'info.empty': '无法加载要显示的信息。<br>在设置中输入您居住的地区，可以查看更多信息。',
     'settings.title': '设置',
@@ -2263,7 +2263,7 @@ const I18N = {
     'stats.upcoming': 'Hạn nộp sắp tới',
     'stats.empty': 'Bạn chưa kiểm tra tài liệu nào có ghi số tiền hay hạn nộp.<br>Hãy chụp hóa đơn, chúng tôi sẽ tổng hợp tại đây.',
     'home.disclaimer': 'Dịch vụ này chỉ mang tính tham khảo (kết quả phân tích AI),<br>hãy hỏi chuyên gia với tài liệu quan trọng.',
-    'nav.home': 'Trang chủ', 'nav.info': 'Thông tin', 'nav.help': 'Trợ giúp', 'nav.history': 'Lịch sử', 'nav.settings': 'Cài đặt',
+    'nav.home': 'Trang chủ', 'nav.info': 'Thông tin', 'nav.help': 'Trợ giúp',
     'info.sectionTitle': 'Thông tin nên biết',
     'info.empty': 'Không tải được thông tin để hiển thị.<br>Nhập khu vực bạn đang sống trong Cài đặt để xem thêm thông tin.',
     'settings.title': 'Cài đặt',
@@ -2426,7 +2426,7 @@ const I18N = {
     'stats.upcoming': 'กำหนดชำระที่ใกล้เข้ามา',
     'stats.empty': 'ยังไม่เคยตรวจสอบเอกสารที่ระบุจำนวนเงินหรือกำหนดชำระ<br>ถ่ายรูปใบแจ้งหนี้แล้วเราจะรวบรวมไว้ที่นี่',
     'home.disclaimer': 'บริการนี้เป็นผลวิเคราะห์จาก AI เพื่อการอ้างอิงเท่านั้น<br>เอกสารสำคัญกรุณาปรึกษาผู้เชี่ยวชาญ',
-    'nav.home': 'หน้าแรก', 'nav.info': 'ข้อมูล', 'nav.help': 'ช่วยเหลือ', 'nav.history': 'ประวัติ', 'nav.settings': 'ตั้งค่า',
+    'nav.home': 'หน้าแรก', 'nav.info': 'ข้อมูล', 'nav.help': 'ช่วยเหลือ',
     'info.sectionTitle': 'ข้อมูลที่ควรรู้',
     'info.empty': 'ไม่สามารถโหลดข้อมูลที่จะแสดงได้<br>กรอกพื้นที่ที่คุณอาศัยอยู่ในตั้งค่า เพื่อดูข้อมูลเพิ่มเติม',
     'settings.title': 'ตั้งค่า',
@@ -2589,7 +2589,7 @@ const I18N = {
     'stats.upcoming': 'Yaqinlashayotgan to\'lov muddati',
     'stats.empty': 'Hali summa yoki muddat yozilgan hujjatni tekshirmagansiz.<br>Hisobni suratga olsangiz, shu yerda jamlab ko\'rsatamiz.',
     'home.disclaimer': "Bu xizmat AI tahlili natijasi bo'lib, faqat ma'lumot uchundir.<br>Muhim hujjatlar uchun mutaxassisga murojaat qiling.",
-    'nav.home': 'Bosh sahifa', 'nav.info': "Ma'lumot", 'nav.help': 'Yordam', 'nav.history': 'Tarix', 'nav.settings': 'Sozlamalar',
+    'nav.home': 'Bosh sahifa', 'nav.info': "Ma'lumot", 'nav.help': 'Yordam',
     'info.sectionTitle': "Bilish foydali ma'lumotlar",
     'info.empty': "Ko'rsatiladigan ma'lumotni yuklab bo'lmadi.<br>Sozlamalarda yashash hududingizni kiritsangiz, ko'proq ma'lumot ko'rasiz.",
     'settings.title': 'Sozlamalar',

@@ -288,15 +288,13 @@
           </div>
         </div>
 
-        <button class="dashboard-more-btn" style="margin-top:6px;" onclick="goTo('screen-more')" data-i18n="home.moreMenu">더보기</button>
-
         <div class="disclaimer-banner" data-i18n="home.disclaimer">본 서비스는 AI 분석 결과로 참고용이며,<br>중요 문서는 전문가와 상담하시기 바랍니다.</div>
       </section>
 
       <!-- 더보기: 예전에 홈에 있던 오늘 할 일·통계·정보 요약·다가오는 일정을 모아둔 화면.
            홈을 핵심 3개 기능만 남기고 단순화하면서 여기로 옮겼다. -->
       <section class="screen" id="screen-more" data-voice="오늘 해야 할 일과 다가오는 일정, 정보를 모아뒀어요.">
-        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span></span></div>
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><button class="gear-btn" onclick="goTo('screen-settings')" aria-label="설정"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg></button></div>
         <h1 class="page-title" data-i18n="home.moreMenu">더보기</h1>
 
         <!-- 오늘 해야 할 일 대시보드 카드 -->
@@ -1021,7 +1019,7 @@
 
       <!-- 설정 화면 -->
       <section class="screen" id="screen-settings" data-voice="설정 화면입니다. 글자 크기, 음성 속도, 보호자 정보를 바꿀 수 있습니다.">
-        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg>다시 듣기</button></div>
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-more')">← 더보기</button><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg>다시 듣기</button></div>
         <h1 class="page-title"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-gear"></use></svg><span data-i18n="settings.title">설정</span></h1>
 
         <div class="settings-section">
@@ -1146,10 +1144,12 @@
 
     </div>
 
-  <!-- 하단 네비게이션 바: 최상위 4개 탭 화면(홈·정보·기록·설정)에서만 보인다(body.has-bottom-nav).
-       .screen-stack 밖에 하나만 두고 goTo()가 표시/활성 상태를 갱신한다. -->
+  <!-- 하단 네비게이션 바: 최상위 4개 탭 화면(도움·정보·홈·더보기)에서만 보인다(body.has-bottom-nav).
+       2026-07-30 개편으로 '기록' 탭은 삭제(더보기 화면의 "전체 보기"로 흡수)하고, '설정' 탭은 '더보기'로
+       대체했다(screen-more로 이동하며, 설정은 그 안에서 접근). .screen-stack 밖에 하나만 두고
+       goTo()가 표시/활성 상태를 갱신한다. -->
   <nav class="bottom-nav" id="bottomNav" aria-label="주요 화면 이동">
-    <!-- 순서: 도움 / 정보 / 홈 / 기록 / 설정 — 가장 급할 때 누르는 도움을 엄지가 닿기 쉬운 맨 왼쪽에, 홈을 가운데에 둔다.
+    <!-- 순서: 도움 / 정보 / 홈 / 더보기 — 가장 급할 때 누르는 도움을 엄지가 닿기 쉬운 맨 왼쪽에, 홈을 가운데 가깝게 둔다.
          긴급 도움: 화면을 이동하는 탭이 아니라 바로 시트를 여는 버튼이라 data-tab을 두지 않는다(활성 표시 대상 아님).
          id는 코치마크의 emergency 단계가 참조하므로 그대로 유지한다. -->
     <button type="button" class="nav-help" id="emergencyFab" onclick="openEmergencySheet()" aria-label="긴급 도움">
@@ -1161,11 +1161,8 @@
     <button type="button" data-tab="screen-home" onclick="goTo('screen-home')">
       <svg viewBox="0 0 24 24"><use href="#ic-home"></use></svg><span data-i18n="nav.home">홈</span>
     </button>
-    <button type="button" data-tab="screen-history" onclick="goTo('screen-history')">
-      <svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg><span data-i18n="nav.history">기록</span>
-    </button>
-    <button type="button" data-tab="screen-settings" onclick="goTo('screen-settings')">
-      <svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg><span data-i18n="nav.settings">설정</span>
+    <button type="button" data-tab="screen-more" onclick="goTo('screen-more')">
+      <svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg><span data-i18n="home.moreMenu">더보기</span>
     </button>
   </nav>
 
