@@ -254,10 +254,9 @@
       </section>
 
       <!-- 이름/성별/연령대/지역 입력 (맞춤 안내용, 선택 사항) -->
-      <section class="screen" id="screen-profile" data-voice="이름과 성별, 연령대, 사시는 지역을 알려주시면 더 맞춤형으로 도와드릴 수 있어요. 원하지 않으면 건너뛰어도 됩니다." data-voice-i18n="onboard.profile.voice">
-        <div class="topbar"><span></span><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
+      <section class="screen" id="screen-profile" data-voice="이름과 성별, 연령대, 사시는 지역을 알려주시면 더 맞춤형으로 도와드릴 수 있어요." data-voice-i18n="onboard.profile.voice">
         <h1 data-i18n="onboard.profile.title">몇 가지만<br>알려주시겠어요?</h1>
-        <p class="desc" data-i18n="onboard.profile.desc">입력하신 정보는 이 기기와 안전한 서버에만 저장되고,<br>더 알맞은 설명을 드리는 데만 사용돼요.<br>원하지 않으면 건너뛰어도 됩니다.</p>
+        <p class="desc" data-i18n="onboard.profile.desc">입력하신 정보는 이 기기와 안전한 서버에만 저장되고,<br>더 알맞은 설명을 드리는 데만 사용돼요.</p>
 
         <div class="settings-section">
           <h2 data-i18n="settings.nameLabel">이름</h2>
@@ -807,7 +806,6 @@
       <!-- 문서: 카메라 촬영 -->
       <section class="screen" id="screen-doc-capture" data-voice="문서가 화면 가운데 오도록 맞춘 다음, 아래 버튼을 눌러 촬영해주세요." data-voice-i18n="docCapture.voice">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-doc-choice')" data-i18n="common.back">← 뒤로</button><span></span></div>
-        <p class="step-label" data-i18n="docCapture.inProgress">🔵 진행 중</p>
         <div class="camera-view">
           <!-- 인앱 카메라: 외부 카메라 앱으로 나가지 않고 getUserMedia로 웹뷰 안에 실시간 미리보기를 띄운다.
                지원 안 되는 환경(구형 기기·데스크톱 권한 거부 등)에서는 startInAppCamera()가 안내 문구만 남기고
@@ -845,7 +843,6 @@
       <!-- 실사용: 문서 로딩 -->
       <section class="screen" id="screen-loading-doc" data-voice="문서를 읽고, 해야 할 일을 그림으로도 준비하고 있습니다. 잠시만 기다려주세요.">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-doc-choice')">← 뒤로</button><span></span></div>
-        <p class="step-label"><span class="badge badge-blue" style="font-size:14px;padding:4px 10px;" data-i18n="docCapture.inProgress">🔵 진행 중</span></p>
         <div class="progress-wrap">
           <div class="spin" aria-hidden="true"></div>
           <h1 style="text-align:center;" data-i18n="loadingDoc.headline">AI가 문서를 읽고,<br>그림도 함께 준비하고 있습니다</h1>
@@ -970,7 +967,6 @@
       <!-- 실사용: 문자 로딩 -->
       <section class="screen" id="screen-loading-text" data-voice="문자를 확인하고, 해야 할 일을 그림으로도 준비하고 있습니다. 잠시만 기다려주세요.">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-sms-recent')">← 뒤로</button><span></span></div>
-        <p class="step-label"><span class="badge badge-blue" style="font-size:14px;padding:4px 10px;" data-i18n="docCapture.inProgress">🔵 진행 중</span></p>
         <div class="progress-wrap">
           <div class="spin" aria-hidden="true"></div>
           <h1 style="text-align:center;" data-i18n="loadingText.headline">AI가 문자를 확인하고,<br>그림도 함께 준비하고 있습니다</h1>

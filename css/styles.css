@@ -45,7 +45,7 @@
   .topbar{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
     position:sticky; top:0; z-index:5;
-    margin:0 -20px 14px; padding:calc(12px + env(safe-area-inset-top)) 20px 12px;
+    margin:0 -20px 14px; padding:calc(12px + var(--safe-area-inset-top, env(safe-area-inset-top))) 20px 12px;
     min-height:48px;
     background:rgba(255,255,255,.92);
     backdrop-filter:blur(20px) saturate(180%); -webkit-backdrop-filter:blur(20px) saturate(180%);
@@ -472,9 +472,9 @@
 /* ---- 4-1. 더보기: 오른쪽에서 슬라이드인하는 사이드바 드로어(디자인 시안 기준) ----
    왼쪽에 배경 화면이 얇게 dim된 채 보이도록 폭을 85vw로 제한하고, 하단 네비게이션 바는
    드로어보다 아래(bottom)에서 멈춰 계속 눌릴 수 있게 둔다. */
-#moreBackdrop{ bottom:calc(var(--bottom-nav-h) + env(safe-area-inset-bottom)); }
+#moreBackdrop{ bottom:calc(var(--bottom-nav-h) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom))); }
 .more-drawer{
-  position:fixed; top:0; right:0; bottom:calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
+  position:fixed; top:0; right:0; bottom:calc(var(--bottom-nav-h) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   width:85vw; max-width:360px;
   background:var(--bg-page); z-index:90; box-shadow:-8px 0 24px rgba(0,0,0,.18);
   transform:translateX(100%); transition:transform .25s ease;
@@ -490,7 +490,7 @@
 .bottom-sheet{
   position:fixed; left:50%; bottom:0; transform:translateX(-50%);
   width:min(390px, 100vw); background:#fff; border-radius:24px 24px 0 0;
-  padding:20px 20px calc(20px + env(safe-area-inset-bottom));
+  padding:20px 20px calc(20px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   z-index:90; box-shadow:0 -10px 30px rgba(0,0,0,0.2);
   animation:slideUp .25s ease;
 }
@@ -824,7 +824,7 @@
   background:rgba(255,255,255,0.96);
   backdrop-filter:saturate(180%) blur(12px);
   border-top:1px solid var(--line);
-  padding-bottom:env(safe-area-inset-bottom);
+  padding-bottom:var(--safe-area-inset-bottom, env(safe-area-inset-bottom));
 }
 body.has-bottom-nav .bottom-nav{ display:flex; }
 
@@ -856,7 +856,7 @@ body.has-bottom-nav .bottom-nav{ display:flex; }
 
 /* 네비바가 마지막 콘텐츠를 가리지 않도록 탭 화면에만 아래 여백을 준다 */
 body.has-bottom-nav .screen.active{
-  padding-bottom:calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 24px);
+  padding-bottom:calc(var(--bottom-nav-h) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)) + 24px);
 }
 
 /* ---- 튜토리얼: 문자 길게 눌러 복사하기 연습(실제 폰 길게 누르기 시 뜨는 복사 메뉴를 흉내) ---- */
