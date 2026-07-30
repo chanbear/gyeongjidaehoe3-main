@@ -1380,35 +1380,19 @@
           >
             <svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg>
           </button>
-          <span class="spacer"></span>
-        </div>
-
-        <!-- 인사 카드: 프로필 사진(로컬에만 저장, 서버로 보내지 않음) + 이름. -->
-        <div class="home-greet-row">
-          <button
-            type="button"
-            class="home-avatar"
-            id="homeAvatarBtn"
-            onclick="pickAvatarPhoto()"
-            aria-label="프로필 사진 설정"
-          >
-            <svg class="home-avatar-icon" viewBox="0 0 24 24">
-              <use href="#ic-user"></use>
-            </svg>
-            <span class="home-avatar-badge"
-              ><svg viewBox="0 0 24 24"><use href="#ic-camera"></use></svg
-            ></span>
-          </button>
-          <div class="home-greet-text">
-            <div class="home-greet-name" id="homeGreetName"></div>
+          <div class="wordmark">
+            <svg class="mark" viewBox="0 0 24 24">
+              <use href="#ic-shield"></use></svg
+            ><span>온담</span>
           </div>
+          <span class="spacer"></span>
         </div>
 
         <div class="large-title" data-i18n="home.sectionTitle">
           무엇을 도와드릴까요?
         </div>
 
-        <!-- 홈은 가장 자주 쓰는 핵심 기능 3개만 크게 보여준다. 기록·통계·정보 등 나머지는 "더보기"(screen-more)로 옮겼다. -->
+        <!-- 홈은 가장 자주 쓰는 핵심 기능 3개 + 오늘 해야 할 일만 보여준다. 통계·정보 등 나머지는 "더보기" 사이드바 드로어(openMoreDrawer())로 옮겼다. -->
         <div class="section">
           <div
             class="feature-card home-big-card"
@@ -1475,107 +1459,31 @@
           </div>
         </div>
 
-      </section>
-
-      <!-- 더보기: 프로필 요약 + 내 정보/통계/정보 메뉴로 이동하는 화면(Figma 시안 반영, 2026-07-30).
-           예전의 오늘 할 일·다가오는 납부·다가오는 일정 카드들은 폐기됐다 — 관련 render 함수
-           (renderTodayTasks/renderUpcomingSchedule)는 대상 엘리먼트가 없으면 조용히 반환한다. -->
-      <section
-        class="screen"
-        id="screen-more"
-        data-voice="내 정보와 통계, 알아두면 좋은 정보를 확인할 수 있어요."
-      >
-        <div class="topbar">
+        <!-- 오늘 해야 할 일 대시보드 카드: 디자인 스크린샷 기준으로 홈 화면에 복귀(더보기에는 없음). -->
+        <div class="dashboard-card">
+          <div class="dashboard-card-title">
+            <svg class="inline-icon" viewBox="0 0 24 24">
+              <use href="#ic-calendar"></use></svg
+            ><span data-i18n="home.todayTasks">오늘 해야 할 일</span>
+          </div>
+          <div class="dashboard-list" id="todayTaskList">
+            <div
+              class="empty-state"
+              style="padding: 10px 0"
+              data-i18n="home.noTasksToday"
+            >
+              오늘 할 일이 없습니다.
+            </div>
+          </div>
           <button
-            class="nav-btn"
-            onclick="goTo('screen-home')"
-            data-i18n="common.home"
+            class="dashboard-more-btn"
+            onclick="openHistory()"
+            data-i18n="home.viewAll"
           >
-            ← 홈으로</button
-          ><span class="header-title"
-            ><span data-i18n="home.moreMenu">더보기</span></span
-          ><button
-            class="gear-btn"
-            onclick="goTo('screen-settings')"
-            aria-label="설정"
-          >
-            <svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg>
+            전체 보기
           </button>
         </div>
 
-        <!-- 프로필 요약 카드: appState.profile(이름/나이/성별/지역)을 그대로 보여준다.
-             값이 비어있으면 '-'로 표시(지어내지 않음) — renderMoreProfileSummary()가 채운다. -->
-        <div class="profile-summary-card">
-          <div class="profile-summary-name">
-            <span data-i18n="home.moreNameLabel">이름 :</span>
-            <strong id="moreProfileName">-</strong>
-          </div>
-          <div class="profile-summary-stats">
-            <div class="profile-summary-stat">
-              <span class="pss-label" data-i18n="home.moreAgeLabel">나이</span>
-              <span class="pss-value" id="moreProfileAge">-</span>
-            </div>
-            <div class="profile-summary-stat">
-              <span class="pss-label" data-i18n="home.moreGenderLabel"
-                >성별</span
-              >
-              <span class="pss-value" id="moreProfileGender">-</span>
-            </div>
-            <div class="profile-summary-stat">
-              <span class="pss-label" data-i18n="home.moreRegionLabel"
-                >지역</span
-              >
-              <span class="pss-value" id="moreProfileRegion">-</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="more-menu-list">
-          <button class="more-menu-row" onclick="goTo('screen-settings')">
-            <span class="more-menu-icon"
-              ><svg viewBox="0 0 24 24"><use href="#ic-user"></use></svg
-            ></span>
-            <span class="more-menu-label" data-i18n="home.moreMyInfo"
-              >내 정보</span
-            >
-            <svg class="more-menu-chevron" viewBox="0 0 24 24">
-              <use href="#ic-chevron"></use>
-            </svg>
-          </button>
-          <button class="more-menu-row" onclick="goTo('screen-history')">
-            <span class="more-menu-icon"
-              ><svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg
-            ></span>
-            <span class="more-menu-label" data-i18n="home.moreHistory"
-              >분석 기록</span
-            >
-            <svg class="more-menu-chevron" viewBox="0 0 24 24">
-              <use href="#ic-chevron"></use>
-            </svg>
-          </button>
-          <button class="more-menu-row" onclick="goTo('screen-stats')">
-            <span class="more-menu-icon"
-              ><svg viewBox="0 0 24 24"><use href="#ic-list"></use></svg
-            ></span>
-            <span class="more-menu-label" data-i18n="home.moreStats"
-              >통계</span
-            >
-            <svg class="more-menu-chevron" viewBox="0 0 24 24">
-              <use href="#ic-chevron"></use>
-            </svg>
-          </button>
-          <button class="more-menu-row" onclick="goTo('screen-info')">
-            <span class="more-menu-icon"
-              ><svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg
-            ></span>
-            <span class="more-menu-label" data-i18n="home.publicInfoDefault"
-              >알아두면 좋은 정보</span
-            >
-            <svg class="more-menu-chevron" viewBox="0 0 24 24">
-              <use href="#ic-chevron"></use>
-            </svg>
-          </button>
-        </div>
       </section>
 
       <!-- 되묻기: 방금 확인한 문서·문자에 대해서만 질문한다(자유 대화가 아니다).
@@ -2396,13 +2304,6 @@
         <button
           class="secondary-btn"
           style="margin-top: 12px"
-          onclick="startCoachmark(docMiniCoachSteps)"
-        >
-          체험해보기
-        </button>
-        <button
-          class="secondary-btn"
-          style="margin-top: 12px"
           onclick="goTo('screen-help')"
         >
           다른 게 궁금해요
@@ -2459,13 +2360,6 @@
         <button
           class="secondary-btn"
           style="margin-top: 12px"
-          onclick="startCoachmark(smsMiniCoachSteps)"
-        >
-          체험해보기
-        </button>
-        <button
-          class="secondary-btn"
-          style="margin-top: 12px"
           onclick="goTo('screen-help')"
         >
           다른 게 궁금해요
@@ -2506,13 +2400,6 @@
         </div>
         <button class="primary-btn" onclick="openHistory()">
           기록 보러 가기
-        </button>
-        <button
-          class="secondary-btn"
-          style="margin-top: 12px"
-          onclick="startCoachmark(historyMiniCoachSteps)"
-        >
-          체험해보기
         </button>
         <button
           class="secondary-btn"
@@ -2558,13 +2445,6 @@
         </div>
         <button class="primary-btn" onclick="goTo('screen-info')">
           정보 보러 가기
-        </button>
-        <button
-          class="secondary-btn"
-          style="margin-top: 12px"
-          onclick="startCoachmark(publicInfoMiniCoachSteps)"
-        >
-          체험해보기
         </button>
         <button
           class="secondary-btn"
@@ -2633,13 +2513,6 @@
         <button
           class="secondary-btn"
           style="margin-top: 12px"
-          onclick="startCoachmark(welfareMiniCoachSteps)"
-        >
-          체험해보기
-        </button>
-        <button
-          class="secondary-btn"
-          style="margin-top: 12px"
           onclick="goTo('screen-help')"
         >
           다른 게 궁금해요
@@ -2684,13 +2557,6 @@
         <button
           class="secondary-btn"
           style="margin-top: 12px"
-          onclick="startCoachmark(voiceMiniCoachSteps)"
-        >
-          체험해보기
-        </button>
-        <button
-          class="secondary-btn"
-          style="margin-top: 12px"
           onclick="goTo('screen-help')"
         >
           다른 게 궁금해요
@@ -2727,13 +2593,6 @@
         </div>
         <button class="primary-btn" onclick="goTo('screen-home')">
           홈에서 확인하러 가기
-        </button>
-        <button
-          class="secondary-btn"
-          style="margin-top: 12px"
-          onclick="startCoachmark(emergencyMiniCoachSteps)"
-        >
-          체험해보기
         </button>
         <button
           class="secondary-btn"
@@ -2784,13 +2643,6 @@
         </div>
         <button class="primary-btn" onclick="goTo('screen-settings')">
           설정 화면으로 가기
-        </button>
-        <button
-          class="secondary-btn"
-          style="margin-top: 12px"
-          onclick="startCoachmark(settingsMiniCoachSteps)"
-        >
-          체험해보기
         </button>
         <button
           class="secondary-btn"
@@ -3017,53 +2869,6 @@
         </button>
       </section>
 
-      <!-- 튜토리얼 전용: AI 분석 실패 안내 (체험판이라 실제 분석은 제공되지 않을 수 있음을 안내하고 다음 튜토리얼로 계속 진행) -->
-      <section
-        class="screen"
-        id="screen-tutorial-ai-notice"
-        data-voice="지금은 분석이 어려워요. 체험판이라 실제 분석은 제공되지 않을 수 있어요. 궁금한 점은 관리자에게 문의하세요."
-        data-voice-i18n="onboard.notice.voice"
-      >
-        <div class="topbar">
-          <span></span
-          ><button class="replay-btn" data-replay aria-label="음성 다시 듣기">
-            <svg class="inline-icon" viewBox="0 0 24 24">
-              <use href="#ic-speaker"></use></svg
-            ><span data-i18n="onboard.replay">다시 듣기</span>
-          </button>
-        </div>
-        <div class="center-col">
-          <div class="icon-circle">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#2454e6"
-              stroke-width="2"
-              width="40"
-              height="40"
-            >
-              <circle cx="12" cy="12" r="9" />
-              <path
-                d="M12 11v6M12 7h.01"
-                stroke-linecap="round"
-                stroke-width="2.4"
-              />
-            </svg>
-          </div>
-          <h1 data-i18n="onboard.notice.title">지금은 분석이 어려워요.</h1>
-          <p class="desc" data-i18n="onboard.notice.desc">
-            지금은 체험판(튜토리얼)이라<br />실제 분석은 제공되지 않을 수
-            있어요.<br />궁금한 점은 관리자에게 문의하세요.
-          </p>
-        </div>
-        <button
-          class="primary-btn"
-          onclick="goTo('screen-home')"
-          data-i18n="onboard.notice.next"
-        >
-          다음으로 계속하기
-        </button>
-      </section>
 
       <!-- 문서: 카메라 촬영 -->
       <section
@@ -4078,7 +3883,7 @@
           </h2>
           <div
             class="settings-link-row"
-            onclick="goTo('screen-more')"
+            onclick="openMoreDrawer()"
             role="button"
             tabindex="0"
           >
@@ -4142,11 +3947,13 @@
       </section>
     </div>
 
-    <!-- 하단 네비게이션 바: 최상위 4개 탭 화면(도움·홈·정보·더보기)에서만 보인다(body.has-bottom-nav).
-       .screen-stack 밖에 하나만 두고 goTo()가 표시/활성 상태를 갱신한다. -->
+    <!-- 하단 네비게이션 바: 최상위 화면(홈·정보)에서만 보인다(body.has-bottom-nav).
+       .screen-stack 밖에 하나만 두고 goTo()가 표시/활성 상태를 갱신한다.
+       "더보기"는 화면이 아니라 openMoreDrawer()로 여는 사이드바 드로어라, 다른 화면 위에서도 늘 누를 수 있게
+       이 nav 자체는 계속 화면 하단에 붙어있다(드로어가 열려도 이 nav는 드로어 아래쪽에서 계속 보인다). -->
     <nav class="bottom-nav" id="bottomNav" aria-label="주요 화면 이동">
       <!-- 순서: 도움 / 홈 / 정보 / 더보기 — 가장 급할 때 누르는 도움을 엄지가 닿기 쉬운 맨 왼쪽에 둔다.
-         기록·설정은 더보기(screen-more) 메뉴 안으로 옮겼다(각 화면 gear-btn으로도 설정에 접근 가능).
+         기록·설정은 더보기 드로어 메뉴 안으로 옮겼다(각 화면 gear-btn으로도 설정에 접근 가능).
          긴급 도움: 화면을 이동하는 탭이 아니라 바로 시트를 여는 버튼이라 data-tab을 두지 않는다(활성 표시 대상 아님).
          id는 코치마크의 emergency 단계가 참조하므로 그대로 유지한다. -->
       <button
@@ -4179,12 +3986,111 @@
       <button
         type="button"
         data-tab="screen-more"
-        onclick="goTo('screen-more')"
+        onclick="openMoreDrawer()"
       >
         <svg viewBox="0 0 24 24"><use href="#ic-list"></use></svg
         ><span data-i18n="home.moreMenu">더보기</span>
       </button>
     </nav>
+
+    <!-- 더보기: 오른쪽에서 슬라이드인하는 사이드바(디자인 시안 기준, 2026-07-31) — goTo()로 전환하는
+         전체 화면이 아니라 emergencyBackdrop/Sheet와 같은 오버레이 패턴. 배경 화면은 어둡게 깔리고
+         왼쪽 가장자리만 살짝 보인다. -->
+    <div
+      class="sheet-backdrop"
+      id="moreBackdrop"
+      style="display: none"
+      onclick="closeMoreDrawer()"
+    ></div>
+    <div class="more-drawer" id="moreDrawer">
+      <div class="topbar">
+        <button class="nav-btn" onclick="closeMoreDrawer()" data-i18n="common.home">
+          ← 홈으로</button
+        ><span class="header-title"
+          ><span data-i18n="home.moreMenu">더보기</span></span
+        ><button
+          class="gear-btn"
+          onclick="closeMoreDrawer(); goTo('screen-settings')"
+          aria-label="설정"
+        >
+          <svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg>
+        </button>
+      </div>
+
+      <!-- 프로필 요약 카드: appState.profile(이름/나이/성별/지역)을 그대로 보여준다.
+           값이 비어있으면 '-'로 표시(지어내지 않음) — renderMoreProfileSummary()가 채운다. -->
+      <div class="profile-summary-card">
+        <div class="profile-summary-name">
+          <span data-i18n="home.moreNameLabel">이름 :</span>
+          <strong id="moreProfileName">-</strong>
+        </div>
+        <div class="profile-summary-stats">
+          <div class="profile-summary-stat">
+            <span class="pss-label" data-i18n="home.moreAgeLabel">나이</span>
+            <span class="pss-value" id="moreProfileAge">-</span>
+          </div>
+          <div class="profile-summary-stat">
+            <span class="pss-label" data-i18n="home.moreGenderLabel"
+              >성별</span
+            >
+            <span class="pss-value" id="moreProfileGender">-</span>
+          </div>
+          <div class="profile-summary-stat">
+            <span class="pss-label" data-i18n="home.moreRegionLabel"
+              >지역</span
+            >
+            <span class="pss-value" id="moreProfileRegion">-</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="more-menu-list">
+        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-settings')">
+          <span class="more-menu-icon"
+            ><svg viewBox="0 0 24 24"><use href="#ic-user"></use></svg
+          ></span>
+          <span class="more-menu-label" data-i18n="home.moreMyInfo"
+            >내 정보</span
+          >
+          <svg class="more-menu-chevron" viewBox="0 0 24 24">
+            <use href="#ic-chevron"></use>
+          </svg>
+        </button>
+        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-history')">
+          <span class="more-menu-icon"
+            ><svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg
+          ></span>
+          <span class="more-menu-label" data-i18n="home.moreHistory"
+            >분석 기록</span
+          >
+          <svg class="more-menu-chevron" viewBox="0 0 24 24">
+            <use href="#ic-chevron"></use>
+          </svg>
+        </button>
+        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-stats')">
+          <span class="more-menu-icon"
+            ><svg viewBox="0 0 24 24"><use href="#ic-list"></use></svg
+          ></span>
+          <span class="more-menu-label" data-i18n="home.moreStats"
+            >통계</span
+          >
+          <svg class="more-menu-chevron" viewBox="0 0 24 24">
+            <use href="#ic-chevron"></use>
+          </svg>
+        </button>
+        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-info')">
+          <span class="more-menu-icon"
+            ><svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg
+          ></span>
+          <span class="more-menu-label" data-i18n="home.publicInfoDefault"
+            >알아두면 좋은 정보</span
+          >
+          <svg class="more-menu-chevron" viewBox="0 0 24 24">
+            <use href="#ic-chevron"></use>
+          </svg>
+        </button>
+      </div>
+    </div>
 
     <!-- 긴급 도움 Bottom Sheet -->
     <div
@@ -4362,33 +4268,6 @@
       >
         계속 보기
       </button>
-    </div>
-
-    <!-- 코치마크 튜토리얼: 실제 화면 위에 스포트라이트 + 말풍선으로 사용법을 안내(가짜 미리보기 화면 대신 실제 버튼을 직접 눌러보며 학습).
-     진행 상황은 말풍선 안의 "n / m" 표시(coachTipStep)로만 알려준다. -->
-    <div class="coach-overlay" id="coachOverlay" style="display: none">
-      <div class="coach-hole" id="coachHole"></div>
-      <div class="coach-tip" id="coachTip">
-        <div class="coach-tip-step" id="coachTipStep"></div>
-        <div class="coach-tip-title" id="coachTipTitle"></div>
-        <div class="coach-tip-desc" id="coachTipDesc"></div>
-        <button
-          class="coach-tip-next"
-          id="coachTipNext"
-          onclick="advanceCoachStep()"
-          style="display: none"
-          data-i18n="coach.next"
-        >
-          다음으로 넘어가기
-        </button>
-        <button
-          class="nav-btn coach-tip-skip"
-          onclick="confirmSkipCoachmark()"
-          data-i18n="coach.skipTutorial"
-        >
-          튜토리얼 건너뛰기
-        </button>
-      </div>
     </div>
 
     <div class="sr-only" role="status" aria-live="polite" id="liveRegion"></div>
