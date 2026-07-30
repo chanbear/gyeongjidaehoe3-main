@@ -237,8 +237,8 @@
           </div>
         </div>
 
-        <button class="primary-btn" onclick="startCoachmark()" data-i18n="onboard.profile.next">다음</button>
-        <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="startCoachmark()" data-i18n="onboard.skip">건너뛰기</button>
+        <button class="primary-btn" onclick="goTo('screen-home')" data-i18n="onboard.profile.next">다음</button>
+        <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="goTo('screen-home')" data-i18n="onboard.skip">건너뛰기</button>
       </section>
 
 
@@ -629,7 +629,6 @@
           </ul>
         </div>
         <button class="primary-btn" onclick="goTo('screen-home')">문서 찍으러 가기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(docMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
 
@@ -651,7 +650,6 @@
           </ul>
         </div>
         <button class="primary-btn" onclick="openSmsCheck()">문자 확인하러 가기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(smsMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
 
@@ -665,7 +663,6 @@
           <div class="checklist-row"><label style="cursor:default;">항목을 누르면 그때의 분석 결과를 다시 볼 수 있어요</label></div>
         </div>
         <button class="primary-btn" onclick="openHistory()">기록 보러 가기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(historyMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
 
@@ -679,7 +676,6 @@
           <div class="checklist-row"><label style="cursor:default;">전국 공통으로 실제 확인된 정보만 안내해드려요</label></div>
         </div>
         <button class="primary-btn" onclick="goTo('screen-info')">정보 보러 가기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(publicInfoMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
 
@@ -700,7 +696,6 @@
           </ul>
         </div>
         <button class="primary-btn" onclick="goTo('screen-welfare-nearby')">주변 복지센터·경로당 찾으러 가기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(welfareMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
 
@@ -714,7 +709,6 @@
           <div class="checklist-row"><label style="cursor:default;">설정에서 음성 속도와 사용 여부도 바꿀 수 있어요</label></div>
         </div>
         <button class="primary-btn" onclick="goTo('screen-home')">홈에서 확인하러 가기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(voiceMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
 
@@ -727,7 +721,6 @@
           <div class="checklist-row"><label style="cursor:default;">보호자, 119(응급), 112(경찰), 118(사이버 신고) 중에서 골라 바로 연락할 수 있어요</label></div>
         </div>
         <button class="primary-btn" onclick="goTo('screen-home')">홈에서 확인하러 가기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(emergencyMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
 
@@ -742,7 +735,6 @@
           <div class="checklist-row"><label style="cursor:default;">화면에 쓰이는 언어를 5개 언어 중에서 고를 수 있어요</label></div>
         </div>
         <button class="primary-btn" onclick="goTo('screen-settings')">설정 화면으로 가기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(settingsMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
 
@@ -803,19 +795,6 @@
         </div>
         <button class="primary-btn" id="aiErrorRetryBtn" onclick="retryAiError()" data-i18n="error.retry">다시 시도</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-home')" data-i18n="error.goHome">홈으로 돌아가기</button>
-      </section>
-
-      <!-- 튜토리얼 전용: AI 분석 실패 안내 (체험판이라 실제 분석은 제공되지 않을 수 있음을 안내하고 다음 튜토리얼로 계속 진행) -->
-      <section class="screen" id="screen-tutorial-ai-notice" data-voice="지금은 분석이 어려워요. 체험판이라 실제 분석은 제공되지 않을 수 있어요. 궁금한 점은 관리자에게 문의하세요." data-voice-i18n="onboard.notice.voice">
-        <div class="topbar"><span></span><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
-        <div class="center-col">
-          <div class="icon-circle">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#2454e6" stroke-width="2" width="40" height="40"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01" stroke-linecap="round" stroke-width="2.4"/></svg>
-          </div>
-          <h1 data-i18n="onboard.notice.title">지금은 분석이 어려워요.</h1>
-          <p class="desc" data-i18n="onboard.notice.desc">지금은 체험판(튜토리얼)이라<br>실제 분석은 제공되지 않을 수 있어요.<br>궁금한 점은 관리자에게 문의하세요.</p>
-        </div>
-        <button class="primary-btn" onclick="goTo('screen-home')" data-i18n="onboard.notice.next">다음으로 계속하기</button>
       </section>
 
       <!-- 문서: 카메라 촬영 -->
@@ -1259,19 +1238,6 @@
     <button class="sheet-btn" onclick="acceptResetConfirm()" data-i18n="resetConfirm.confirm">초기화</button>
     <button class="sheet-btn sheet-btn-cancel" onclick="closeResetConfirm()" data-i18n="resetConfirm.cancel">취소</button>
   </div>
-
-<!-- 코치마크 튜토리얼: 실제 화면 위에 스포트라이트 + 말풍선으로 사용법을 안내(가짜 미리보기 화면 대신 실제 버튼을 직접 눌러보며 학습).
-     진행 상황은 말풍선 안의 "n / m" 표시(coachTipStep)로만 알려준다. -->
-<div class="coach-overlay" id="coachOverlay" style="display:none;">
-  <div class="coach-hole" id="coachHole"></div>
-  <div class="coach-tip" id="coachTip">
-    <div class="coach-tip-step" id="coachTipStep"></div>
-    <div class="coach-tip-title" id="coachTipTitle"></div>
-    <div class="coach-tip-desc" id="coachTipDesc"></div>
-    <button class="coach-tip-next" id="coachTipNext" onclick="advanceCoachStep()" style="display:none;" data-i18n="coach.next">다음으로 넘어가기</button>
-    <button class="nav-btn coach-tip-skip" onclick="confirmSkipCoachmark()" data-i18n="coach.skipTutorial">튜토리얼 건너뛰기</button>
-  </div>
-</div>
 
 <div class="sr-only" role="status" aria-live="polite" id="liveRegion"></div>
 <div class="global-toast" id="globalToast"></div>

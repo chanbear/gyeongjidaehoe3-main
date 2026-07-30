@@ -202,7 +202,7 @@ function stopVoice(){
    4. 화면 전환 + 진행바
    --------------------------------------------------------- */
 /* 안내(온보딩) 화면 동안에는 긴급 도움 FAB을 숨긴다 */
-const onboardScreens = new Set(['screen-greet', 'screen-signup', 'screen-login', 'screen-reset-pin', 'screen-profile', 'screen-guardian-profile', 'screen-tutorial-ai-notice']);
+const onboardScreens = new Set(['screen-greet', 'screen-signup', 'screen-login', 'screen-reset-pin', 'screen-profile', 'screen-guardian-profile']);
 
 /* 하단 네비게이션 바를 노출할 최상위 화면. 여기 없는 화면(촬영·로딩·결과 등 흐름 중간)에서는 숨겨서
    "네비바가 보이면 출발점, 안 보이면 진행 중"이라는 규칙을 만든다. */
@@ -226,15 +226,12 @@ function goTo(id){
   if (activeScreenEl) activeScreenEl.classList.remove('active');
   const target = document.getElementById(id);
   target.classList.add('active');
-  target.scrollTop = 0; // 화면은 각자 스크롤 위치를 기억하므로, 새로 들어올 때는 항상 맨 위에서 시작한다(코치마크가 특정 위치로 스크롤하는 건 이후 별도로 실행됨)
+  target.scrollTop = 0; // 화면은 각자 스크롤 위치를 기억하므로, 새로 들어올 때는 항상 맨 위에서 시작한다
   activeScreenEl = target;
-  // 코치마크가 이 화면에서 직접 안내 음성을 읽어줄 예정이면, 화면 기본 안내와 겹쳐 읽혀 잘리는 걸 막기 위해 기본 음성은 건너뛴다
-  if (!coachWillNarrate(id)) speak(screenVoiceText(target), screenVoiceLang(target));
+  speak(screenVoiceText(target), screenVoiceLang(target));
   document.body.classList.toggle('in-onboarding', onboardScreens.has(id));
 
   // 네비바는 최상위 탭 화면에서만 보인다.
-  // 코치마크 진행 중에도 숨기지 않는다 — 투어의 기록·설정·마무리 단계가 네비바 버튼을 직접 가리키기 때문이다.
-  // 코치마크 오버레이(z-index 500)가 네비바(70)보다 위에 있어 스포트라이트는 정상 동작한다.
   document.body.classList.toggle('has-bottom-nav', TAB_SCREENS.has(id));
   syncBottomNav(id);
 
@@ -265,8 +262,6 @@ function goTo(id){
   }
   if (id === 'screen-guardian-profile') syncGuardianUI();
   if (INFO_DETAIL_GREET_IDS[id]) renderInfoDetailGreet(id);
-
-  coachOnNavigate(id);
 }
 
 /** "튜토리얼을 건너뛸까요?" 확인 시트.
@@ -987,11 +982,7 @@ function finishDocResult(){
 }
 
 function finishSmsResult(){
-  // 코치마크 튜토리얼(coachActive) 중에는 문자 분석 결과를 기록에 남기지 않는다.
-  // 튜토리얼에서 문자를 붙여넣는 건 사용법을 익히려는 연습이지 실제로 확인한 문자가 아니어서,
-  // 기록 화면이 연습 내역으로 채워지면 어르신이 진짜 확인 기록과 구분하기 어렵기 때문이다.
-  // (사진 분석 finishDocResult()는 실제 문서를 찍은 것이므로 튜토리얼 중에도 그대로 기록한다.)
-  if (lastSmsAnalysis && !coachActive) {
+  if (lastSmsAnalysis) {
     const badge = statusBadgeMap[lastSmsAnalysis.status] || statusBadgeMap.normal;
     // lastSmsAnalysis를 함께 넘겨야 기록에서 다시 열어볼 수 있다(예전에는 제목만 남기고 버렸다)
     addHistory('💬 ' + (lastSmsAnalysis.headline || '문자 분석'), badge.text, lastSmsAnalysis);
@@ -1003,236 +994,6 @@ function finishSmsResult(){
   pendingSmsText = '';
   lastSmsAnalysis = null;
   goTo('screen-home');
-}
-
-/* ---------------------------------------------------------
-   7-0. 코치마크 튜토리얼: 가짜 미리보기 화면 대신, 실제 화면 위에 스포트라이트 + 말풍선을 띄워
-   사용자가 진짜 버튼을 직접 눌러보며 실제 플로우(문서 촬영, 문자 복사→붙여넣기)를 체험하게 한다.
-   각 단계는 { screen, target(실제 화면 안의 CSS 선택자), title, desc, voice, advance? } 로 구성되고,
-   화면 전환은 goTo()가 실제로 호출될 때만 다음 단계로 넘어간다(가짜 onclick으로 흉내내지 않음).
-   ponytail: AI 분석 결과(체크리스트/최종 판별 화면)는 크레딧 등 이유로 실패할 수 있어 튜토리얼 진행을
-   막지 않도록, 촬영 버튼과 문자 확인 버튼은 클릭 즉시(advance:'click') 다음 단계로 넘어간다 —
-   분석이 실제로 성공하면 그 결과 화면은 평소처럼 정상 동작하되, 코치 강조만 건너뛴다.
-   --------------------------------------------------------- */
-/** title/desc/voice는 더 이상 문구를 직접 담지 않고, key(coach.<key>.title/desc/voice)로 t()를 통해 언어 설정에 맞는 문구를 가져온다.
- *  cat은 왼쪽 카테고리 사이드바에서 어느 카테고리를 강조할지 표시하는 데 쓰인다. */
-const fullCoachSteps = [
-  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-doc-choice"]', cat: 'doc', key: 'doc1' },
-  { screen: 'screen-doc-choice', target: '#screen-doc-choice .feature-card[onclick*="screen-doc-capture"]', cat: 'doc', key: 'doc2' },
-  { screen: 'screen-doc-capture', target: '#screen-doc-capture .camera-shutter', cat: 'doc', key: 'doc3', advance: 'click' },
-  // 2026-07-29: 문자 확인이 복사/붙여넣기 대신 최근 문자 목록에서 바로 고르는 방식으로 바뀌면서
-  // 입구도 screen-doc-choice가 아니라 홈의 "문자 내용 요약" 카드(openSmsCheck())로 옮겨졌다.
-  // 권한이 이미 있으면 smsPermission 단계 자체가 통째로 건너뛰어진다(coachOnNavigate의 2단계 lookahead가 처리).
-  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="openSmsCheck"]', cat: 'sms', key: 'sms1' },
-  { screen: 'screen-sms-permission-needed', target: '#smsPermissionRetryBtn', cat: 'sms', key: 'smsPermission', skippable: true },
-  { screen: 'screen-sms-recent', target: '#screen-sms-recent .row:first-child', cat: 'sms', key: 'sms2' },
-  { screen: 'screen-home', target: '#bottomNav [data-tab="screen-history"]', cat: 'history', key: 'history1' },
-  { screen: 'screen-history', target: '#screen-history .nav-btn', cat: 'history', key: 'history2' },
-  { screen: 'screen-info', target: '#publicInfoList .row:first-child', cat: 'info', key: 'info1' },
-  { screen: 'screen-info-pension', target: '#screen-info-pension .primary-btn', cat: 'info', key: 'info2' },
-  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-welfare-nearby"]', cat: 'welfare', key: 'welfare1' },
-  { screen: 'screen-welfare-nearby', target: '#screen-welfare-nearby .secondary-btn[onclick*="screen-home"]', cat: 'welfare', key: 'welfare2' },
-  { screen: 'screen-home', target: '#screen-home .topbar [data-replay]', cat: 'voice', key: 'voice1', advance: 'click' },
-  { screen: 'screen-home', target: '#emergencyFab', cat: 'emergency', key: 'emergency1', skippable: true },
-  { screen: 'screen-home', target: '#bottomNav [data-tab="screen-settings"]', cat: 'settings', key: 'settingsIntro' },
-  { screen: 'screen-settings', target: '#fontScaleGroup', cat: 'settings', key: 'fontsize', skippable: true },
-  { screen: 'screen-settings', target: '#voiceRateGroup', cat: 'settings', key: 'rate', skippable: true },
-  { screen: 'screen-settings', target: '#guardianName', cat: 'settings', key: 'guardian', skippable: true },
-  { screen: 'screen-settings', target: '#screen-settings .settings-link-row[onclick*="screen-help"]', cat: 'settings', key: 'helplink' },
-  { screen: 'screen-help', target: '#screen-help .nav-btn', cat: 'settings', key: 'helpback' },
-  { screen: 'screen-settings', target: '#screen-settings .topbar .nav-btn', cat: 'settings', key: 'finish', advance: 'click' }
-];
-
-/** "사용 방법 안내"의 각 항목별 "체험해보기": 전체 투어(fullCoachSteps)에서 해당 구간만 골라 재사용한다.
- *  아래 slice/인덱스는 fullCoachSteps의 순서에 의존하므로, 그 배열의 항목을 지우거나 순서를 바꾸지 말 것. */
-const docMiniCoachSteps = fullCoachSteps.slice(0, 3);
-const smsMiniCoachSteps = fullCoachSteps.slice(3, 6);
-const historyMiniCoachSteps = fullCoachSteps.slice(6, 8);
-const publicInfoMiniCoachSteps = fullCoachSteps.slice(8, 10);
-const welfareMiniCoachSteps = fullCoachSteps.slice(10, 12);
-const voiceMiniCoachSteps = [fullCoachSteps[12]];
-const emergencyMiniCoachSteps = [fullCoachSteps[13]];
-const settingsLanguageMiniStep = { screen: 'screen-settings', target: '#languageGroup', cat: 'settings', key: 'language', skippable: true };
-const settingsMiniCoachSteps = [fullCoachSteps[15], fullCoachSteps[16], fullCoachSteps[17], settingsLanguageMiniStep, fullCoachSteps[20]];
-
-/** 첫 실행 안내: 앱의 핵심인 문서 촬영·문자 확인만 다루고 마지막에 "나머지는 여기서 볼 수 있어요"로 마무리한다.
- *  예전에는 8개 분류 25단계를 첫 실행에 한 번에 보여줬는데, 처음 쓰는 어르신에게는 부담이 컸다.
- *  빠진 기능(기록·정보·복지·음성·긴급·설정)은 설정 → 사용 방법 안내의 항목별 "체험해보기"로 언제든 볼 수 있다. */
-const firstRunHelpStep = {
-  screen: 'screen-home',
-  target: '#bottomNav',
-  cat: 'help', key: 'moreHelp', skippable: true
-};
-
-// 촬영(doc3) 다음 단계(sms1)는 이제 screen-home을 기다린다. 촬영 후 실제 흐름은
-// screen-doc-collect(찍은 사진 모아보기) → 분석하거나 취소 → 결국 screen-home으로 돌아오므로,
-// 예전처럼 screen-doc-choice로 돌아오길 기다리다 끊기는 다리(bridge) 단계가 더 이상 필요 없다.
-const firstRunCoachSteps = [...fullCoachSteps.slice(0, 6), firstRunHelpStep];
-
-let coachSteps = firstRunCoachSteps;
-let coachIndex = -1;
-let coachActive = false;
-
-/** steps를 생략하면 첫 실행 안내(firstRunCoachSteps), 넘기면 "사용 방법 안내"의 항목별 미니 투어를 시작한다 */
-function startCoachmark(steps){
-  coachSteps = steps || firstRunCoachSteps;
-  coachActive = true;
-  coachIndex = 0;
-  goTo(coachSteps[0].screen); // goTo가 coachOnNavigate를 호출해 1단계를 띄워줌
-}
-
-/** 코치마크 오버레이(스포트라이트+말풍선)를 한꺼번에 켜고 끈다 */
-function setCoachOverlayVisible(visible){
-  const overlay = document.getElementById('coachOverlay');
-  if (overlay) overlay.style.display = visible ? 'block' : 'none';
-}
-
-function stopCoachmark(silent){
-  coachActive = false;
-  coachIndex = -1;
-  clearCoachAdvanceListener();
-  setCoachOverlayVisible(false);
-  if (activeScreenEl) document.body.classList.toggle('in-onboarding', onboardScreens.has(activeScreenEl.id));
-  if (!silent) {
-    speak('안내가 끝났습니다. 이제 실제로 사용해보세요.');
-    showGlobalToast('튜토리얼이 끝났습니다.');
-  }
-}
-
-/** 진행 중인 코치마크의 "튜토리얼 건너뛰기": 첫 화면 건너뛰기와 같은 문구로 한 번 더 확인 */
-function confirmSkipCoachmark(){
-  openSkipConfirm(() => { stopCoachmark(true); goTo('screen-home'); });
-}
-
-/** goTo()가 호출될 때마다 실행됨: 코치마크가 기다리던 다음 화면이면 다음 단계를 보여주고,
- *  같은 화면으로 되돌아온 것이면 같은 단계를 다시 보여주고, 그 외(다른 곳을 눌러본 경우)에는 오버레이만 숨긴다.
- *  마지막 단계의 화면을 벗어나면 튜토리얼을 종료한다. */
-/** 이 화면에 들어가면 코치마크가 곧바로 안내 음성을 읽어줄지 미리 판단(goTo의 기본 음성과 겹쳐 잘리는 것을 막기 위함) */
-function coachWillNarrate(id){
-  if (!coachActive) return false;
-  const step = coachSteps[coachIndex];
-  if (!step) return false;
-  const nextStep = coachSteps[coachIndex + 1];
-  return id === step.screen || (nextStep && id === nextStep.screen);
-}
-
-function coachOnNavigate(id){
-  if (!coachActive) return;
-  const step = coachSteps[coachIndex];
-  if (!step) return;
-  const nextStep = coachSteps[coachIndex + 1];
-  const nextNextStep = coachSteps[coachIndex + 2];
-  // 현재 단계와 다음 단계가 같은 화면일 수 있으므로(예: 설정 화면 안에서 이어지는 단계들), "지금 단계가 기다리는 화면"인지 먼저 확인해야
-  // 이제 막 시작한 단계를 건너뛰지 않는다. 다른 화면으로 실제로 넘어갔을 때만 다음 단계로 진행한다.
-  if (id === step.screen) {
-    setTimeout(showCoachStep, 200);
-  } else if (nextStep && id === nextStep.screen) {
-    coachIndex++;
-    setTimeout(showCoachStep, 200);
-  } else if (nextNextStep && id === nextNextStep.screen) {
-    // 조건에 따라 중간 단계가 통째로 생략될 수 있는 경우(예: 문자 읽기 권한이 이미 있어 권한 안내 화면을 거치지 않음) —
-    // 그 단계는 건너뛰고 실제로 도착한 화면부터 바로 이어받는다
-    coachIndex += 2;
-    setTimeout(showCoachStep, 200);
-  } else if (!nextStep) {
-    // advance 없이 마지막 단계를 벗어난 경우(예: 미니 투어에서 재사용한 단계의 원래 다음 단계가 없음): 더 기다릴 단계가 없으므로 투어를 종료한다
-    stopCoachmark();
-  } else {
-    // ponytail: 분석 중/결과 화면처럼 성공·실패로 갈라지는 중간 화면은 그냥 지나쳐 보내고(오버레이만 숨김),
-    // 다음 단계가 기다리는 화면(예: 홈)으로 실제로 돌아왔을 때 위 분기에서 자연스럽게 이어받는다
-    setCoachOverlayVisible(false);
-  }
-}
-
-/** 다음 단계로 넘어갈 때 기다리고 있던 이전 단계의 advance 리스너가 뒤늦게 중복으로 발동하지 않도록 정리해둔다 */
-let coachAdvanceEl = null;
-let coachAdvanceType = null;
-let coachAdvanceHandler = null;
-function clearCoachAdvanceListener(){
-  if (coachAdvanceEl && coachAdvanceType && coachAdvanceHandler) {
-    coachAdvanceEl.removeEventListener(coachAdvanceType, coachAdvanceHandler);
-  }
-  coachAdvanceEl = null; coachAdvanceType = null; coachAdvanceHandler = null;
-}
-
-function showCoachStep(){
-  const step = coachSteps[coachIndex];
-  clearCoachAdvanceListener();
-  if (!step) { stopCoachmark(); return; }
-  if (!activeScreenEl || activeScreenEl.id !== step.screen) { setCoachOverlayVisible(false); return; }
-
-  const el = document.querySelector(step.target);
-  if (!el) { setCoachOverlayVisible(false); return; }
-
-  // 화면이 길어 대상 버튼이 화면 아래에 있으면 구멍이 뷰포트 밖에 생겨 화면 전체가 어둡게 보이므로, 강조하기 전에 보이는 위치로 스크롤한다
-  el.scrollIntoView({ block: 'center' });
-  positionCoachStep(el, step);
-  setCoachOverlayVisible(true);
-  speak(t('coach.' + step.key + '.voice'), currentTtsLang());
-  // 모바일에서 직전 단계가 입력창이었다면 키보드가 늦게 닫히며 레이아웃이 뒤늦게 안정될 수 있어 한 번 더 보정한다
-  setTimeout(() => { if (activeScreenEl && activeScreenEl.id === step.screen) positionCoachStep(el, step); }, 350);
-
-  if (step.advance) {
-    const handler = () => {
-      // 입력창/버튼에 포커스가 남아있으면 모바일 키보드가 열린 채로 다음 단계 위치를 계산해 스포트라이트가 어긋나므로, 미리 포커스를 해제해 키보드를 닫는다
-      if (document.activeElement && document.activeElement !== document.body && typeof document.activeElement.blur === 'function') {
-        document.activeElement.blur();
-      }
-      clearCoachAdvanceListener();
-      coachIndex++;
-      setTimeout(showCoachStep, 450);
-    };
-    el.addEventListener(step.advance, handler, { once: true });
-    coachAdvanceEl = el; coachAdvanceType = step.advance; coachAdvanceHandler = handler;
-  }
-}
-
-/** 선택 사항인 단계(글자 크기·음성 속도·보호자 정보 등)에서 값을 바꾸지 않고도 다음으로 넘어갈 수 있게 해주는 버튼 */
-function advanceCoachStep(){
-  if (!coachActive) return;
-  clearCoachAdvanceListener();
-  if (document.activeElement && document.activeElement !== document.body && typeof document.activeElement.blur === 'function') {
-    document.activeElement.blur();
-  }
-  coachIndex++;
-  setTimeout(showCoachStep, 200);
-}
-
-/** 코치마크가 켜져 있는 동안 화면 크기/뷰포트가 바뀌면(회전, 모바일 키보드 열림·닫힘 등) 스포트라이트 위치를 다시 계산한다 */
-function repositionCurrentCoachStep(){
-  if (!coachActive) return;
-  const overlay = document.getElementById('coachOverlay');
-  if (!overlay || overlay.style.display === 'none') return;
-  const step = coachSteps[coachIndex];
-  if (!step) return;
-  const el = document.querySelector(step.target);
-  if (el) positionCoachStep(el, step);
-}
-window.addEventListener('resize', repositionCurrentCoachStep);
-// 모바일 브라우저는 가상 키보드가 열리고 닫힐 때 window의 resize 대신 visualViewport의 resize만 발생시키는 경우가 많다
-if (window.visualViewport) window.visualViewport.addEventListener('resize', repositionCurrentCoachStep);
-
-function positionCoachStep(el, step){
-  const rect = el.getBoundingClientRect();
-  const pad = 8;
-  const hole = document.getElementById('coachHole');
-  hole.style.top = (rect.top - pad) + 'px';
-  hole.style.left = (rect.left - pad) + 'px';
-  hole.style.width = (rect.width + pad * 2) + 'px';
-  hole.style.height = (rect.height + pad * 2) + 'px';
-
-  document.getElementById('coachTipStep').textContent = `${coachIndex + 1} / ${coachSteps.length}`;
-  document.getElementById('coachTipTitle').textContent = t('coach.' + step.key + '.title');
-  document.getElementById('coachTipDesc').textContent = t('coach.' + step.key + '.desc');
-  // 값을 안 바꾸거나 입력을 건너뛰어도 다음 단계로 넘어갈 수 있도록, 선택 사항인 단계에만 "다음으로" 버튼을 보여준다
-  document.getElementById('coachTipNext').style.display = step.skippable ? 'block' : 'none';
-
-  const tip = document.getElementById('coachTip');
-  const spaceBelow = window.innerHeight - rect.bottom;
-  const putBelow = spaceBelow > 180 || rect.top < 180;
-  tip.style.top = putBelow ? (rect.bottom + pad + 10) + 'px' : '';
-  tip.style.bottom = putBelow ? '' : (window.innerHeight - rect.top + pad + 10) + 'px';
-  tip.style.left = Math.max(12, Math.min(rect.left, window.innerWidth - 300)) + 'px';
 }
 
 /* ---------------------------------------------------------
@@ -1551,8 +1312,6 @@ let aiErrorRetryScreen = 'screen-home';
 function goToAiError(retryScreen, isOffline){
   aiErrorRetryScreen = retryScreen;
   finishAllProgress();
-  if (coachActive) { goTo('screen-tutorial-ai-notice'); return; }
-
   document.getElementById('aiErrorTitle').textContent = isOffline
     ? '인터넷 연결을 확인해주세요.'
     : '지금은 분석이 어려워요.';
@@ -2242,34 +2001,6 @@ const I18N = {
     'onboard.guardian.title': '자녀(보호자) 정보도<br>알려주시겠어요?',
     'onboard.guardian.desc': '위험한 문자를 받았을 때 자녀에게 바로 알리거나,<br>긴급 도움 버튼으로 전화를 걸 때 사용돼요.<br>원하지 않으면 건너뛰어도 됩니다.',
     'onboard.guardian.voice': '급한 일이 있을 때 알릴 자녀나 보호자의 이름과 전화번호를 알려주시겠어요? 원하지 않으면 건너뛰어도 됩니다.',
-    'onboard.notice.title': '지금은 분석이 어려워요.',
-    'onboard.notice.desc': '지금은 체험판(튜토리얼)이라<br>실제 분석은 제공되지 않을 수 있어요.<br>궁금한 점은 관리자에게 문의하세요.',
-    'onboard.notice.next': '다음으로 계속하기',
-    'onboard.notice.voice': '지금은 분석이 어려워요. 체험판이라 실제 분석은 제공되지 않을 수 있어요. 궁금한 점은 관리자에게 문의하세요.',
-    'coach.moreHelp.title': '여기서 다른 기능도 볼 수 있어요', 'coach.moreHelp.desc': '아래 정보·기록·설정을 눌러 보세요.', 'coach.moreHelp.voice': '아래쪽 메뉴에서 다른 기능도 볼 수 있어요.',
-    'coach.next': '다음으로 넘어가기', 'coach.skipTutorial': '튜토리얼 건너뛰기',
-    'coach.doc1.title': '문서를 촬영해보세요', 'coach.doc1.desc': '이 카드를 누르면 문서를 찍어 AI에게 분석을 맡길 수 있어요.', 'coach.doc1.voice': '문서 촬영 카드를 눌러보세요.',
-    'coach.doc2.title': '직접 촬영해볼게요', 'coach.doc2.desc': '카메라로 문서를 찍어보세요.', 'coach.doc2.voice': '직접 촬영하기를 눌러보세요.',
-    'coach.doc3.title': '촬영 버튼을 눌러주세요', 'coach.doc3.desc': '문서가 화면 가운데 오도록 맞추고 눌러주세요.', 'coach.doc3.voice': '촬영 버튼을 눌러주세요.',
-    'coach.sms1.title': '문자도 확인해보세요', 'coach.sms1.desc': '받은 문자가 안전한지도 여기서 확인할 수 있어요.', 'coach.sms1.voice': '문자 내용 불러오기 카드를 눌러보세요.',
-    'coach.smsPermission.title': '문자 읽기를 허용해주세요', 'coach.smsPermission.desc': '허용하면 최근 문자를 바로 보여드려요.', 'coach.smsPermission.voice': '허용을 눌러주세요.',
-    'coach.sms2.title': '이 문자를 눌러 확인해보세요', 'coach.sms2.desc': '탭 한 번으로 바로 확인할 수 있어요.', 'coach.sms2.voice': '문자를 눌러 확인해보세요.',
-    'coach.history1.title': '기록도 볼 수 있어요', 'coach.history1.desc': '지금까지 확인한 문서와 문자 기록을 모아볼 수 있어요.', 'coach.history1.voice': '아래 기록 버튼을 눌러보세요.',
-    'coach.history2.title': '다시 홈으로 돌아가볼게요', 'coach.history2.desc': '← 홈으로 버튼을 누르면 언제든 돌아갈 수 있어요.', 'coach.history2.voice': '홈으로 버튼을 눌러 돌아가보세요.',
-    'coach.info1.title': '알아두면 좋은 정보도 있어요', 'coach.info1.desc': '기초연금, 건강검진 같은 유용한 정보를 안내해드려요.', 'coach.info1.voice': '알아두면 좋은 정보를 눌러보세요.',
-    'coach.info2.title': '다 보셨으면 홈으로 돌아가요', 'coach.info2.desc': '홈으로 돌아가기 버튼을 눌러주세요.', 'coach.info2.voice': '홈으로 돌아가기 버튼을 눌러주세요.',
-    'coach.welfare1.title': '주변 복지센터·경로당도 찾아드려요', 'coach.welfare1.desc': '내 위치 주변의 복지센터와 경로당 위치를 함께 알려드려요.', 'coach.welfare1.voice': '주변 복지센터·경로당 찾기를 눌러보세요.',
-    'coach.welfare2.title': '홈 화면으로 돌아가볼게요', 'coach.welfare2.desc': '홈 화면으로 돌아가기 버튼을 눌러주세요.', 'coach.welfare2.voice': '홈 화면으로 돌아가기 버튼을 눌러주세요.',
-    'coach.voice1.title': '음성으로 안내받을 수도 있어요', 'coach.voice1.desc': '이 버튼을 누르면 화면 안내를 다시 들을 수 있어요.', 'coach.voice1.voice': '음성으로 안내받기 버튼을 눌러보세요.',
-    'coach.emergency1.title': '긴급할 땐 이 버튼을 누르세요', 'coach.emergency1.desc': '보호자나 119·112·118로 바로 연락할 수 있어요. 눌러서 직접 확인해보시고, 다 보셨으면 다음으로 넘어가세요.', 'coach.emergency1.voice': '도움 버튼을 눌러보세요. 확인하셨으면 다음으로 눌러 넘어가세요.',
-    'coach.settingsIntro.title': '설정도 살펴볼게요', 'coach.settingsIntro.desc': '글자 크기, 음성 속도, 보호자 정보를 바꿀 수 있어요.', 'coach.settingsIntro.voice': '아래 설정 버튼을 눌러보세요.',
-    'coach.fontsize.title': '글자 크기를 바꿔보세요', 'coach.fontsize.desc': '보통, 크게, 아주 크게 중에서 골라보세요. 다 고르셨으면 다음으로 넘어가세요.', 'coach.fontsize.voice': '글자 크기를 눌러보세요. 다 고르셨으면 다음으로 눌러 넘어가세요.',
-    'coach.rate.title': '음성 속도도 바꿀 수 있어요', 'coach.rate.desc': '읽어주는 속도를 편한 대로 골라보세요. 다 고르셨으면 다음으로 넘어가세요.', 'coach.rate.voice': '음성 읽기 속도를 눌러보세요. 다 고르셨으면 다음으로 눌러 넘어가세요.',
-    'coach.guardian.title': '보호자 정보를 등록해보세요', 'coach.guardian.desc': '위험한 문자를 발견하면 보호자에게 바로 알릴 수 있어요. 선택 사항이니 원하지 않으면 다음으로 넘어가도 돼요.', 'coach.guardian.voice': '보호자 이름을 입력해보세요. 원하지 않으면 다음으로 눌러 넘어가도 됩니다.',
-    'coach.helplink.title': '사용 방법 안내도 있어요', 'coach.helplink.desc': '헷갈릴 때 언제든 다시 볼 수 있어요.', 'coach.helplink.voice': '사용 방법 안내를 눌러보세요.',
-    'coach.helpback.title': '뒤로 가서 마무리할게요', 'coach.helpback.desc': '← 뒤로 버튼을 눌러주세요.', 'coach.helpback.voice': '뒤로 버튼을 눌러주세요.',
-    'coach.finish.title': '이제 홈으로 돌아가면 끝이에요', 'coach.finish.desc': '← 홈으로 버튼을 눌러 안내를 마쳐요.', 'coach.finish.voice': '홈으로 버튼을 눌러 안내를 마쳐요.',
-    'coach.language.title': '언어도 바꿀 수 있어요', 'coach.language.desc': '중국어·베트남어·태국어·우즈베크어 중에서 골라보세요. 다 고르셨으면 다음으로 넘어가세요.', 'coach.language.voice': '언어 설정을 눌러보세요. 다 고르셨으면 다음으로 눌러 넘어가세요.',
     'common.home': '← 홈으로', 'common.back': '← 뒤로',
     'docChoice.title': 'AI 분석하기',
     'docChoice.desc': '분석하고 싶은 문서를 촬영하거나 사진첩에서 불러오세요.',
@@ -2433,34 +2164,6 @@ const I18N = {
     'onboard.profile.regionNote': '详细填写到市/郡/区，可以为您提供更合适的信息。',
     'onboard.profile.next': '下一步',
     'onboard.profile.voice': '请告诉我姓名、性别、年龄段、居住地区，我可以为您提供更贴心的帮助。不想输入的话也可以跳过。',
-    'onboard.notice.title': '现在暂时无法分析。',
-    'onboard.notice.desc': '现在是体验版（教程），<br>可能无法提供实际分析。<br>如有疑问请联系管理员。',
-    'onboard.notice.next': '下一步继续',
-    'onboard.notice.voice': '现在暂时无法分析。因为是体验版，可能无法提供实际分析。如有疑问请联系管理员。',
-    'coach.moreHelp.title': '在这里还能看到其他功能', 'coach.moreHelp.desc': '请点击下方的信息、记录、设置。', 'coach.moreHelp.voice': '在下方菜单中还能看到其他功能。',
-    'coach.next': '继续下一步', 'coach.skipTutorial': '跳过教程',
-    'coach.doc1.title': '拍摄文件试试看', 'coach.doc1.desc': '点击此卡片可以拍摄文件并交给AI分析。', 'coach.doc1.voice': '请点击拍摄文件卡片。',
-    'coach.doc2.title': '直接拍摄一下', 'coach.doc2.desc': '用相机拍摄文件吧。', 'coach.doc2.voice': '请点击直接拍摄。',
-    'coach.doc3.title': '请按拍摄按钮', 'coach.doc3.desc': '将文件对准屏幕中央后按下按钮。', 'coach.doc3.voice': '请按拍摄按钮。',
-    'coach.sms1.title': '短信也可以确认', 'coach.sms1.desc': '也可以在这里确认收到的短信是否安全。', 'coach.sms1.voice': '请点击导入短信内容卡片。',
-    'coach.smsPermission.title': '请允许读取短信', 'coach.smsPermission.desc': '允许后会立即显示最近的短信。', 'coach.smsPermission.voice': '请点击允许。',
-    'coach.sms2.title': '点击这条短信确认', 'coach.sms2.desc': '轻触一下即可确认。', 'coach.sms2.voice': '请点击短信确认。',
-    'coach.history1.title': '也可以查看记录', 'coach.history1.desc': '可以汇总查看至今确认过的文件和短信记录。', 'coach.history1.voice': '请点击下方的记录按钮。',
-    'coach.history2.title': '我们再回到首页', 'coach.history2.desc': '点击←返回首页按钮可以随时返回。', 'coach.history2.voice': '请点击返回首页按钮。',
-    'coach.info1.title': '还有值得了解的信息', 'coach.info1.desc': '为您提供基础养老金、健康体检等实用信息。', 'coach.info1.voice': '请点击值得了解的信息。',
-    'coach.info2.title': '看完了就回到首页吧', 'coach.info2.desc': '请点击返回首页按钮。', 'coach.info2.voice': '请点击返回首页按钮。',
-    'coach.welfare1.title': '也为您查找附近的福利中心·老人活动中心', 'coach.welfare1.desc': '为您提供所在位置附近的福利中心和老人活动中心位置。', 'coach.welfare1.voice': '请点击附近福利中心·老人活动中心查询。',
-    'coach.welfare2.title': '我们再回到首页', 'coach.welfare2.desc': '请点击返回首页按钮。', 'coach.welfare2.voice': '请点击返回首页按钮。',
-    'coach.voice1.title': '也可以用语音获得指引', 'coach.voice1.desc': '点击此按钮可以再次听取画面指引。', 'coach.voice1.voice': '请点击语音指引按钮。',
-    'coach.emergency1.title': '紧急情况请按此按钮', 'coach.emergency1.desc': '可以直接联系监护人或119·112·118。请点击直接确认，确认完毕后点击下一步。', 'coach.emergency1.voice': '请点击求助按钮。确认后请点击下一步继续。',
-    'coach.settingsIntro.title': '我们也看看设置', 'coach.settingsIntro.desc': '可以更改字体大小、语音速度、监护人信息。', 'coach.settingsIntro.voice': '请点击下方的设置按钮。',
-    'coach.fontsize.title': '试试更改字体大小', 'coach.fontsize.desc': '可以在普通、大、特大中选择。选好后请点击下一步。', 'coach.fontsize.voice': '请点击字体大小。选好后请点击下一步继续。',
-    'coach.rate.title': '语音速度也可以更改', 'coach.rate.desc': '请选择您喜欢的朗读速度。选好后请点击下一步。', 'coach.rate.voice': '请点击语音朗读速度。选好后请点击下一步继续。',
-    'coach.guardian.title': '试试登记监护人信息', 'coach.guardian.desc': '发现危险短信时可以立即通知监护人。这是可选项，不需要的话可以直接下一步。', 'coach.guardian.voice': '请输入监护人姓名。不需要的话可以点击下一步跳过。',
-    'coach.helplink.title': '还有使用方法说明', 'coach.helplink.desc': '遇到不明白的地方随时可以再查看。', 'coach.helplink.voice': '请点击使用方法说明。',
-    'coach.helpback.title': '我们返回并结束吧', 'coach.helpback.desc': '请点击←返回按钮。', 'coach.helpback.voice': '请点击返回按钮。',
-    'coach.finish.title': '现在回到首页就结束了', 'coach.finish.desc': '请点击←返回首页按钮结束指引。', 'coach.finish.voice': '请点击返回首页按钮结束指引。',
-    'coach.language.title': '语言也可以更改', 'coach.language.desc': '请在中文·越南语·泰语·乌兹别克语中选择。选好后请点击下一步。', 'coach.language.voice': '请点击语言设置。选好后请点击下一步继续。',
     'common.home': '← 返回主页', 'common.back': '← 返回',
     'docChoice.title': 'AI分析',
     'docChoice.desc': '请拍摄想要分析的文件，或从相册中选择。',
@@ -2624,34 +2327,6 @@ const I18N = {
     'onboard.profile.regionNote': 'Nếu ghi rõ đến quận/huyện, chúng tôi có thể cung cấp thông tin phù hợp hơn.',
     'onboard.profile.next': 'Tiếp theo',
     'onboard.profile.voice': 'Cho tôi biết tên, giới tính, độ tuổi, nơi ở để tôi giúp bạn phù hợp hơn. Nếu không muốn, bạn có thể bỏ qua.',
-    'onboard.notice.title': 'Hiện tại chưa thể phân tích.',
-    'onboard.notice.desc': 'Đây là bản dùng thử (hướng dẫn),<br>nên có thể chưa cung cấp phân tích thực tế.<br>Nếu có thắc mắc, hãy liên hệ quản trị viên.',
-    'onboard.notice.next': 'Tiếp tục',
-    'onboard.notice.voice': 'Hiện tại chưa thể phân tích. Vì đây là bản dùng thử nên có thể chưa cung cấp phân tích thực tế. Nếu có thắc mắc, hãy liên hệ quản trị viên.',
-    'coach.moreHelp.title': 'Bạn có thể xem các chức năng khác ở đây', 'coach.moreHelp.desc': 'Hãy nhấn vào Thông tin, Lịch sử, Cài đặt ở bên dưới.', 'coach.moreHelp.voice': 'Bạn có thể xem các chức năng khác ở menu bên dưới.',
-    'coach.next': 'Chuyển sang bước tiếp theo', 'coach.skipTutorial': 'Bỏ qua hướng dẫn',
-    'coach.doc1.title': 'Hãy thử chụp tài liệu', 'coach.doc1.desc': 'Nhấn vào thẻ này để chụp tài liệu và nhờ AI phân tích.', 'coach.doc1.voice': 'Hãy nhấn vào thẻ chụp tài liệu.',
-    'coach.doc2.title': 'Chúng ta chụp trực tiếp nhé', 'coach.doc2.desc': 'Hãy chụp tài liệu bằng camera.', 'coach.doc2.voice': 'Hãy nhấn chụp trực tiếp.',
-    'coach.doc3.title': 'Hãy nhấn nút chụp', 'coach.doc3.desc': 'Canh tài liệu vào giữa màn hình rồi nhấn nút.', 'coach.doc3.voice': 'Hãy nhấn nút chụp.',
-    'coach.sms1.title': 'Cũng có thể kiểm tra tin nhắn', 'coach.sms1.desc': 'Bạn cũng có thể kiểm tra ở đây xem tin nhắn nhận được có an toàn không.', 'coach.sms1.voice': 'Hãy nhấn vào thẻ tải nội dung tin nhắn.',
-    'coach.smsPermission.title': 'Hãy cho phép đọc tin nhắn', 'coach.smsPermission.desc': 'Cho phép thì sẽ hiện tin nhắn gần đây ngay.', 'coach.smsPermission.voice': 'Hãy nhấn cho phép.',
-    'coach.sms2.title': 'Nhấn vào tin nhắn này để kiểm tra', 'coach.sms2.desc': 'Chỉ cần chạm một lần là kiểm tra được ngay.', 'coach.sms2.voice': 'Hãy nhấn vào tin nhắn để kiểm tra.',
-    'coach.history1.title': 'Cũng có thể xem lịch sử', 'coach.history1.desc': 'Bạn có thể xem lại các tài liệu và tin nhắn đã kiểm tra.', 'coach.history1.voice': 'Hãy nhấn nút Lịch sử ở bên dưới.',
-    'coach.history2.title': 'Chúng ta quay lại trang chủ nhé', 'coach.history2.desc': 'Nhấn nút ← Về trang chủ để quay lại bất cứ lúc nào.', 'coach.history2.voice': 'Hãy nhấn nút về trang chủ.',
-    'coach.info1.title': 'Cũng có thông tin nên biết', 'coach.info1.desc': 'Chúng tôi cung cấp thông tin hữu ích như lương hưu cơ bản, khám sức khỏe.', 'coach.info1.voice': 'Hãy nhấn vào thông tin nên biết.',
-    'coach.info2.title': 'Xem xong thì quay lại trang chủ nhé', 'coach.info2.desc': 'Hãy nhấn nút về trang chủ.', 'coach.info2.voice': 'Hãy nhấn nút về trang chủ.',
-    'coach.welfare1.title': 'Cũng tìm giúp trung tâm phúc lợi·nhà sinh hoạt người cao tuổi gần đây', 'coach.welfare1.desc': 'Chúng tôi cho biết vị trí trung tâm phúc lợi và nhà sinh hoạt người cao tuổi gần vị trí của bạn.', 'coach.welfare1.voice': 'Hãy nhấn vào tìm trung tâm phúc lợi·người cao tuổi gần đây.',
-    'coach.welfare2.title': 'Chúng ta quay lại trang chủ nhé', 'coach.welfare2.desc': 'Hãy nhấn nút về trang chủ.', 'coach.welfare2.voice': 'Hãy nhấn nút về trang chủ.',
-    'coach.voice1.title': 'Cũng có thể nghe hướng dẫn bằng giọng nói', 'coach.voice1.desc': 'Nhấn nút này để nghe lại hướng dẫn màn hình.', 'coach.voice1.voice': 'Hãy nhấn nút nghe hướng dẫn bằng giọng nói.',
-    'coach.emergency1.title': 'Khẩn cấp thì nhấn nút này', 'coach.emergency1.desc': 'Bạn có thể liên hệ ngay với người giám hộ hoặc 119·112·118. Hãy nhấn thử để kiểm tra, xem xong thì nhấn tiếp theo.', 'coach.emergency1.voice': 'Hãy nhấn nút trợ giúp. Sau khi xem xong hãy nhấn tiếp theo.',
-    'coach.settingsIntro.title': 'Chúng ta xem cài đặt nhé', 'coach.settingsIntro.desc': 'Bạn có thể thay đổi cỡ chữ, tốc độ giọng nói, thông tin người giám hộ.', 'coach.settingsIntro.voice': 'Hãy nhấn nút Cài đặt ở bên dưới.',
-    'coach.fontsize.title': 'Hãy thử đổi cỡ chữ', 'coach.fontsize.desc': 'Chọn giữa vừa, lớn, rất lớn. Chọn xong hãy nhấn tiếp theo.', 'coach.fontsize.voice': 'Hãy nhấn cỡ chữ. Chọn xong hãy nhấn tiếp theo.',
-    'coach.rate.title': 'Cũng có thể đổi tốc độ giọng nói', 'coach.rate.desc': 'Hãy chọn tốc độ đọc phù hợp với bạn. Chọn xong hãy nhấn tiếp theo.', 'coach.rate.voice': 'Hãy nhấn tốc độ đọc giọng nói. Chọn xong hãy nhấn tiếp theo.',
-    'coach.guardian.title': 'Hãy thử đăng ký thông tin người giám hộ', 'coach.guardian.desc': 'Khi phát hiện tin nhắn nguy hiểm, có thể báo ngay cho người giám hộ. Đây là mục tùy chọn, nếu không muốn có thể nhấn tiếp theo.', 'coach.guardian.voice': 'Hãy nhập tên người giám hộ. Nếu không muốn, hãy nhấn tiếp theo để bỏ qua.',
-    'coach.helplink.title': 'Cũng có hướng dẫn sử dụng', 'coach.helplink.desc': 'Khi bối rối, bạn có thể xem lại bất cứ lúc nào.', 'coach.helplink.voice': 'Hãy nhấn vào hướng dẫn sử dụng.',
-    'coach.helpback.title': 'Chúng ta quay lại để kết thúc nhé', 'coach.helpback.desc': 'Hãy nhấn nút ← Quay lại.', 'coach.helpback.voice': 'Hãy nhấn nút quay lại.',
-    'coach.finish.title': 'Giờ quay lại trang chủ là xong', 'coach.finish.desc': 'Hãy nhấn nút ← Về trang chủ để kết thúc hướng dẫn.', 'coach.finish.voice': 'Hãy nhấn nút về trang chủ để kết thúc hướng dẫn.',
-    'coach.language.title': 'Cũng có thể đổi ngôn ngữ', 'coach.language.desc': 'Hãy chọn giữa tiếng Trung·Việt·Thái·Uzbek. Chọn xong hãy nhấn tiếp theo.', 'coach.language.voice': 'Hãy nhấn cài đặt ngôn ngữ. Chọn xong hãy nhấn tiếp theo.',
     'common.home': '← Trang chủ', 'common.back': '← Quay lại',
     'docChoice.title': 'Phân tích AI',
     'docChoice.desc': 'Hãy chụp tài liệu bạn muốn phân tích hoặc chọn từ thư viện ảnh.',
@@ -2815,34 +2490,6 @@ const I18N = {
     'onboard.profile.regionNote': 'หากระบุถึงระดับอำเภอ/เขต จะช่วยให้เราให้ข้อมูลที่เหมาะสมยิ่งขึ้น',
     'onboard.profile.next': 'ถัดไป',
     'onboard.profile.voice': 'บอกชื่อ เพศ ช่วงอายุ และที่อยู่อาศัยให้ฉันทราบ เพื่อช่วยเหลือคุณได้เหมาะสมยิ่งขึ้น หากไม่ต้องการก็สามารถข้ามได้',
-    'onboard.notice.title': 'ตอนนี้ยังไม่สามารถวิเคราะห์ได้',
-    'onboard.notice.desc': 'ตอนนี้เป็นเวอร์ชันทดลอง (บทเรียน)<br>อาจไม่มีการวิเคราะห์จริงให้<br>หากมีข้อสงสัยกรุณาติดต่อผู้ดูแลระบบ',
-    'onboard.notice.next': 'ดำเนินการต่อ',
-    'onboard.notice.voice': 'ตอนนี้ยังไม่สามารถวิเคราะห์ได้ เนื่องจากเป็นเวอร์ชันทดลอง อาจไม่มีการวิเคราะห์จริงให้ หากมีข้อสงสัยกรุณาติดต่อผู้ดูแลระบบ',
-    'coach.moreHelp.title': 'ดูฟังก์ชันอื่นได้ที่นี่', 'coach.moreHelp.desc': 'กดที่ข้อมูล ประวัติ ตั้งค่า ด้านล่างได้เลย', 'coach.moreHelp.voice': 'ดูฟังก์ชันอื่นได้จากเมนูด้านล่าง',
-    'coach.next': 'ไปขั้นตอนถัดไป', 'coach.skipTutorial': 'ข้ามบทเรียน',
-    'coach.doc1.title': 'ลองถ่ายภาพเอกสารดูสิ', 'coach.doc1.desc': 'กดการ์ดนี้เพื่อถ่ายภาพเอกสารและให้ AI วิเคราะห์', 'coach.doc1.voice': 'กรุณากดการ์ดถ่ายภาพเอกสาร',
-    'coach.doc2.title': 'ลองถ่ายภาพเองดูนะ', 'coach.doc2.desc': 'ถ่ายภาพเอกสารด้วยกล้อง', 'coach.doc2.voice': 'กรุณากดถ่ายภาพเอง',
-    'coach.doc3.title': 'กรุณากดปุ่มถ่ายภาพ', 'coach.doc3.desc': 'จัดเอกสารให้อยู่กลางจอแล้วกดปุ่ม', 'coach.doc3.voice': 'กรุณากดปุ่มถ่ายภาพ',
-    'coach.sms1.title': 'ตรวจสอบข้อความได้เช่นกัน', 'coach.sms1.desc': 'สามารถตรวจสอบที่นี่ได้ว่าข้อความที่ได้รับปลอดภัยหรือไม่', 'coach.sms1.voice': 'กรุณากดการ์ดนำเข้าข้อความ',
-    'coach.smsPermission.title': 'กรุณาอนุญาตให้อ่านข้อความ', 'coach.smsPermission.desc': 'หากอนุญาตจะแสดงข้อความล่าสุดทันที', 'coach.smsPermission.voice': 'กรุณากดอนุญาต',
-    'coach.sms2.title': 'กดข้อความนี้เพื่อตรวจสอบ', 'coach.sms2.desc': 'แตะเพียงครั้งเดียวก็ตรวจสอบได้ทันที', 'coach.sms2.voice': 'กรุณากดข้อความเพื่อตรวจสอบ',
-    'coach.history1.title': 'ดูประวัติได้เช่นกัน', 'coach.history1.desc': 'สามารถดูเอกสารและข้อความที่ตรวจสอบมาแล้วทั้งหมด', 'coach.history1.voice': 'กรุณากดปุ่มประวัติด้านล่าง',
-    'coach.history2.title': 'กลับไปหน้าหลักกันเถอะ', 'coach.history2.desc': 'กดปุ่ม ← กลับหน้าหลักเพื่อย้อนกลับได้ทุกเมื่อ', 'coach.history2.voice': 'กรุณากดปุ่มกลับหน้าหลัก',
-    'coach.info1.title': 'มีข้อมูลที่ควรรู้ด้วย', 'coach.info1.desc': 'แนะนำข้อมูลที่เป็นประโยชน์ เช่น เงินบำนาญพื้นฐาน การตรวจสุขภาพ', 'coach.info1.voice': 'กรุณากดข้อมูลที่ควรรู้',
-    'coach.info2.title': 'ดูเสร็จแล้วกลับหน้าหลักนะ', 'coach.info2.desc': 'กรุณากดปุ่มกลับหน้าหลัก', 'coach.info2.voice': 'กรุณากดปุ่มกลับหน้าหลัก',
-    'coach.welfare1.title': 'หาศูนย์สวัสดิการ·ศูนย์ผู้สูงอายุใกล้เคียงให้ด้วย', 'coach.welfare1.desc': 'แจ้งตำแหน่งศูนย์สวัสดิการและศูนย์ผู้สูงอายุใกล้ตำแหน่งของคุณ', 'coach.welfare1.voice': 'กรุณากดค้นหาศูนย์สวัสดิการ·ศูนย์ผู้สูงอายุใกล้เคียง',
-    'coach.welfare2.title': 'กลับไปหน้าหลักกันเถอะ', 'coach.welfare2.desc': 'กรุณากดปุ่มกลับหน้าหลัก', 'coach.welfare2.voice': 'กรุณากดปุ่มกลับหน้าหลัก',
-    'coach.voice1.title': 'รับคำแนะนำด้วยเสียงได้เช่นกัน', 'coach.voice1.desc': 'กดปุ่มนี้เพื่อฟังคำแนะนำหน้าจออีกครั้ง', 'coach.voice1.voice': 'กรุณากดปุ่มรับคำแนะนำด้วยเสียง',
-    'coach.emergency1.title': 'ฉุกเฉินให้กดปุ่มนี้', 'coach.emergency1.desc': 'สามารถติดต่อผู้ดูแลหรือ 119·112·118 ได้ทันที ลองกดตรวจสอบดู เสร็จแล้วกดถัดไป', 'coach.emergency1.voice': 'กรุณากดปุ่มขอความช่วยเหลือ ตรวจสอบเสร็จแล้วกรุณากดถัดไป',
-    'coach.settingsIntro.title': 'ดูการตั้งค่ากันด้วย', 'coach.settingsIntro.desc': 'สามารถเปลี่ยนขนาดตัวอักษร ความเร็วเสียง ข้อมูลผู้ดูแลได้', 'coach.settingsIntro.voice': 'กรุณากดปุ่มตั้งค่าด้านล่าง',
-    'coach.fontsize.title': 'ลองเปลี่ยนขนาดตัวอักษรดู', 'coach.fontsize.desc': 'เลือกระหว่างปกติ ใหญ่ ใหญ่มาก เลือกเสร็จแล้วกดถัดไป', 'coach.fontsize.voice': 'กรุณากดขนาดตัวอักษร เลือกเสร็จแล้วกรุณากดถัดไป',
-    'coach.rate.title': 'เปลี่ยนความเร็วเสียงได้เช่นกัน', 'coach.rate.desc': 'เลือกความเร็วในการอ่านที่สบายสำหรับคุณ เลือกเสร็จแล้วกดถัดไป', 'coach.rate.voice': 'กรุณากดความเร็วในการอ่านออกเสียง เลือกเสร็จแล้วกรุณากดถัดไป',
-    'coach.guardian.title': 'ลองลงทะเบียนข้อมูลผู้ดูแลดู', 'coach.guardian.desc': 'เมื่อพบข้อความอันตรายสามารถแจ้งผู้ดูแลได้ทันที เป็นตัวเลือก หากไม่ต้องการกดถัดไปได้เลย', 'coach.guardian.voice': 'กรุณากรอกชื่อผู้ดูแล หากไม่ต้องการกรุณากดถัดไปเพื่อข้าม',
-    'coach.helplink.title': 'มีคำแนะนำการใช้งานด้วย', 'coach.helplink.desc': 'เมื่อสับสนสามารถดูอีกครั้งได้ทุกเมื่อ', 'coach.helplink.voice': 'กรุณากดคำแนะนำการใช้งาน',
-    'coach.helpback.title': 'ย้อนกลับเพื่อจบกันนะ', 'coach.helpback.desc': 'กรุณากดปุ่ม ← ย้อนกลับ', 'coach.helpback.voice': 'กรุณากดปุ่มย้อนกลับ',
-    'coach.finish.title': 'ตอนนี้กลับหน้าหลักก็จบแล้ว', 'coach.finish.desc': 'กรุณากดปุ่ม ← กลับหน้าหลักเพื่อจบคำแนะนำ', 'coach.finish.voice': 'กรุณากดปุ่มกลับหน้าหลักเพื่อจบคำแนะนำ',
-    'coach.language.title': 'เปลี่ยนภาษาได้เช่นกัน', 'coach.language.desc': 'เลือกระหว่างจีน·เวียดนาม·ไทย·อุซเบก เลือกเสร็จแล้วกดถัดไป', 'coach.language.voice': 'กรุณากดตั้งค่าภาษา เลือกเสร็จแล้วกรุณากดถัดไป',
     'common.home': '← หน้าแรก', 'common.back': '← ย้อนกลับ',
     'docChoice.title': 'วิเคราะห์ด้วย AI',
     'docChoice.desc': 'กรุณาถ่ายภาพเอกสารที่ต้องการวิเคราะห์หรือเลือกจากคลังภาพ',
@@ -3006,34 +2653,6 @@ const I18N = {
     'onboard.profile.regionNote': "Tuman/shahargacha aniq yozsangiz, sizga mosroq ma'lumot bera olamiz.",
     'onboard.profile.next': 'Keyingi',
     'onboard.profile.voice': "Ism, jins, yosh guruhi va yashash hududingizni ayting, sizga mosroq yordam bera olaman. Xohlamasangiz o'tkazib yuborishingiz mumkin.",
-    'onboard.notice.title': 'Hozircha tahlil qilish qiyin.',
-    'onboard.notice.desc': "Hozir sinov versiyasi (qo'llanma) bo'lgani uchun,<br>haqiqiy tahlil taqdim etilmasligi mumkin.<br>Savollaringiz bo'lsa administratorga murojaat qiling.",
-    'onboard.notice.next': 'Davom etish',
-    'onboard.notice.voice': "Hozircha tahlil qilish qiyin. Sinov versiyasi bo'lgani uchun haqiqiy tahlil taqdim etilmasligi mumkin. Savollaringiz bo'lsa administratorga murojaat qiling.",
-    'coach.moreHelp.title': "Bu yerda boshqa funksiyalarni ham ko'rasiz", 'coach.moreHelp.desc': "Pastdagi Ma'lumot, Tarix, Sozlamalar tugmalarini bosing.", 'coach.moreHelp.voice': "Pastdagi menyudan boshqa funksiyalarni ham ko'rishingiz mumkin.",
-    'coach.next': "Keyingi bosqichga o'tish", 'coach.skipTutorial': "Qo'llanmani o'tkazib yuborish",
-    'coach.doc1.title': 'Hujjatni suratga olib ko\'ring', 'coach.doc1.desc': 'Ushbu kartani bosib hujjatni suratga olib AI tahliliga topshirishingiz mumkin.', 'coach.doc1.voice': 'Hujjat suratga olish kartasini bosing.',
-    'coach.doc2.title': 'Bevosita suratga olamiz', 'coach.doc2.desc': 'Kamera bilan hujjatni suratga oling.', 'coach.doc2.voice': 'Bevosita suratga olishni bosing.',
-    'coach.doc3.title': 'Suratga olish tugmasini bosing', 'coach.doc3.desc': "Hujjatni ekran markaziga to'g'rilab tugmani bosing.", 'coach.doc3.voice': 'Suratga olish tugmasini bosing.',
-    'coach.sms1.title': 'SMS xabarni ham tekshirish mumkin', 'coach.sms1.desc': 'Kelgan SMS xavfsizligini shu yerda ham tekshirish mumkin.', 'coach.sms1.voice': "SMS matnini yuklash kartasini bosing.",
-    'coach.smsPermission.title': "Xabar o'qishga ruxsat bering", 'coach.smsPermission.desc': "Ruxsat bersangiz so'nggi xabarlar darhol ko'rsatiladi.", 'coach.smsPermission.voice': "Ruxsat berishni bosing.",
-    'coach.sms2.title': 'Ushbu xabarni tekshirish uchun bosing', 'coach.sms2.desc': "Bir marta bosish bilan darhol tekshirish mumkin.", 'coach.sms2.voice': 'Xabarni tekshirish uchun bosing.',
-    'coach.history1.title': 'Tarixni ham ko\'rish mumkin', 'coach.history1.desc': 'Hozirgacha tekshirilgan hujjat va SMS tarixini birgalikda ko\'rish mumkin.', 'coach.history1.voice': 'Pastdagi Tarix tugmasini bosing.',
-    'coach.history2.title': 'Yana bosh sahifaga qaytamiz', 'coach.history2.desc': "← Bosh sahifaga tugmasini bosib istalgan vaqtda qaytish mumkin.", 'coach.history2.voice': 'Bosh sahifaga qaytish tugmasini bosing.',
-    'coach.info1.title': "Bilish foydali ma'lumotlar ham bor", 'coach.info1.desc': "Asosiy pensiya, sog'liqni tekshirish kabi foydali ma'lumotlarni taqdim etamiz.", 'coach.info1.voice': "Bilish foydali ma'lumotlarni bosing.",
-    'coach.info2.title': 'Ko\'rib bo\'lgach bosh sahifaga qayting', 'coach.info2.desc': 'Bosh sahifaga qaytish tugmasini bosing.', 'coach.info2.voice': 'Bosh sahifaga qaytish tugmasini bosing.',
-    'coach.welfare1.title': "Yaqin atrofdagi ijtimoiy ta'minot markazlari va keksalar markazini ham topib beramiz", 'coach.welfare1.desc': "Joylashuvingiz yaqinidagi ijtimoiy ta'minot markazi va keksalar markazi joylashuvini ko'rsatamiz.", 'coach.welfare1.voice': "Yaqin atrofdagi ijtimoiy ta'minot·keksalar markazini qidirishni bosing.",
-    'coach.welfare2.title': 'Yana bosh sahifaga qaytamiz', 'coach.welfare2.desc': 'Bosh sahifaga qaytish tugmasini bosing.', 'coach.welfare2.voice': 'Bosh sahifaga qaytish tugmasini bosing.',
-    'coach.voice1.title': 'Ovoz orqali ham yo\'riqnoma olish mumkin', 'coach.voice1.desc': 'Shu tugmani bosib ekran yo\'riqnomasini yana eshitishingiz mumkin.', 'coach.voice1.voice': 'Ovoz orqali yo\'riqnoma olish tugmasini bosing.',
-    'coach.emergency1.title': 'Favqulodda vaziyatda shu tugmani bosing', 'coach.emergency1.desc': "Vasiy yoki 119·112·118 ga to'g'ridan-to'g'ri bog'lanish mumkin. Bosib ko'ring, ko'rib bo'lgach keyingiga o'ting.", 'coach.emergency1.voice': 'Yordam tugmasini bosing. Tekshirib bo\'lgach keyingi tugmasini bosing.',
-    'coach.settingsIntro.title': 'Sozlamalarni ham ko\'ramiz', 'coach.settingsIntro.desc': "Shrift o'lchami, ovoz tezligi, vasiy ma'lumotlarini o'zgartirish mumkin.", 'coach.settingsIntro.voice': 'Pastdagi Sozlamalar tugmasini bosing.',
-    'coach.fontsize.title': "Shrift o'lchamini o'zgartirib ko'ring", 'coach.fontsize.desc': "Oddiy, katta, juda katta orasidan tanlang. Tanlab bo'lgach keyingiga o'ting.", 'coach.fontsize.voice': "Shrift o'lchamini bosing. Tanlab bo'lgach keyingi tugmasini bosing.",
-    'coach.rate.title': "Ovoz tezligini ham o'zgartirish mumkin", 'coach.rate.desc': "O'zingizga qulay o'qish tezligini tanlang. Tanlab bo'lgach keyingiga o'ting.", 'coach.rate.voice': "Ovoz o'qish tezligini bosing. Tanlab bo'lgach keyingi tugmasini bosing.",
-    'coach.guardian.title': "Vasiy ma'lumotlarini ro'yxatdan o'tkazib ko'ring", 'coach.guardian.desc': "Xavfli SMS aniqlansa vasiyga darhol xabar berish mumkin. Bu ixtiyoriy, xohlamasangiz keyingiga o'ting.", 'coach.guardian.voice': "Vasiy ismini kiriting. Xohlamasangiz keyingi tugmasini bosib o'tkazib yuboring.",
-    'coach.helplink.title': 'Foydalanish yo\'riqnomasi ham bor', 'coach.helplink.desc': 'Chalkashib qolganda istalgan vaqtda qayta ko\'rish mumkin.', 'coach.helplink.voice': 'Foydalanish yo\'riqnomasini bosing.',
-    'coach.helpback.title': 'Ortga qaytib yakunlaymiz', 'coach.helpback.desc': '← Ortga tugmasini bosing.', 'coach.helpback.voice': 'Ortga tugmasini bosing.',
-    'coach.finish.title': 'Endi bosh sahifaga qaytsangiz tugaydi', 'coach.finish.desc': "Yo'riqnomani yakunlash uchun ← Bosh sahifaga tugmasini bosing.", 'coach.finish.voice': "Yo'riqnomani yakunlash uchun bosh sahifaga tugmasini bosing.",
-    'coach.language.title': 'Tilni ham o\'zgartirish mumkin', 'coach.language.desc': "Xitoy·Vetnam·Tay·O'zbek orasidan tanlang. Tanlab bo'lgach keyingiga o'ting.", 'coach.language.voice': "Til sozlamasini bosing. Tanlab bo'lgach keyingi tugmasini bosing.",
     'common.home': '← Bosh sahifa', 'common.back': '← Orqaga',
     'docChoice.title': "AI bilan tahlil qilish",
     'docChoice.desc': "Tahlil qilmoqchi bo'lgan hujjatni suratga oling yoki galereyadan tanlang.",
