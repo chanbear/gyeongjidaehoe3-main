@@ -24,7 +24,7 @@ export class AnthropicProxy {
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, X-Auth-Token, X-Guardian-Token',
+  'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, X-Auth-Token',
 };
 
 const ANALYSIS_SCHEMA = {
@@ -113,20 +113,6 @@ function buildProfileNote(profile) {
   return `\n\n[참고: 사용자는 ${parts.join(' · ')} 어르신입니다. 이 정보는 설명 톤과 관련성을 참고하는 데만 사용하고, 확실하지 않은 지역별 기관명·주소·전화번호는 절대 지어내지 마세요.]`;
 }
 
-const ANALYSIS_LANGUAGE_NAMES = {
-  ko: '한국어',
-  zh: '중국어 간체',
-  vi: '베트남어',
-  th: '태국어',
-  uz: '우즈베크어',
-};
-
-function buildAnalysisLanguageNote(language) {
-  const code = Object.prototype.hasOwnProperty.call(ANALYSIS_LANGUAGE_NAMES, language) ? language : 'ko';
-  const name = ANALYSIS_LANGUAGE_NAMES[code];
-  return `\n\n[응답 언어: JSON 키와 status 값은 스키마 그대로 유지하고, headline·summary·checklist·category·issuer 등 사용자가 읽는 모든 문장은 ${name}로 작성하세요. 전화번호·URL·날짜·금액과 고유명사는 원문을 보존하세요. illustrationPrompt만 이미지 생성용이므로 영어로 작성하세요.]`;
-}
-
 const SMS_PROMPT = `당신은 고령자를 위한 문자 메시지 분석 도우미입니다. 아래 문자 내용을 분석해서 다음 항목을 한국어로 작성하세요.
 
 - status: 사기·피싱·개인정보나 금융정보 요구 등 위험한 문자면 "danger", 광고나 인증번호 등 참고만 하면 되는 문자면 "info", 확인·예약·참석 등 조치가 필요한 정상적인 안내 문자면 "normal"
@@ -181,10 +167,9 @@ async function sha256Hex(text) {
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** "123456" 형식의 6자리 숫자 OTP 하나를 만든다. */
+/** 6자리 숫자 인증번호(OTP) 생성 */
 function generateOtp() {
-  const n = crypto.getRandomValues(new Uint32Array(1))[0] % 1000000;
-  return String(n).padStart(6, '0');
+  return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 /** 알리고(Aligo) SMS 발송. 자격 증명이 없거나 호출이 실패하면 false만 반환한다(throw하지 않음) —
@@ -205,11 +190,8 @@ async function sendAligoSms(env, phoneDigits, message) {
       body: form.toString(),
     });
     if (!res.ok) return false;
-    const data = await res.json();
-    // 알리고는 HTTP 200이어도 result_code가 음수면 실패다.
-    return Number(data.result_code) >= 0;
+    return true;
   } catch (err) {
-    console.warn('알리고 발송 실패:', err && err.message || err);
     return false;
   }
 }
@@ -224,147 +206,6 @@ async function authenticateRequest(env, request) {
     `SELECT id FROM users WHERE id = ? AND token = ?`
   ).bind(userId, token).first();
   return row ? row.id : null;
-}
-
-async function authenticatedUser(env, request) {
-  const userId = await authenticateRequest(env, request);
-  if (!userId) return null;
-  return env.ansim_doumi_db.prepare(
-    `SELECT id, phone, name, role FROM users WHERE id = ?`
-  ).bind(userId).first();
-}
-
-function normalizedPhone(value) {
-  return String(value || '').replace(/\D/g, '');
-}
-
-function normalizedPersonName(value) {
-  return String(value || '').trim().replace(/\s+/g, '').toLocaleLowerCase();
-}
-
-function guardianMatchesSeniorState(guardianUser, seniorState) {
-  const registeredGuardian = seniorState && seniorState.guardian || {};
-  return normalizedPhone(registeredGuardian.phone) === normalizedPhone(guardianUser.phone)
-    && normalizedPersonName(registeredGuardian.name) === normalizedPersonName(guardianUser.name);
-}
-
-/** 보호자가 입력한 어르신 이름+전화번호와, 어르신이 저장한 보호자 이름+전화번호가
- *  양쪽 다 일치할 때만 후보를 반환한다("서로 입력" 상호 확인) — 어느 조건에서 실패했는지는
- *  호출부에 노출하지 않고 항상 빈 배열로 통일해, 계정 존재 여부가 유출되지 않게 한다. */
-async function guardianCandidates(env, guardianUser, seniorName, seniorPhone) {
-  const phone = normalizedPhone(seniorPhone);
-  if (phone.length < 9 || !String(seniorName || '').trim()) return [];
-  const row = await env.ansim_doumi_db.prepare(
-    `SELECT u.id, u.name, us.state_json
-       FROM users u
-       JOIN user_state us ON us.user_id = u.id
-      WHERE u.phone = ? AND COALESCE(u.role, 'senior') = 'senior'`
-  ).bind(phone).first();
-  if (!row) return [];
-  if (normalizedPersonName(row.name) !== normalizedPersonName(seniorName)) return [];
-  let seniorState;
-  try {
-    seniorState = JSON.parse(row.state_json || '{}');
-  } catch {
-    return [];
-  }
-  if (!guardianMatchesSeniorState(guardianUser, seniorState)) return [];
-  return [{
-    seniorUserId: Number(row.id),
-    seniorName: String(seniorState.profile && seniorState.profile.name || row.name || '어르신').trim(),
-  }];
-}
-
-/** 보호자 토큰을 검증하고 활성 연결 정보를 반환한다. 토큰 평문은 DB에 저장하지 않는다. */
-async function authenticateGuardian(env, request) {
-  const token = request.headers.get('X-Guardian-Token');
-  if (!token) return null;
-  const tokenHash = await sha256Hex(token);
-  const link = await env.ansim_doumi_db.prepare(
-    `SELECT gl.id, gl.senior_user_id, gl.guardian_name, gl.guardian_phone,
-            gl.notification_enabled, u.name AS senior_name, u.phone AS senior_phone
-       FROM guardian_links gl
-       JOIN users u ON u.id = gl.senior_user_id
-      WHERE gl.token_hash = ? AND gl.active = 1`
-  ).bind(tokenHash).first();
-  if (!link) return null;
-  await env.ansim_doumi_db.prepare(
-    `UPDATE guardian_links SET last_seen_at = datetime('now') WHERE id = ?`
-  ).bind(link.id).run();
-  return link;
-}
-
-function guardianSafeAnalysis(analysis, includeOriginal) {
-  if (!analysis || typeof analysis !== 'object') return {};
-  const safe = {};
-  const keys = [
-    'status', 'headline', 'summary', 'category', 'issuer', 'checklist',
-    'amount', 'dueDate', 'phone', 'website', 'mapQuery'
-  ];
-  if (includeOriginal) keys.push('originalText');
-  for (const key of keys) {
-    if (analysis[key] !== undefined && analysis[key] !== null && analysis[key] !== '') {
-      safe[key] = analysis[key];
-    }
-  }
-  return safe;
-}
-
-/** 보호자 화면에는 돌봄에 필요한 필드만 전달한다.
- *  원문과 사진은 어르신이 명시적으로 "보호자에게 보내기"를 누른 받은 연락에만 포함한다. */
-async function guardianStateForLink(env, link) {
-  const [row, readRows] = await Promise.all([
-    env.ansim_doumi_db.prepare(
-      `SELECT state_json, updated_at FROM user_state WHERE user_id = ?`
-    ).bind(link.senior_user_id).first(),
-    env.ansim_doumi_db.prepare(
-      `SELECT message_id FROM guardian_message_reads WHERE link_id = ?`
-    ).bind(link.id).all(),
-  ]);
-  let state = {};
-  try {
-    state = row ? JSON.parse(row.state_json) : {};
-  } catch {
-    state = {};
-  }
-  const readIds = new Set(((readRows && readRows.results) || []).map((item) => String(item.message_id)));
-  const history = (Array.isArray(state.history) ? state.history : []).slice(0, 20).map((item) => ({
-    id: item.id,
-    title: item.title,
-    status: item.status,
-    createdAt: item.createdAt || item.ts,
-    analysis: guardianSafeAnalysis(item.analysis, false),
-  }));
-  const guardianInbox = (Array.isArray(state.guardianInbox) ? state.guardianInbox : []).slice(0, 50).map((item) => ({
-    id: item.id,
-    kind: item.kind,
-    action: item.action,
-    sentAt: item.sentAt,
-    body: item.body,
-    image: item.image,
-    read: readIds.has(String(item.id)),
-    analysis: guardianSafeAnalysis(item.analysis, true),
-  }));
-  return {
-    senior: {
-      name: (state.profile && state.profile.name) || link.senior_name || '',
-      phone: link.senior_phone || '',
-    },
-    profile: {
-      name: (state.profile && state.profile.name) || link.senior_name || '',
-      age: state.profile && state.profile.age,
-      region: state.profile && state.profile.region,
-    },
-    guardian: {
-      name: link.guardian_name || '',
-      phone: link.guardian_phone || '',
-      notificationEnabled: Boolean(link.notification_enabled),
-    },
-    history,
-    schedule: Array.isArray(state.schedule) ? state.schedule.slice(0, 50) : [],
-    guardianInbox,
-    updatedAt: row && row.updated_at || null,
-  };
 }
 
 const RELAY_URL = 'https://relay-jet-six.vercel.app';
@@ -451,12 +292,7 @@ export default {
     }
 
     const url = new URL(request.url);
-    const isAllowedGet = request.method === 'GET' && (
-      url.pathname === '/state' ||
-      url.pathname === '/region-info' ||
-      url.pathname === '/guardian-state' ||
-      url.pathname === '/guardian-links'
-    );
+    const isAllowedGet = request.method === 'GET' && (url.pathname === '/state' || url.pathname === '/region-info');
     if (request.method !== 'POST' && !isAllowedGet) {
       return json({ error: 'Not found' }, 404);
     }
@@ -470,7 +306,7 @@ export default {
       }
 
       // images(배열)가 새 형식, image(단일)는 예전 앱 버전 호환용.
-      const { image, images, mediaType, profile, language } = body || {};
+      const { image, images, mediaType, profile } = body || {};
       const photos = Array.isArray(images) && images.length
         ? images
         : (typeof image === 'string' && image ? [{ data: image, mediaType }] : []);
@@ -485,7 +321,7 @@ export default {
           { type: 'text', text: `[사진 ${i + 1}]` },
           { type: 'image', source: { type: 'base64', media_type: p.mediaType || mediaType || 'image/jpeg', data: p.data } },
         ])).flat();
-        content.push({ type: 'text', text: DOC_PROMPT + buildProfileNote(profile) + buildAnalysisLanguageNote(language) });
+        content.push({ type: 'text', text: DOC_PROMPT + buildProfileNote(profile) });
 
         const result = await runAnalysis(env, content, DOC_ANALYSIS_SCHEMA);
 
@@ -510,12 +346,12 @@ export default {
         return json({ error: '잘못된 요청입니다.' }, 400);
       }
 
-      const { text, profile, language } = body || {};
+      const { text, profile } = body || {};
       if (!text || typeof text !== 'string') return json({ error: '문자 내용이 없습니다.' }, 400);
 
       try {
         const result = await runAnalysis(env, [
-          { type: 'text', text: `${SMS_PROMPT}${buildProfileNote(profile)}${buildAnalysisLanguageNote(language)}\n\n문자 내용:\n${text}` },
+          { type: 'text', text: `${SMS_PROMPT}${buildProfileNote(profile)}\n\n문자 내용:\n${text}` },
         ]);
         result.illustration = await generateIllustration(env, result.illustrationPrompt);
         return json(result, 200);
@@ -532,7 +368,7 @@ export default {
         return json({ error: '잘못된 요청입니다.' }, 400);
       }
 
-      const { question, analysis, history, profile, language } = body || {};
+      const { question, analysis, history, profile } = body || {};
       if (!question || typeof question !== 'string') return json({ error: '질문이 없습니다.' }, 400);
       if (question.length > 300) return json({ error: '질문이 너무 깁니다.' }, 400);
       if (!analysis || typeof analysis !== 'object') return json({ error: '무엇에 대한 질문인지 알 수 없습니다.' }, 400);
@@ -553,7 +389,7 @@ export default {
 
       try {
         const prompt = [
-          ASK_PROMPT + buildProfileNote(profile) + buildAnalysisLanguageNote(language),
+          ASK_PROMPT + buildProfileNote(profile),
           `\n[분석 결과]\n${facts.join('\n')}`,
           recent ? `\n[앞선 대화]\n${recent}` : '',
           `\n[질문]\n${question}`,
@@ -573,11 +409,9 @@ export default {
         return json({ error: '잘못된 요청입니다.' }, 400);
       }
       const { phone, pin, name } = body || {};
-      const role = body && body.role === 'guardian' ? 'guardian' : 'senior';
       const phoneDigits = String(phone || '').replace(/\D/g, '');
       if (phoneDigits.length < 9) return json({ error: 'invalid_phone' }, 400);
-      if (!/^\d{4}$/.test(String(pin || ''))) return json({ error: 'invalid_pin' }, 400);
-      if (role === 'guardian' && !String(name || '').trim()) return json({ error: 'invalid_name' }, 400);
+      if (String(pin || '').length < 4) return json({ error: 'invalid_pin' }, 400);
 
       try {
         const existing = await env.ansim_doumi_db.prepare(
@@ -590,233 +424,15 @@ export default {
         const token = randomHex(32);
 
         const inserted = await env.ansim_doumi_db.prepare(
-          `INSERT INTO users (phone, pin_hash, pin_salt, name, role, token)
-           VALUES (?, ?, ?, ?, ?, ?)`
-        ).bind(phoneDigits, pinHash, pinSalt, name || '', role, token).run();
+          `INSERT INTO users (phone, pin_hash, pin_salt, name, token)
+           VALUES (?, ?, ?, ?, ?)`
+        ).bind(phoneDigits, pinHash, pinSalt, name || '', token).run();
 
         const userId = inserted.meta.last_row_id;
-        return json({ userId, token, name: name || '', role }, 200);
+        return json({ userId, token, name: name || '' }, 200);
       } catch (err) {
         return json({ error: '가입에 실패했습니다.', detail: String(err && err.message || err) }, 502);
       }
-    }
-
-    if (url.pathname === '/guardian-candidates' && request.method === 'POST') {
-      const guardianUser = await authenticatedUser(env, request);
-      if (!guardianUser) return json({ error: 'unauthorized' }, 401);
-      if (guardianUser.role !== 'guardian') return json({ error: 'guardian_only' }, 403);
-      let body;
-      try {
-        body = await request.json();
-      } catch {
-        body = {};
-      }
-      const seniorName = String(body && body.seniorName || '').trim();
-      const seniorPhone = normalizedPhone(body && body.seniorPhone);
-      if (!seniorName || seniorPhone.length < 9) return json({ error: 'invalid_senior_lookup' }, 400);
-      try {
-        return json({ candidates: await guardianCandidates(env, guardianUser, seniorName, seniorPhone) }, 200);
-      } catch (err) {
-        return json({ error: 'guardian_candidates_failed', detail: String(err && err.message || err) }, 502);
-      }
-    }
-
-    if (url.pathname === '/guardian-links' && request.method === 'GET') {
-      const user = await authenticatedUser(env, request);
-      if (!user) return json({ error: 'unauthorized' }, 401);
-      if (user.role !== 'senior') return json({ error: 'senior_only' }, 403);
-      try {
-        const rows = await env.ansim_doumi_db.prepare(
-          `SELECT id, guardian_name, guardian_phone, notification_enabled, created_at, last_seen_at
-             FROM guardian_links
-            WHERE senior_user_id = ? AND active = 1
-            ORDER BY created_at DESC`
-        ).bind(user.id).all();
-        return json({ links: (rows && rows.results) || [] }, 200);
-      } catch (err) {
-        return json({ error: 'guardian_links_failed', detail: String(err && err.message || err) }, 502);
-      }
-    }
-
-    if (url.pathname === '/guardian-unlink' && request.method === 'POST') {
-      const user = await authenticatedUser(env, request);
-      if (!user) return json({ error: 'unauthorized' }, 401);
-      if (user.role !== 'senior') return json({ error: 'senior_only' }, 403);
-      let body;
-      try {
-        body = await request.json();
-      } catch {
-        return json({ error: 'invalid_request' }, 400);
-      }
-      const linkId = Number(body && body.linkId);
-      if (!linkId) return json({ error: 'invalid_link' }, 400);
-      await env.ansim_doumi_db.prepare(
-        `UPDATE guardian_links SET active = 0 WHERE id = ? AND senior_user_id = ?`
-      ).bind(linkId, user.id).run();
-      return json({ ok: true }, 200);
-    }
-
-    if (url.pathname === '/guardian-confirm-link' && request.method === 'POST') {
-      const guardianUser = await authenticatedUser(env, request);
-      if (!guardianUser) return json({ error: 'unauthorized' }, 401);
-      if (guardianUser.role !== 'guardian') return json({ error: 'guardian_only' }, 403);
-      let body;
-      try {
-        body = await request.json();
-      } catch {
-        return json({ error: 'invalid_request' }, 400);
-      }
-      const seniorUserId = Number(body && body.seniorUserId);
-      const confirmed = body && body.confirmed === true;
-      const guardianPhone = normalizedPhone(guardianUser.phone);
-      const guardianName = String(guardianUser.name || '').trim().slice(0, 40);
-      if (!confirmed) return json({ ok: true, linked: false }, 200);
-      if (!seniorUserId) return json({ error: 'invalid_senior' }, 400);
-      if (guardianPhone.length < 9) return json({ error: 'invalid_guardian_phone' }, 400);
-      if (!guardianName) return json({ error: 'invalid_guardian_name' }, 400);
-
-      try {
-        if (seniorUserId === Number(guardianUser.id)) return json({ error: 'cannot_link_self' }, 400);
-        const user = await env.ansim_doumi_db.prepare(
-          `SELECT u.id, u.name, us.state_json
-             FROM users u
-             JOIN user_state us ON us.user_id = u.id
-            WHERE u.id = ? AND COALESCE(u.role, 'senior') = 'senior'`
-        ).bind(seniorUserId).first();
-        if (!user) return json({ error: 'not_found' }, 404);
-        let seniorState;
-        try {
-          seniorState = JSON.parse(user.state_json || '{}');
-        } catch {
-          return json({ error: 'guardian_information_mismatch' }, 409);
-        }
-        if (!guardianMatchesSeniorState(guardianUser, seniorState)) {
-          return json({ error: 'guardian_information_mismatch' }, 409);
-        }
-
-        const guardianToken = randomHex(32);
-        const tokenHash = await sha256Hex(guardianToken);
-        await env.ansim_doumi_db.prepare(
-          `INSERT INTO guardian_links
-             (senior_user_id, guardian_user_id, guardian_name, guardian_phone, token_hash, notification_enabled, active, created_at, last_seen_at)
-           VALUES (?, ?, ?, ?, ?, 1, 1, datetime('now'), datetime('now'))
-           ON CONFLICT(senior_user_id, guardian_phone) DO UPDATE SET
-             guardian_user_id = excluded.guardian_user_id,
-             guardian_name = excluded.guardian_name,
-             token_hash = excluded.token_hash,
-             notification_enabled = 1,
-             active = 1,
-             last_seen_at = datetime('now')`
-        ).bind(user.id, guardianUser.id, guardianName, guardianPhone, tokenHash).run();
-
-        const link = await env.ansim_doumi_db.prepare(
-          `SELECT gl.id, gl.senior_user_id, gl.guardian_name, gl.guardian_phone,
-                  gl.notification_enabled, u.name AS senior_name, u.phone AS senior_phone
-             FROM guardian_links gl
-             JOIN users u ON u.id = gl.senior_user_id
-            WHERE gl.senior_user_id = ? AND gl.guardian_phone = ? AND gl.active = 1`
-        ).bind(user.id, guardianPhone).first();
-        const state = await guardianStateForLink(env, link);
-        return json({
-          session: {
-            token: guardianToken,
-            linkId: link.id,
-            seniorName: state.senior.name,
-            seniorPhone: state.senior.phone,
-          },
-          state,
-        }, 200);
-      } catch (err) {
-        return json({ error: 'guardian_confirm_failed', detail: String(err && err.message || err) }, 502);
-      }
-    }
-
-    if (url.pathname === '/guardian-resume' && request.method === 'POST') {
-      const guardianUser = await authenticatedUser(env, request);
-      if (!guardianUser) return json({ error: 'unauthorized' }, 401);
-      if (guardianUser.role !== 'guardian') return json({ error: 'guardian_only' }, 403);
-      try {
-        const guardianToken = randomHex(32);
-        const tokenHash = await sha256Hex(guardianToken);
-        const link = await env.ansim_doumi_db.prepare(
-          `SELECT gl.id, gl.senior_user_id, gl.guardian_name, gl.guardian_phone,
-                  gl.notification_enabled, u.name AS senior_name, u.phone AS senior_phone
-             FROM guardian_links gl
-             JOIN users u ON u.id = gl.senior_user_id
-            WHERE gl.guardian_user_id = ? AND gl.active = 1
-            ORDER BY COALESCE(gl.last_seen_at, gl.created_at) DESC
-            LIMIT 1`
-        ).bind(guardianUser.id).first();
-        if (!link) return json({ error: 'no_guardian_link' }, 404);
-        await env.ansim_doumi_db.prepare(
-          `UPDATE guardian_links SET token_hash = ?, last_seen_at = datetime('now') WHERE id = ?`
-        ).bind(tokenHash, link.id).run();
-        const state = await guardianStateForLink(env, link);
-        return json({
-          session: {
-            token: guardianToken,
-            linkId: link.id,
-            seniorName: state.senior.name,
-            seniorPhone: state.senior.phone,
-          },
-          state,
-        }, 200);
-      } catch (err) {
-        return json({ error: 'guardian_resume_failed', detail: String(err && err.message || err) }, 502);
-      }
-    }
-
-    if (url.pathname === '/guardian-state' && request.method === 'GET') {
-      const link = await authenticateGuardian(env, request);
-      if (!link) return json({ error: 'unauthorized' }, 401);
-      try {
-        return json({ state: await guardianStateForLink(env, link) }, 200);
-      } catch (err) {
-        return json({ error: 'guardian_state_failed', detail: String(err && err.message || err) }, 502);
-      }
-    }
-
-    if (url.pathname === '/guardian-message-read' && request.method === 'POST') {
-      const link = await authenticateGuardian(env, request);
-      if (!link) return json({ error: 'unauthorized' }, 401);
-      let body;
-      try {
-        body = await request.json();
-      } catch {
-        return json({ error: 'invalid_request' }, 400);
-      }
-      const messageId = String(body && body.messageId || '').slice(0, 120);
-      if (!messageId) return json({ error: 'invalid_message' }, 400);
-      await env.ansim_doumi_db.prepare(
-        `INSERT OR REPLACE INTO guardian_message_reads (link_id, message_id, read_at)
-         VALUES (?, ?, datetime('now'))`
-      ).bind(link.id, messageId).run();
-      return json({ ok: true }, 200);
-    }
-
-    if (url.pathname === '/guardian-settings' && request.method === 'POST') {
-      const link = await authenticateGuardian(env, request);
-      if (!link) return json({ error: 'unauthorized' }, 401);
-      let body;
-      try {
-        body = await request.json();
-      } catch {
-        return json({ error: 'invalid_request' }, 400);
-      }
-      const enabled = body && body.notificationEnabled ? 1 : 0;
-      await env.ansim_doumi_db.prepare(
-        `UPDATE guardian_links SET notification_enabled = ? WHERE id = ?`
-      ).bind(enabled, link.id).run();
-      return json({ ok: true, notificationEnabled: Boolean(enabled) }, 200);
-    }
-
-    if (url.pathname === '/guardian-disconnect' && request.method === 'POST') {
-      const link = await authenticateGuardian(env, request);
-      if (!link) return json({ error: 'unauthorized' }, 401);
-      await env.ansim_doumi_db.prepare(
-        `UPDATE guardian_links SET active = 0 WHERE id = ?`
-      ).bind(link.id).run();
-      return json({ ok: true }, 200);
     }
 
     if (url.pathname === '/login' && request.method === 'POST') {
@@ -831,7 +447,7 @@ export default {
 
       try {
         const user = await env.ansim_doumi_db.prepare(
-          `SELECT id, pin_hash, pin_salt, name, role, failed_attempts, locked_until FROM users WHERE phone = ?`
+          `SELECT id, pin_hash, pin_salt, name, failed_attempts, locked_until FROM users WHERE phone = ?`
         ).bind(phoneDigits).first();
 
         if (!user) return json({ error: 'invalid' }, 401);
@@ -857,7 +473,7 @@ export default {
           `UPDATE users SET token = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?`
         ).bind(token, user.id).run();
 
-        return json({ userId: user.id, token, name: user.name || '', role: user.role || 'senior' }, 200);
+        return json({ userId: user.id, token, name: user.name || '' }, 200);
       } catch (err) {
         return json({ error: '로그인에 실패했습니다.', detail: String(err && err.message || err) }, 502);
       }
@@ -906,19 +522,19 @@ export default {
       }
       const { phone, otp, newPin } = body || {};
       const phoneDigits = String(phone || '').replace(/\D/g, '');
-      if (!/^\d{4}$/.test(String(newPin || ''))) return json({ error: 'invalid_pin' }, 400);
+      if (String(newPin || '').length < 4) return json({ error: 'invalid_pin' }, 400);
 
       try {
         const user = await env.ansim_doumi_db.prepare(
           `SELECT id, otp_hash, otp_expires_at, otp_attempts FROM users WHERE phone = ?`
         ).bind(phoneDigits).first();
-        if (!user || !user.otp_hash) return json({ error: 'otp_invalid', attemptsLeft: 0 }, 401);
 
-        if (new Date(user.otp_expires_at).getTime() < Date.now()) {
-          return json({ error: 'otp_expired' }, 410);
-        }
-        if ((user.otp_attempts || 0) >= 5) {
-          return json({ error: 'otp_locked' }, 429);
+        if (!user || !user.otp_hash) return json({ error: 'invalid' }, 401);
+
+        if (user.otp_attempts >= 5) return json({ error: 'otp_locked' }, 423);
+
+        if (!user.otp_expires_at || new Date(user.otp_expires_at).getTime() < Date.now()) {
+          return json({ error: 'otp_expired' }, 401);
         }
 
         const otpHash = await sha256Hex(String(otp || ''));
@@ -927,18 +543,18 @@ export default {
           await env.ansim_doumi_db.prepare(
             `UPDATE users SET otp_attempts = ? WHERE id = ?`
           ).bind(attempts, user.id).run();
-          return json({ error: 'otp_invalid', attemptsLeft: 5 - attempts }, 401);
+          return json({ error: 'invalid', attemptsLeft: Math.max(0, 5 - attempts) }, 401);
         }
 
         const pinSalt = randomHex(16);
         const pinHash = await sha256Hex(pinSalt + String(newPin));
         await env.ansim_doumi_db.prepare(
-          `UPDATE users SET pin_hash = ?, pin_salt = ?, otp_hash = NULL, otp_expires_at = NULL, otp_attempts = 0 WHERE id = ?`
+          `UPDATE users SET pin_hash = ?, pin_salt = ?, otp_hash = NULL, otp_expires_at = NULL, otp_attempts = 0, failed_attempts = 0, locked_until = NULL WHERE id = ?`
         ).bind(pinHash, pinSalt, user.id).run();
 
         return json({ ok: true }, 200);
       } catch (err) {
-        return json({ error: '재설정에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+        return json({ error: '요청 처리에 실패했습니다.', detail: String(err && err.message || err) }, 502);
       }
     }
 
