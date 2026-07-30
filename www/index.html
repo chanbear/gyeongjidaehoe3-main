@@ -113,12 +113,12 @@
         </div>
 
         <div class="settings-section">
-          <h2 data-i18n="onboard.signup.pinLabel">비밀번호</h2>
+          <h2 data-i18n="onboard.signup.pinLabel">비밀번호 (숫자 4자리)</h2>
           <div class="field-row">
-            <input type="password" id="signupPin" placeholder="비밀번호 입력" data-i18n-placeholder="onboard.signup.pinPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+            <input type="password" inputmode="numeric" maxlength="4" id="signupPin" placeholder="비밀번호 입력" data-i18n-placeholder="onboard.signup.pinPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
           </div>
           <div class="field-row" style="margin-top:10px;">
-            <input type="password" id="signupPinConfirm" placeholder="비밀번호 다시 입력" data-i18n-placeholder="onboard.signup.pinConfirmPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+            <input type="password" inputmode="numeric" maxlength="4" id="signupPinConfirm" placeholder="비밀번호 다시 입력" data-i18n-placeholder="onboard.signup.pinConfirmPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
           </div>
         </div>
 
@@ -142,9 +142,9 @@
         </div>
 
         <div class="settings-section">
-          <h2 data-i18n="onboard.signup.pinLabel">비밀번호</h2>
+          <h2 data-i18n="onboard.signup.pinLabel">비밀번호 (숫자 4자리)</h2>
           <div class="field-row">
-            <input type="password" id="loginPin" placeholder="비밀번호 입력" data-i18n-placeholder="onboard.signup.pinPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+            <input type="password" inputmode="numeric" maxlength="4" id="loginPin" placeholder="비밀번호 입력" data-i18n-placeholder="onboard.signup.pinPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
           </div>
         </div>
 
@@ -155,7 +155,7 @@
         <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="goTo('screen-reset-pin')" data-i18n="onboard.login.forgotPin">비밀번호를 잊으셨나요?</button>
       </section>
 
-      <!-- PIN 재설정: 알리고 OTP 인증 -->
+      <!-- 비밀번호 재설정: 알리고 OTP 인증 -->
       <section class="screen" id="screen-reset-pin" data-voice="이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요." data-voice-i18n="onboard.resetPin.voice">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-login')" data-i18n="onboard.login.title">← 로그인</button><span></span></div>
         <h1 data-i18n="onboard.resetPin.title">비밀번호 재설정</h1>
@@ -178,12 +178,12 @@
           <div class="field-row">
             <input type="text" inputmode="numeric" maxlength="6" id="resetPinOtp" placeholder="예: 123456" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
           </div>
-          <h2 style="margin-top:16px;" data-i18n="onboard.signup.pinLabel">비밀번호</h2>
+          <h2 style="margin-top:16px;" data-i18n="onboard.signup.pinLabel">비밀번호 (숫자 4자리)</h2>
           <div class="field-row">
-            <input type="password" id="resetPinNewPin" placeholder="새 비밀번호 입력" data-i18n-placeholder="onboard.signup.pinPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+            <input type="password" inputmode="numeric" maxlength="4" id="resetPinNewPin" placeholder="새 비밀번호 입력" data-i18n-placeholder="onboard.signup.pinPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
           </div>
           <div class="field-row" style="margin-top:10px;">
-            <input type="password" id="resetPinNewPinConfirm" placeholder="비밀번호 다시 입력" data-i18n-placeholder="onboard.signup.pinConfirmPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+            <input type="password" inputmode="numeric" maxlength="4" id="resetPinNewPinConfirm" placeholder="비밀번호 다시 입력" data-i18n-placeholder="onboard.signup.pinConfirmPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
           </div>
           <button class="primary-btn" style="margin-top:12px;" onclick="handleVerifyResetOtp()" data-i18n="onboard.resetPin.submit">재설정하기</button>
         </div>
@@ -231,7 +231,6 @@
         </div>
 
         <button class="primary-btn" onclick="goTo('screen-guardian-profile')" data-i18n="onboard.profile.next">다음</button>
-        <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="goTo('screen-guardian-profile')" data-i18n="onboard.skip">건너뛰기</button>
       </section>
 
       <!-- 자녀(보호자) 정보 입력 (선택 사항): 긴급 도움·문자 위험 알림에 쓰는 보호자 이름/전화번호를
@@ -245,7 +244,7 @@
         <div class="settings-section">
           <h2 data-i18n="settings.guardianNameLabel">보호자 이름</h2>
           <div class="field-row">
-            <input type="text" id="guardianNameOnboard" placeholder="예: 김민수 (아들)" data-i18n-placeholder="settings.guardianNamePlaceholder" oninput="setGuardianField('name', this.value)" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+            <input type="text" id="guardianNameOnboard" placeholder="예: 김민수" data-i18n-placeholder="settings.guardianNamePlaceholder" oninput="setGuardianField('name', this.value)" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
           </div>
         </div>
 
@@ -256,8 +255,8 @@
           </div>
         </div>
 
-        <button class="primary-btn" onclick="startCoachmark()" data-i18n="onboard.profile.next">다음</button>
-        <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="startCoachmark()" data-i18n="onboard.skip">건너뛰기</button>
+        <button class="primary-btn" onclick="goTo('screen-home')" data-i18n="onboard.profile.next">다음</button>
+        <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="goTo('screen-home')" data-i18n="onboard.skip">건너뛰기</button>
       </section>
 
 
@@ -278,7 +277,7 @@
           </button>
           <div class="home-greet-text">
             <div class="home-greet-name" id="homeGreetName"></div>
-            <div class="home-greet-sub">온담 비서가 활성화되었습니다</div>
+            <div class="home-greet-sub" id="homeAssistantStatus">온담 비서가 활성화되었습니다</div>
           </div>
           <label class="switch" aria-label="음성 지원 켜고 끄기">
             <input type="checkbox" class="voice-enabled-toggle" checked onchange="toggleVoice(this)">
@@ -313,7 +312,7 @@
       <!-- 더보기: 예전에 홈에 있던 오늘 할 일·통계·정보 요약·다가오는 일정을 모아둔 화면.
            홈을 핵심 3개 기능만 남기고 단순화하면서 여기로 옮겼다. -->
       <section class="screen" id="screen-more" data-voice="오늘 해야 할 일과 다가오는 일정, 정보를 모아뒀어요.">
-        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span></span></div>
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><button class="gear-btn" onclick="goTo('screen-settings')" aria-label="설정"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg></button></div>
         <h1 class="page-title" data-i18n="home.moreMenu">더보기</h1>
 
         <!-- 오늘 해야 할 일 대시보드 카드 -->
@@ -645,7 +644,6 @@
           </ul>
         </div>
         <button class="primary-btn" onclick="goTo('screen-home')">문서 찍으러 가기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(docMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
 
@@ -667,7 +665,6 @@
           </ul>
         </div>
         <button class="primary-btn" onclick="openSmsCheck()">문자 확인하러 가기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(smsMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
 
@@ -681,7 +678,6 @@
           <div class="checklist-row"><label style="cursor:default;">항목을 누르면 그때의 분석 결과를 다시 볼 수 있어요</label></div>
         </div>
         <button class="primary-btn" onclick="openHistory()">기록 보러 가기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(historyMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
 
@@ -695,7 +691,6 @@
           <div class="checklist-row"><label style="cursor:default;">전국 공통으로 실제 확인된 정보만 안내해드려요</label></div>
         </div>
         <button class="primary-btn" onclick="goTo('screen-info')">정보 보러 가기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(publicInfoMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
 
@@ -716,7 +711,6 @@
           </ul>
         </div>
         <button class="primary-btn" onclick="goTo('screen-welfare-nearby')">주변 복지센터·경로당 찾으러 가기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(welfareMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
 
@@ -730,7 +724,6 @@
           <div class="checklist-row"><label style="cursor:default;">설정에서 음성 속도와 사용 여부도 바꿀 수 있어요</label></div>
         </div>
         <button class="primary-btn" onclick="goTo('screen-home')">홈에서 확인하러 가기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(voiceMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
 
@@ -743,7 +736,6 @@
           <div class="checklist-row"><label style="cursor:default;">보호자, 119(응급), 112(경찰), 118(사이버 신고) 중에서 골라 바로 연락할 수 있어요</label></div>
         </div>
         <button class="primary-btn" onclick="goTo('screen-home')">홈에서 확인하러 가기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(emergencyMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
 
@@ -758,7 +750,6 @@
           <div class="checklist-row"><label style="cursor:default;">화면에 쓰이는 언어를 5개 언어 중에서 고를 수 있어요</label></div>
         </div>
         <button class="primary-btn" onclick="goTo('screen-settings')">설정 화면으로 가기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(settingsMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
 
@@ -815,19 +806,6 @@
         </div>
         <button class="primary-btn" id="aiErrorRetryBtn" onclick="retryAiError()" data-i18n="error.retry">다시 시도</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-home')" data-i18n="error.goHome">홈으로 돌아가기</button>
-      </section>
-
-      <!-- 튜토리얼 전용: AI 분석 실패 안내 (체험판이라 실제 분석은 제공되지 않을 수 있음을 안내하고 다음 튜토리얼로 계속 진행) -->
-      <section class="screen" id="screen-tutorial-ai-notice" data-voice="지금은 분석이 어려워요. 체험판이라 실제 분석은 제공되지 않을 수 있어요. 궁금한 점은 관리자에게 문의하세요." data-voice-i18n="onboard.notice.voice">
-        <div class="topbar"><span></span><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
-        <div class="center-col">
-          <div class="icon-circle">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#2454e6" stroke-width="2" width="40" height="40"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01" stroke-linecap="round" stroke-width="2.4"/></svg>
-          </div>
-          <h1 data-i18n="onboard.notice.title">지금은 분석이 어려워요.</h1>
-          <p class="desc" data-i18n="onboard.notice.desc">지금은 체험판(튜토리얼)이라<br>실제 분석은 제공되지 않을 수 있어요.<br>궁금한 점은 관리자에게 문의하세요.</p>
-        </div>
-        <button class="primary-btn" onclick="goTo('screen-home')" data-i18n="onboard.notice.next">다음으로 계속하기</button>
       </section>
 
       <!-- 문서: 카메라 촬영 -->
@@ -1046,7 +1024,7 @@
 
       <!-- 설정 화면 -->
       <section class="screen" id="screen-settings" data-voice="설정 화면입니다. 글자 크기, 음성 속도, 보호자 정보를 바꿀 수 있습니다.">
-        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg>다시 듣기</button></div>
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-more')">← 더보기</button><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg>다시 듣기</button></div>
         <h1 class="page-title"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-gear"></use></svg><span data-i18n="settings.title">설정</span></h1>
 
         <div class="settings-section">
@@ -1059,24 +1037,25 @@
         </div>
 
         <div class="settings-section">
-          <div id="voiceRateSection">
+          <div class="toggle-row">
+            <span><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="settings.voiceEnable">음성 안내 사용하기</span></span>
+            <label class="switch">
+              <input type="checkbox" id="voiceEnabledToggle" class="voice-enabled-toggle" checked onchange="toggleVoice(this)">
+              <span class="track"></span>
+            </label>
+          </div>
+          <!-- 음성 안내 사용하기가 꺼지면 이 아래(속도 조절/다시읽기/멈추기)는 숨긴다(syncVoiceRateVisibility) -->
+          <div id="voiceRateSection" style="margin-top:12px;">
             <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="settings.voiceSpeed">음성 읽기 속도</span></h2>
             <div class="segmented" id="voiceRateGroup">
               <button data-rate="1" onclick="setVoiceRate(1)" data-i18n="settings.rate1">1배속</button>
               <button data-rate="1.4" onclick="setVoiceRate(1.4)" data-i18n="settings.rate15">1.5배속</button>
               <button data-rate="1.8" onclick="setVoiceRate(1.8)" data-i18n="settings.rate2">2배속</button>
             </div>
-          </div>
-          <div class="voice-control-row">
-            <button class="secondary-btn" onclick="replayCurrentVoice()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="settings.replay">다시 읽기</span></button>
-            <button class="secondary-btn" onclick="stopVoice()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-stop"></use></svg><span data-i18n="settings.stop">멈추기</span></button>
-          </div>
-          <div class="toggle-row" style="margin-top:12px;">
-            <span><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="settings.voiceEnable">음성 안내 사용하기</span></span>
-            <label class="switch">
-              <input type="checkbox" id="voiceEnabledToggle" class="voice-enabled-toggle" checked onchange="toggleVoice(this)">
-              <span class="track"></span>
-            </label>
+            <div class="voice-control-row">
+              <button class="secondary-btn" onclick="replayCurrentVoice()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="settings.replay">다시 읽기</span></button>
+              <button class="secondary-btn" onclick="stopVoice()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-stop"></use></svg><span data-i18n="settings.stop">멈추기</span></button>
+            </div>
           </div>
         </div>
 
@@ -1112,7 +1091,7 @@
           <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-family"></use></svg><span data-i18n="settings.guardian">보호자 정보</span></h2>
           <div class="field-row">
             <label for="guardianName" data-i18n="settings.guardianNameLabel">보호자 이름</label>
-            <input type="text" id="guardianName" placeholder="예: 김민수 (아들)" data-i18n-placeholder="settings.guardianNamePlaceholder" oninput="setGuardianField('name', this.value)">
+            <input type="text" id="guardianName" placeholder="예: 김민수" data-i18n-placeholder="settings.guardianNamePlaceholder" oninput="setGuardianField('name', this.value)">
           </div>
           <div class="field-row">
             <label for="guardianPhone" data-i18n="settings.guardianPhoneLabel">보호자 전화번호</label>
@@ -1139,7 +1118,7 @@
             <button data-value="th" onclick="setLanguage('th')">ภาษาไทย</button>
             <button data-value="uz" onclick="setLanguage('uz')">Oʻzbekcha</button>
           </div>
-          <p class="settings-save-note" data-i18n="settings.languageNote">경기도 거주 외국인주민 중 비중이 높은 4개 언어를 지원합니다(중국·베트남·태국·우즈베키스탄, 공공통계 기준 상위 국적). 화면 핵심 문구만 번역되며, AI 분석 결과는 정확성을 위해 한국어로 제공됩니다.</p>
+          <p class="settings-save-note" data-i18n="settings.languageNote">화면 안내와 AI 분석 결과가 선택한 언어로 제공됩니다. 날짜·금액·전화번호와 고유명사는 원문을 유지합니다.</p>
         </div>
 
         <div class="settings-section">
@@ -1164,13 +1143,7 @@
 
         <div class="settings-section" id="guardianLinkSection">
           <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-family"></use></svg><span>보호자 앱 연결</span></h2>
-          <p class="settings-save-note" style="text-align:left;">내가 만든 6자리 연결번호를 보호자에게 알려주면 안전하게 연결됩니다. 전화번호만으로는 연결되지 않습니다.</p>
-          <button class="secondary-btn" id="createGuardianCodeButton" style="margin-top:12px;" onclick="createGuardianPairingCode()">연결번호 만들기</button>
-          <div class="guardian-link-code" id="guardianLinkCodePanel" hidden>
-            <span>보호자에게 알려줄 연결번호</span>
-            <strong id="guardianLinkCode">------</strong>
-            <small id="guardianLinkCodeExpiry">10분 동안 사용할 수 있습니다.</small>
-          </div>
+          <p class="settings-save-note" style="text-align:left;">위 보호자 정보에 보호자의 가입 이름과 전화번호를 정확히 저장해주세요. 보호자가 같은 정보로 가입하면 보호자 첫 화면에서 연결 여부를 확인할 수 있습니다.</p>
           <div class="guardian-link-list" id="guardianLinkList"></div>
           <p class="settings-save-note" id="guardianLinkStatus" style="text-align:left;">연결 상태를 확인하고 있습니다.</p>
         </div>
@@ -1180,10 +1153,12 @@
 
     </div>
 
-  <!-- 하단 네비게이션 바: 최상위 4개 탭 화면(홈·정보·기록·설정)에서만 보인다(body.has-bottom-nav).
-       .screen-stack 밖에 하나만 두고 goTo()가 표시/활성 상태를 갱신한다. -->
+  <!-- 하단 네비게이션 바: 최상위 4개 탭 화면(도움·정보·홈·더보기)에서만 보인다(body.has-bottom-nav).
+       2026-07-30 개편으로 '기록' 탭은 삭제(더보기 화면의 "전체 보기"로 흡수)하고, '설정' 탭은 '더보기'로
+       대체했다(screen-more로 이동하며, 설정은 그 안에서 접근). .screen-stack 밖에 하나만 두고
+       goTo()가 표시/활성 상태를 갱신한다. -->
   <nav class="bottom-nav" id="bottomNav" aria-label="주요 화면 이동">
-    <!-- 순서: 도움 / 정보 / 홈 / 기록 / 설정 — 가장 급할 때 누르는 도움을 엄지가 닿기 쉬운 맨 왼쪽에, 홈을 가운데에 둔다.
+    <!-- 순서: 도움 / 정보 / 홈 / 더보기 — 가장 급할 때 누르는 도움을 엄지가 닿기 쉬운 맨 왼쪽에, 홈을 가운데 가깝게 둔다.
          긴급 도움: 화면을 이동하는 탭이 아니라 바로 시트를 여는 버튼이라 data-tab을 두지 않는다(활성 표시 대상 아님).
          id는 코치마크의 emergency 단계가 참조하므로 그대로 유지한다. -->
     <button type="button" class="nav-help" id="emergencyFab" onclick="openEmergencySheet()" aria-label="긴급 도움">
@@ -1195,11 +1170,8 @@
     <button type="button" data-tab="screen-home" onclick="goTo('screen-home')">
       <svg viewBox="0 0 24 24"><use href="#ic-home"></use></svg><span data-i18n="nav.home">홈</span>
     </button>
-    <button type="button" data-tab="screen-history" onclick="goTo('screen-history')">
-      <svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg><span data-i18n="nav.history">기록</span>
-    </button>
-    <button type="button" data-tab="screen-settings" onclick="goTo('screen-settings')">
-      <svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg><span data-i18n="nav.settings">설정</span>
+    <button type="button" data-tab="screen-more" onclick="goTo('screen-more')">
+      <svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg><span data-i18n="home.moreMenu">더보기</span>
     </button>
   </nav>
 
@@ -1264,18 +1236,14 @@
     <button class="sheet-btn sheet-btn-cancel" onclick="closeSkipConfirm()" data-i18n="skipConfirm.keep">계속 보기</button>
   </div>
 
-<!-- 코치마크 튜토리얼: 실제 화면 위에 스포트라이트 + 말풍선으로 사용법을 안내(가짜 미리보기 화면 대신 실제 버튼을 직접 눌러보며 학습).
-     진행 상황은 말풍선 안의 "n / m" 표시(coachTipStep)로만 알려준다. -->
-<div class="coach-overlay" id="coachOverlay" style="display:none;">
-  <div class="coach-hole" id="coachHole"></div>
-  <div class="coach-tip" id="coachTip">
-    <div class="coach-tip-step" id="coachTipStep"></div>
-    <div class="coach-tip-title" id="coachTipTitle"></div>
-    <div class="coach-tip-desc" id="coachTipDesc"></div>
-    <button class="coach-tip-next" id="coachTipNext" onclick="advanceCoachStep()" style="display:none;" data-i18n="coach.next">다음으로 넘어가기</button>
-    <button class="nav-btn coach-tip-skip" onclick="confirmSkipCoachmark()" data-i18n="coach.skipTutorial">튜토리얼 건너뛰기</button>
+  <!-- 계정 초기화("로그아웃") 확인: 되돌릴 수 없는 삭제라 실수로 누르는 것을 막기 위해 한 번 더 확인한다 -->
+  <div class="sheet-backdrop" id="resetConfirmBackdrop" style="display:none;" onclick="closeResetConfirm()"></div>
+  <div class="bottom-sheet" id="resetConfirmSheet" style="display:none;">
+    <div class="bottom-sheet-title"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-alert"></use></svg><span data-i18n="resetConfirm.title">기기 데이터를 모두 지울까요?</span></div>
+    <p class="settings-save-note" data-i18n="resetConfirm.body">기록·일정·설정·내 정보가 모두 지워지고 되돌릴 수 없어요. 처음 사용하는 것처럼 다시 시작돼요.</p>
+    <button class="sheet-btn" onclick="acceptResetConfirm()" data-i18n="resetConfirm.confirm">초기화</button>
+    <button class="sheet-btn sheet-btn-cancel" onclick="closeResetConfirm()" data-i18n="resetConfirm.cancel">취소</button>
   </div>
-</div>
 
 <div class="sr-only" role="status" aria-live="polite" id="liveRegion"></div>
 <div class="global-toast" id="globalToast"></div>

@@ -1,5 +1,8 @@
 node_modules/
 worker/.wrangler/
+.android-sdk/
+.android-sdk-cache/
+.jdk21/
 
 # Android build outputs / local machine config
 android/.gradle/

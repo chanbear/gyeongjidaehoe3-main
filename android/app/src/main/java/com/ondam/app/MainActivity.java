@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(MessagingLauncherPlugin.class);
         registerPlugin(SmsReaderPlugin.class);
+        registerPlugin(TtsPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

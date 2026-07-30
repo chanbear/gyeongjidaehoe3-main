@@ -113,6 +113,20 @@ function buildProfileNote(profile) {
   return `\n\n[참고: 사용자는 ${parts.join(' · ')} 어르신입니다. 이 정보는 설명 톤과 관련성을 참고하는 데만 사용하고, 확실하지 않은 지역별 기관명·주소·전화번호는 절대 지어내지 마세요.]`;
 }
 
+const ANALYSIS_LANGUAGE_NAMES = {
+  ko: '한국어',
+  zh: '중국어 간체',
+  vi: '베트남어',
+  th: '태국어',
+  uz: '우즈베크어',
+};
+
+function buildAnalysisLanguageNote(language) {
+  const code = Object.prototype.hasOwnProperty.call(ANALYSIS_LANGUAGE_NAMES, language) ? language : 'ko';
+  const name = ANALYSIS_LANGUAGE_NAMES[code];
+  return `\n\n[응답 언어: JSON 키와 status 값은 스키마 그대로 유지하고, headline·summary·checklist·category·issuer 등 사용자가 읽는 모든 문장은 ${name}로 작성하세요. 전화번호·URL·날짜·금액과 고유명사는 원문을 보존하세요. illustrationPrompt만 이미지 생성용이므로 영어로 작성하세요.]`;
+}
+
 const SMS_PROMPT = `당신은 고령자를 위한 문자 메시지 분석 도우미입니다. 아래 문자 내용을 분석해서 다음 항목을 한국어로 작성하세요.
 
 - status: 사기·피싱·개인정보나 금융정보 요구 등 위험한 문자면 "danger", 광고나 인증번호 등 참고만 하면 되는 문자면 "info", 확인·예약·참석 등 조치가 필요한 정상적인 안내 문자면 "normal"
@@ -218,6 +232,43 @@ async function authenticatedUser(env, request) {
   return env.ansim_doumi_db.prepare(
     `SELECT id, phone, name, role FROM users WHERE id = ?`
   ).bind(userId).first();
+}
+
+function normalizedPhone(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function normalizedPersonName(value) {
+  return String(value || '').trim().replace(/\s+/g, '').toLocaleLowerCase();
+}
+
+function guardianMatchesSeniorState(guardianUser, seniorState) {
+  const registeredGuardian = seniorState && seniorState.guardian || {};
+  return normalizedPhone(registeredGuardian.phone) === normalizedPhone(guardianUser.phone)
+    && normalizedPersonName(registeredGuardian.name) === normalizedPersonName(guardianUser.name);
+}
+
+async function guardianCandidates(env, guardianUser) {
+  const rows = await env.ansim_doumi_db.prepare(
+    `SELECT u.id, u.name, us.state_json
+       FROM users u
+       JOIN user_state us ON us.user_id = u.id
+      WHERE COALESCE(u.role, 'senior') = 'senior'
+      ORDER BY us.updated_at DESC`
+  ).all();
+  return ((rows && rows.results) || []).flatMap((row) => {
+    let seniorState;
+    try {
+      seniorState = JSON.parse(row.state_json || '{}');
+    } catch {
+      return [];
+    }
+    if (!guardianMatchesSeniorState(guardianUser, seniorState)) return [];
+    return [{
+      seniorUserId: Number(row.id),
+      seniorName: String(seniorState.profile && seniorState.profile.name || row.name || '어르신').trim(),
+    }];
+  });
 }
 
 /** 보호자 토큰을 검증하고 활성 연결 정보를 반환한다. 토큰 평문은 DB에 저장하지 않는다. */
@@ -415,7 +466,7 @@ export default {
       }
 
       // images(배열)가 새 형식, image(단일)는 예전 앱 버전 호환용.
-      const { image, images, mediaType, profile } = body || {};
+      const { image, images, mediaType, profile, language } = body || {};
       const photos = Array.isArray(images) && images.length
         ? images
         : (typeof image === 'string' && image ? [{ data: image, mediaType }] : []);
@@ -430,7 +481,7 @@ export default {
           { type: 'text', text: `[사진 ${i + 1}]` },
           { type: 'image', source: { type: 'base64', media_type: p.mediaType || mediaType || 'image/jpeg', data: p.data } },
         ])).flat();
-        content.push({ type: 'text', text: DOC_PROMPT + buildProfileNote(profile) });
+        content.push({ type: 'text', text: DOC_PROMPT + buildProfileNote(profile) + buildAnalysisLanguageNote(language) });
 
         const result = await runAnalysis(env, content, DOC_ANALYSIS_SCHEMA);
 
@@ -455,12 +506,12 @@ export default {
         return json({ error: '잘못된 요청입니다.' }, 400);
       }
 
-      const { text, profile } = body || {};
+      const { text, profile, language } = body || {};
       if (!text || typeof text !== 'string') return json({ error: '문자 내용이 없습니다.' }, 400);
 
       try {
         const result = await runAnalysis(env, [
-          { type: 'text', text: `${SMS_PROMPT}${buildProfileNote(profile)}\n\n문자 내용:\n${text}` },
+          { type: 'text', text: `${SMS_PROMPT}${buildProfileNote(profile)}${buildAnalysisLanguageNote(language)}\n\n문자 내용:\n${text}` },
         ]);
         result.illustration = await generateIllustration(env, result.illustrationPrompt);
         return json(result, 200);
@@ -477,7 +528,7 @@ export default {
         return json({ error: '잘못된 요청입니다.' }, 400);
       }
 
-      const { question, analysis, history, profile } = body || {};
+      const { question, analysis, history, profile, language } = body || {};
       if (!question || typeof question !== 'string') return json({ error: '질문이 없습니다.' }, 400);
       if (question.length > 300) return json({ error: '질문이 너무 깁니다.' }, 400);
       if (!analysis || typeof analysis !== 'object') return json({ error: '무엇에 대한 질문인지 알 수 없습니다.' }, 400);
@@ -498,7 +549,7 @@ export default {
 
       try {
         const prompt = [
-          ASK_PROMPT + buildProfileNote(profile),
+          ASK_PROMPT + buildProfileNote(profile) + buildAnalysisLanguageNote(language),
           `\n[분석 결과]\n${facts.join('\n')}`,
           recent ? `\n[앞선 대화]\n${recent}` : '',
           `\n[질문]\n${question}`,
@@ -521,7 +572,7 @@ export default {
       const role = body && body.role === 'guardian' ? 'guardian' : 'senior';
       const phoneDigits = String(phone || '').replace(/\D/g, '');
       if (phoneDigits.length < 9) return json({ error: 'invalid_phone' }, 400);
-      if (String(pin || '').length < 4) return json({ error: 'invalid_pin' }, 400);
+      if (!/^\d{4}$/.test(String(pin || ''))) return json({ error: 'invalid_pin' }, 400);
       if (role === 'guardian' && !String(name || '').trim()) return json({ error: 'invalid_name' }, 400);
 
       try {
@@ -546,28 +597,14 @@ export default {
       }
     }
 
-    if (url.pathname === '/guardian-pair-code' && request.method === 'POST') {
-      const user = await authenticatedUser(env, request);
-      if (!user) return json({ error: 'unauthorized' }, 401);
-      if (user.role !== 'senior') return json({ error: 'senior_only' }, 403);
+    if (url.pathname === '/guardian-candidates' && request.method === 'POST') {
+      const guardianUser = await authenticatedUser(env, request);
+      if (!guardianUser) return json({ error: 'unauthorized' }, 401);
+      if (guardianUser.role !== 'guardian') return json({ error: 'guardian_only' }, 403);
       try {
-        const code = generateOtp();
-        const codeSalt = randomHex(8);
-        const codeHash = await sha256Hex(codeSalt + code);
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-        await env.ansim_doumi_db.prepare(
-          `INSERT INTO guardian_pair_codes (senior_user_id, code_hash, code_salt, expires_at, failed_attempts, created_at)
-           VALUES (?, ?, ?, ?, 0, datetime('now'))
-           ON CONFLICT(senior_user_id) DO UPDATE SET
-             code_hash = excluded.code_hash,
-             code_salt = excluded.code_salt,
-             expires_at = excluded.expires_at,
-             failed_attempts = 0,
-             created_at = excluded.created_at`
-        ).bind(user.id, codeHash, codeSalt, expiresAt).run();
-        return json({ code, expiresAt }, 200);
+        return json({ candidates: await guardianCandidates(env, guardianUser) }, 200);
       } catch (err) {
-        return json({ error: 'pair_code_failed', detail: String(err && err.message || err) }, 502);
+        return json({ error: 'guardian_candidates_failed', detail: String(err && err.message || err) }, 502);
       }
     }
 
@@ -606,7 +643,7 @@ export default {
       return json({ ok: true }, 200);
     }
 
-    if (url.pathname === '/guardian-connect' && request.method === 'POST') {
+    if (url.pathname === '/guardian-confirm-link' && request.method === 'POST') {
       const guardianUser = await authenticatedUser(env, request);
       if (!guardianUser) return json({ error: 'unauthorized' }, 401);
       if (guardianUser.role !== 'guardian') return json({ error: 'guardian_only' }, 403);
@@ -616,41 +653,32 @@ export default {
       } catch {
         return json({ error: 'invalid_request' }, 400);
       }
-      const phoneDigits = String(body && body.phone || '').replace(/\D/g, '');
-      const guardianPhone = String(guardianUser.phone || '').replace(/\D/g, '');
+      const seniorUserId = Number(body && body.seniorUserId);
+      const confirmed = body && body.confirmed === true;
+      const guardianPhone = normalizedPhone(guardianUser.phone);
       const guardianName = String(guardianUser.name || '').trim().slice(0, 40);
-      const code = String(body && body.code || '').replace(/\D/g, '');
-      if (phoneDigits.length < 9) return json({ error: 'invalid_phone' }, 400);
+      if (!confirmed) return json({ ok: true, linked: false }, 200);
+      if (!seniorUserId) return json({ error: 'invalid_senior' }, 400);
       if (guardianPhone.length < 9) return json({ error: 'invalid_guardian_phone' }, 400);
       if (!guardianName) return json({ error: 'invalid_guardian_name' }, 400);
-      if (!/^\d{6}$/.test(code)) return json({ error: 'invalid_code' }, 400);
 
       try {
+        if (seniorUserId === Number(guardianUser.id)) return json({ error: 'cannot_link_self' }, 400);
         const user = await env.ansim_doumi_db.prepare(
-          `SELECT id, name FROM users WHERE phone = ?`
-        ).bind(phoneDigits).first();
+          `SELECT u.id, u.name, us.state_json
+             FROM users u
+             JOIN user_state us ON us.user_id = u.id
+            WHERE u.id = ? AND COALESCE(u.role, 'senior') = 'senior'`
+        ).bind(seniorUserId).first();
         if (!user) return json({ error: 'not_found' }, 404);
-        if (Number(user.id) === Number(guardianUser.id)) return json({ error: 'cannot_link_self' }, 400);
-
-        const pair = await env.ansim_doumi_db.prepare(
-          `SELECT code_hash, code_salt, expires_at, failed_attempts FROM guardian_pair_codes WHERE senior_user_id = ?`
-        ).bind(user.id).first();
-        if (!pair) return json({ error: 'pair_code_required' }, 401);
-        if (new Date(pair.expires_at).getTime() < Date.now()) {
-          return json({ error: 'pair_code_expired' }, 410);
+        let seniorState;
+        try {
+          seniorState = JSON.parse(user.state_json || '{}');
+        } catch {
+          return json({ error: 'guardian_information_mismatch' }, 409);
         }
-        if (await sha256Hex(pair.code_salt + code) !== pair.code_hash) {
-          const attempts = Number(pair.failed_attempts || 0) + 1;
-          if (attempts >= 5) {
-            await env.ansim_doumi_db.prepare(
-              `DELETE FROM guardian_pair_codes WHERE senior_user_id = ?`
-            ).bind(user.id).run();
-            return json({ error: 'pair_code_locked' }, 429);
-          }
-          await env.ansim_doumi_db.prepare(
-            `UPDATE guardian_pair_codes SET failed_attempts = ? WHERE senior_user_id = ?`
-          ).bind(attempts, user.id).run();
-          return json({ error: 'pair_code_invalid' }, 401);
+        if (!guardianMatchesSeniorState(guardianUser, seniorState)) {
+          return json({ error: 'guardian_information_mismatch' }, 409);
         }
 
         const guardianToken = randomHex(32);
@@ -667,9 +695,6 @@ export default {
              active = 1,
              last_seen_at = datetime('now')`
         ).bind(user.id, guardianUser.id, guardianName, guardianPhone, tokenHash).run();
-        await env.ansim_doumi_db.prepare(
-          `DELETE FROM guardian_pair_codes WHERE senior_user_id = ?`
-        ).bind(user.id).run();
 
         const link = await env.ansim_doumi_db.prepare(
           `SELECT gl.id, gl.senior_user_id, gl.guardian_name, gl.guardian_phone,
@@ -689,7 +714,7 @@ export default {
           state,
         }, 200);
       } catch (err) {
-        return json({ error: 'connect_failed', detail: String(err && err.message || err) }, 502);
+        return json({ error: 'guardian_confirm_failed', detail: String(err && err.message || err) }, 502);
       }
     }
 
@@ -868,7 +893,7 @@ export default {
       }
       const { phone, otp, newPin } = body || {};
       const phoneDigits = String(phone || '').replace(/\D/g, '');
-      if (String(newPin || '').length < 4) return json({ error: 'invalid_pin' }, 400);
+      if (!/^\d{4}$/.test(String(newPin || ''))) return json({ error: 'invalid_pin' }, 400);
 
       try {
         const user = await env.ansim_doumi_db.prepare(
