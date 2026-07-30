@@ -23,9 +23,9 @@ Worker (`worker/` 안에서 실행):
 npm run dev      # wrangler dev (로컬 실행)
 npm run deploy   # wrangler deploy (배포)
 ```
-`ANTHROPIC_API_KEY`는 wrangler secret으로 설정되어야 함 (`wrangler.toml`에는 없음).
+`ANTHROPIC_API_KEY`는 wrangler secret으로 설정되어야 함 (`wrangler.toml`에는 없음). PIN 재설정 문자 발송(알리고/Aligo)에는 `ALIGO_API_KEY`/`ALIGO_USER_ID`/`ALIGO_SENDER` 3종 시크릿이 추가로 필요하다 — 셋 중 하나라도 없으면 `sendAligoSms()`가 조용히 실패로 처리하고(예외를 던지지 않음), `/request-pin-reset-otp`는 OTP 생성·저장까지는 성공하지만 실제 문자 발송은 안 된다(로컬 개발 시 흔한 상태 — 8번 항목 참고).
 
-D1 데이터베이스(`ansim-doumi-db`, 프로필 저장용) 스키마를 바꿨다면:
+D1 데이터베이스(`ansim-doumi-db`, 회원가입 계정/상태 저장용) 스키마를 바꿨다면:
 ```
 npx wrangler d1 execute ansim-doumi-db --remote --file=./schema.sql   # worker/ 안에서 실행
 ```
@@ -52,7 +52,9 @@ npx cap open android     # Android Studio로 열기
 ### 3. 첫 화면 "사용 안내(온보딩)"와 "실사용" 흐름이 공존
 최초 실행 시 보여주는 것은 실제 상호작용을 흉내 내는 데모가 아니라 **실제 화면 컴포넌트를 그대로 복제해 강조 표시(`.pulse`)만 얹은 정적 인포그래픽**(`screen-greet` → `screen-onboard-1`~`screen-onboard-5` → `screen-onboard-end`, `js/script.js`의 `onboardScreens` 집합)이다. 이 안내 화면들은 클릭 핸들러가 없는 순수 미리보기(`.onboard-mock`, `pointer-events:none`)이므로 `appState`(일정/기록/설정)에 절대 영향을 주지 않는다 — 안내 화면 동안에는 긴급 도움 FAB도 `body.in-onboarding` 클래스로 숨겨진다.
 
-2026-07 개편으로 문자 확인 흐름의 **가짜 문자함(고정 시나리오 5개, `smsMessages`/`screen-sms-inbox-real` 등)을 완전히 삭제**했다. 이제 문자 확인은 오직 하나의 경로뿐이다: `screen-sms-phone`(휴대폰 홈 모사) → `openRealSmsApp()`로 실제 기기의 문자 앱(`sms:`)을 띄움 → 사용자가 실제 문자를 길게 눌러 복사 → `screen-sms-switch` → `screen-sms-paste`(직접 붙여넣기) → `confirmSmsPaste()` → `analyzeSmsText()`가 Worker `/analyze-text`를 실제로 호출 → `screen-result-text`. 문서 흐름(`screen-doc-*`)도 마찬가지로 실제 카메라/갤러리 사진을 Worker `/analyze-doc`으로 분석한 결과(`lastDocAnalysis`/`lastSmsAnalysis`)만 보여준다 — 분석이 실패했거나 아직 안 끝난 경우에만 `finishDocResult()`의 기본값으로 폴백한다. 하드코딩된 문자 예시나 가짜 판별 결과를 보여주는 화면은 더 이상 존재하지 않는다.
+2026-07 개편으로 문자 확인 흐름의 **가짜 문자함(고정 시나리오 5개, `smsMessages`/`screen-sms-inbox-real` 등)을 완전히 삭제**했다. 이후 한 차례 더 개편되어(안드로이드 문자 자동 읽기), 복사/붙여넣기 경로도 완전히 제거됐다 — 이제 문자 확인은 오직 하나의 경로뿐이다: `openSmsCheck()` → 네이티브 `SmsReaderPlugin`(`READ_SMS` 권한, `android/app/src/main/java/com/ondam/app/SmsReaderPlugin.java`)의 권한을 확인/요청 → 허용되면 `loadAndShowRecentSms()`가 기기의 최근 문자 30건을 가져와 `screen-sms-recent`에 렌더링 → 사용자가 목록에서 문자 하나를 선택(`selectSmsMessage()`) → `analyzeSmsText()`가 Worker `/analyze-text`를 실제로 호출 → `screen-result-text`. 권한이 없거나 거부됐거나(웹 브라우저·iOS처럼 플러그인 자체가 없는 환경 포함) `screen-sms-permission-needed`로 보내고 **복사/붙여넣기로 폴백하지 않는다** — `READ_SMS`는 Google Play 정책상 기본 문자 앱만 쓸 수 있어 이 기능은 경진대회 심사용 APK 전용이며 스토어 배포 앱에는 넣지 않는다. 문서 흐름(`screen-doc-*`)도 마찬가지로 실제 카메라/갤러리 사진을 Worker `/analyze-doc`으로 분석한 결과(`lastDocAnalysis`/`lastSmsAnalysis`)만 보여준다 — 분석이 실패했거나 아직 안 끝난 경우에만 `finishDocResult()`의 기본값으로 폴백한다. 하드코딩된 문자 예시나 가짜 판별 결과를 보여주는 화면은 더 이상 존재하지 않는다.
+
+(참고: 이 문서의 "정적 인포그래픽 온보딩(`screen-onboard-1`~`screen-onboard-5`/`screen-onboard-end`)"이라는 옛 설명은 코드와 어긋나 있다 — 현재 `onboardScreens` 집합과 `index.html`에는 그런 id의 화면이 없고, 화면 안내는 실제 화면 위에 겹치는 코치마크 오버레이(`startCoachmark()`, `fullCoachSteps`)로 대체된 지 오래다. 이번 두 계획(문자 자동 읽기·회원가입)의 범위가 아니라 고치지 않았으니, 아래 10번 항목을 참고할 때 실제 코드(`onboardScreens`, `startCoachmark`)로 다시 확인할 것.)
 
 ### 4. `worker/`는 배포되어 프런트엔드와 연결되어 있음
 `worker/src/index.js`는 `/analyze-doc`, `/analyze-text` 엔드포인트로 이미지·문자를 받아 Anthropic API(`claude-opus-4-8`, `json_schema` 출력)로 분석하고 `{status, headline, summary, checklist}`를 반환하며, `https://ansim-doumi-ai.kke88084.workers.dev`로 배포되어 있다. `js/script.js` 상단의 `AI_WORKER_URL` 상수가 이 주소를 가리키고, `analyzeDocument()`/`analyzeSmsText()`가 사진 촬영·붙여넣기 직후 이 엔드포인트를 호출한다. Worker 코드를 고치면 `worker/` 안에서 `npm run deploy`로 다시 배포해야 실사용 흐름에 반영된다.
@@ -61,16 +63,24 @@ npx cap open android     # Android Studio로 열기
 ### 5. 카메라/갤러리는 네이티브·웹 두 경로를 모두 지원
 `getCameraPlugin()`으로 Capacitor의 네이티브 Camera 플러그인 존재 여부를 확인하고, 있으면 그걸 쓰고 없으면(모바일 브라우저·PWA) `<input type="file" capture>` 기반 웹 표준 방식(`pickWebPhoto`)으로 대체한다. 두 경로 모두 `pickPhoto()`를 통해 동일한 후속 흐름(`screen-loading-doc`)으로 합류한다.
 
-### 6. 상태는 기본적으로 `localStorage`, 서버 상태 없음 (단, 프로필은 예외 — 8번 항목 참고)
-`appState`(기록/일정/설정/보호자 정보)는 `saveState()`/`loadState()`로 브라우저 `localStorage`(`ai_helper_state_v1` 키)에만 저장된다. 로그인이나 서버 동기화는 없음 — 기기를 바꾸면 이 데이터는 사라진다. `appState.profile`만 예외적으로 Cloudflare D1에도 함께 저장된다(자세한 내용은 8번 항목).
+### 6. 전화번호+PIN 로그인이 필수이며, `appState` 전체가 계정에 묶여 기기 간 동기화된다
+2026-07-30 개편으로 이 앱은 더 이상 "로그인 없음" 구조가 아니다. 로그인해야만 실사용 화면(홈 등)에 들어갈 수 있다. `appState`(기록·일정·설정·프로필·보호자 정보 전체)는 여전히 `saveState()`/`loadState()`로 `localStorage`(`ai_helper_state_v1` 키)에 저장되지만, 로그인된 상태에서는 `queueStateSync()`가 매 저장 시점마다 이 JSON 전체를 Worker `POST /state`로도 보내 Cloudflare D1에 백업한다(자세한 내용은 8번 항목).
 
 ### 7. 일정 항목의 "길찾기 지도"는 위치를 실제로 찾았을 때만 보여준다
 `appState.schedule` 항목에 `location`(장소명 문자열)이 있으면 홈의 "오늘 해야 할 일" 목록에 Leaflet + OpenStreetMap Nominatim(`renderScheduleMap`/`geocodePlace`, API 키 불필요)으로 지도를 그린다. `index.html`은 `<head>`에서 Leaflet을 CDN으로 불러오므로 인터넷 연결이 필요하다. Nominatim 지오코딩이 실패하면(추상적인 장소명 등) 지도를 아예 숨긴다 — 잘못된 위치를 실제 장소인 것처럼 보여주지 않기 위함이다. 체크리스트에 `data-location`을 새로 붙일 때는 실제로 검색 가능한 구체적인 장소명(기관명 등)을 쓴다.
 
-### 8. `appState.profile`(이름/성별/연령대/지역)은 AI 분석 참고용일 뿐, 지역별 실제 데이터가 아니다
-온보딩(`screen-profile`)과 설정(`screen-settings`의 "내 정보")에서 선택 입력받는 이름/성별/연령대/지역은 전부 선택 사항이며 `setProfileField()`/`syncProfileUI()`로 두 화면(온보딩·설정)에 동시에 반영된다. 지역은 드롭다운이 아니라 자유 텍스트 입력(시/군/구까지 적을 수 있음)이다. 이 값은 `analyzeDocument()`/`analyzeSmsText()`가 Worker 요청 본문에 `profile`로 실어 보내고, `worker/src/index.js`의 `buildProfileNote()`가 프롬프트에 "설명 톤 참고용, 모르는 지역별 기관명·연락처는 지어내지 말 것"이라는 지시와 함께 덧붙인다 — **실제 지역별 공공데이터를 조회하는 기능이 아니다.** 홈 화면의 "알아두면 좋은 정보" 카드(`renderPublicInfoCard()`, `PUBLIC_INFO_ITEMS`)를 누르면 외부 사이트로 바로 나가지 않고 앱 안의 설명 화면(`screen-info-pension`/`screen-info-checkup`/`screen-info-voicephishing`)으로 이동한다 — 지역 무관하게 전국 공통으로 실제 확인된 정보만 담겨 있고, 인사말만 이름/성별/연령대로 맞춤화한다. 이 항목을 손볼 때 "지역 맞춤 혜택"처럼 실제 데이터 없이 지어낸 문구를 넣지 않도록 주의(위 "심사 기준"의 데이터 근거 원칙과 직결).
+### 8. 회원가입(전화번호+PIN)과 `appState` 전체 서버 동기화 — `deviceId`/`profiles` 방식은 제거됨
+이전에는 `deviceId`(localStorage) 기준으로 `appState.profile`만 D1에 저장했지만, 2026-07-30 개편으로 이 방식은 완전히 대체됐다 — `getDeviceId()`/`saveProfileToServer()`/`loadProfileFromServer()`/Worker `/profile` 엔드포인트/`profiles` 테이블은 모두 제거됐다(스키마상 테이블 자체는 D1에 남아있을 수 있으나 코드에서 더는 참조하지 않는다).
 
-프로필은 `localStorage`뿐 아니라 **Cloudflare D1**(`worker/schema.sql`의 `profiles` 테이블, `wrangler.toml`의 `ansim_doumi_db` 바인딩)에도 저장된다. 로그인이 없으므로 브라우저에 저장된 임의의 `deviceId`(`getDeviceId()`, localStorage 키 `ai_helper_device_id`)로 기기를 구분한다. `setProfileField()` → 800ms 디바운스 후 `saveProfileToServer()` → Worker `POST /profile`. 앱 로드 시 `loadProfileFromServer()` → `GET /profile?deviceId=...` — 단, **이 기기에 이미 값이 있으면 서버 값으로 덮어쓰지 않는다**(로컬 우선). Worker의 D1/프로필 엔드포인트를 고치면 스키마 변경 시 `npx wrangler d1 execute ansim-doumi-db --remote --file=./schema.sql`을 실행하고, 코드 변경은 여느 때처럼 `npm run deploy`로 재배포해야 한다.
+**회원가입/로그인:** 최초 실행 시 `screen-greet`의 "시작하기" → `screen-signup`(이름/전화번호/4자리 PIN/PIN 확인) → Worker `POST /signup`(PIN은 salt+SHA-256 해시로만 저장, D1 `users` 테이블) → 성공하면 발급된 토큰을 `localStorage`의 `ai_helper_auth_v1`(`AUTH_KEY`)에 저장하고 `screen-profile`(성별/연령대/지역, 선택) → `screen-guardian-profile`(보호자 정보, 선택) → `startCoachmark()` 튜토리얼로 이어진다. 이미 계정이 있으면 `screen-login`(전화번호+PIN) → Worker `POST /login`으로 토큰 발급. 5회 연속 PIN 실패 시 15분 잠금(423)이며, 로그인 실패(401 부적절)와 잠금(423)을 구분해 응답하는 것은 "계정이 존재하는지"를 노출하는 트레이드오프임을 의도적으로 감수한 것(설계 문서 `docs/superpowers/specs/2026-07-30-account-signup-design.md` 참고, 경진대회 데모 범위의 트레이드오프). PIN을 잊었을 때는 `screen-reset-pin`에서 이름+전화번호 입력 → `POST /request-pin-reset-otp`가 알리고(Aligo)로 6자리 OTP를 문자 발송(자격 증명 3종이 없으면 발송 자체는 실패하지만 OTP 생성·저장까지는 진행됨) → `POST /verify-pin-reset-otp`로 OTP 검증 후 새 PIN 저장.
+
+**부팅 분기(`window.addEventListener('load', ...)`):** `getAuth()`로 토큰이 있으면 `pullStateFromServer()`(아래)를 시도해 유효하면 `screen-home`, 무효(401)면 토큰을 지우고 `screen-login`으로. 토큰이 없으면 `screen-greet`. 과거의 `onboardingDone` 기반 분기는 이제 안 쓴다.
+
+**appState 전체 동기화:** `saveState()`가 호출될 때마다 로그인 상태면 `queueStateSync()`가 `appState` 전체(기록·일정·설정·프로필·보호자 정보)를 디바운스해 Worker `POST /state`(인증 헤더 `X-User-Id`/`X-Auth-Token`, D1 `user_state` 테이블에 JSON 통째로 저장)로 보낸다. 부팅 시·로그인 직후에는 `pullStateFromServer()`가 `GET /state`로 서버 값을 받아와 로컬 `appState`에 병합한다(서버는 내용을 해석하지 않고 그대로 저장/반환만 한다). `/state` 요청·응답 실패는 사용자에게 노출하지 않고 조용히 다음 저장 시점에 재시도한다.
+
+**설정 화면 "계정" 섹션:** `screen-settings`의 "내 정보" 섹션 위에 이름과 마스킹된 전화번호(가운데 4자리를 `****`로 가림)를 보여주고, "로그아웃"(`handleLogout()`)을 누르면 `clearAuth()`로 `ai_helper_auth_v1`만 지우고 `screen-login`으로 이동한다(로컬 `appState`는 지우지 않음 — 다음 로그인 때 서버 값으로 다시 채워지므로 남아있어도 무방). **이 "로그아웃"은 실제 세션 로그아웃**이다(토큰만 지우고 다시 로그인하면 서버에 저장된 같은 계정 데이터로 돌아온다) — 로그인 시스템 자체가 없던 옛 버전의 "로그아웃 = 기기 데이터 초기화"(`confirmResetDevice()`, `localStorage` 통째로 삭제)와는 의미가 다르니, main과 병합할 때 그 함수가 남아있다면 이 계정 기반 로그아웃으로 교체해야 한다(이 브랜치에는 애초에 `confirmResetDevice()`가 없다 — main에만 있음).
+
+이름/성별/연령대/지역(`appState.profile`)의 용도(AI 분석 참고 톤, 실제 지역별 공공데이터 조회 아님)와 "알아두면 좋은 정보" 카드에 대한 설명은 그대로 유효하다 — 저장 위치만 `deviceId` 기반 D1에서 계정 기반 `user_state`로 바뀌었을 뿐이다. Worker의 인증·상태 엔드포인트를 고치면 스키마 변경 시 `npx wrangler d1 execute ansim-doumi-db --remote --file=./schema.sql`을 실행하고, 코드 변경은 `npm run deploy`로 재배포해야 한다.
 
 ### 9. 언어 설정은 화면 핵심 문구만 번역하고, AI 분석 결과는 항상 한국어다
 설정 화면의 언어 전환(`setLanguage()`, `js/script.js`의 `I18N` 객체)은 경기도 거주 외국인주민 통계에서 비중이 높은 4개 언어(중국어·베트남어·태국어·우즈베크어)를 지원한다 — 근거는 행정안전부·경기도여성가족재단 등록외국인 통계이며 정확한 순위는 자료마다 다소 차이가 있어 참고용이다. `data-i18n` 속성이 붙은 요소(홈 화면 인사말·카드·설정 화면 섹션 제목 등 핵심 UI)만 번역되고, `applyLanguage()`가 `I18N[lang]`으로 `innerHTML`을 교체한다. **AI가 생성하는 문서/문자 분석 결과(headline/summary/checklist)는 번역하지 않고 항상 한국어로 유지**한다 — 원문 오역으로 인한 안전 문제를 피하기 위함(공공데이터 원문을 한국어로 유지하는 다른 프로젝트의 관행과 동일한 이유). 새 언어를 추가하거나 문구를 늘릴 때 이 원칙을 유지할 것 — Thai/Uzbek 번역은 초벌 번역이라 실제 사용 전 원어민 검수를 권장.

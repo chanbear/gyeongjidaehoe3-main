@@ -23,13 +23,13 @@ const STORAGE_KEY = 'ai_helper_state_v1';
 const appState = {
   history: [],                                   // 최근 분석/대화 기록 (최대 10개)
   schedule: [],                                   // { id, text, source, date, time, done, createdAt }
-  settings: { fontScale: 1, voiceRate: 1, voiceEnabled: true, language: 'ko' }, // 접근성 설정
+  settings: { fontScale: 1.15, voiceRate: 1, voiceEnabled: true, language: 'ko' }, // 접근성 설정 — 어르신 대상 서비스라 기본 글자 크기 자체를 키움
   guardian: { name: '', phone: '', autoNotify: false },
   profile: { name: '', gender: '', age: '', region: '' }, // 맞춤 안내용(선택 사항): AI 분석 요청에 참고 정보로만 함께 전달됨.
                     // age는 실제로 입력받기 전까지 빈 값으로 둔다 — 기본값을 숫자로 두면 온보딩 나이 입력칸에
                     // 사용자가 입력한 적 없는 값이 이미 채워진 것처럼 보이는 문제가 있었다.
-  avatarPhoto: '', // 홈 화면에 보여줄 프로필 사진(선택 사항). profile과 분리해두는 이유: profile은
-                    // saveProfileToServer()가 그대로 서버(D1)로 보내는데, 사진은 순전히 이 기기에서만
+  avatarPhoto: '', // 홈 화면에 보여줄 프로필 사진(선택 사항). profile과 분리해두는 이유: pushStateToServer()가
+                    // profile을 포함한 나머지 필드는 그대로 서버(D1)로 보내는데, 사진은 순전히 이 기기에서만
                     // 쓰는 것이라 서버로 전송되면 안 된다.
   onboardingDone: false // 인사→프로필→튜토리얼을 한 번이라도 끝냈는지. true면 다음 실행부터 홈에서 시작한다
 };
@@ -54,6 +54,67 @@ function saveState(){
     }));
   } catch (err) {
     console.warn('저장 실패:', err);
+  }
+  queueStateSync();
+}
+
+let stateSyncTimer = null;
+function queueStateSync(){
+  if (!getAuth()) return;
+  clearTimeout(stateSyncTimer);
+  stateSyncTimer = setTimeout(pushStateToServer, 1500);
+}
+
+async function pushStateToServer(){
+  const auth = getAuth();
+  if (!auth || !AI_WORKER_URL) return;
+  try {
+    await fetch(AI_WORKER_URL + '/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({
+        state: {
+          history: appState.history,
+          schedule: appState.schedule,
+          settings: appState.settings,
+          guardian: appState.guardian,
+          profile: appState.profile,
+          onboardingDone: appState.onboardingDone,
+        },
+      }),
+    });
+  } catch (err) {
+    console.warn('서버 동기화 실패(다음 저장 때 재시도):', err);
+  }
+}
+
+/** 로그인 직후 1회 호출: 서버에 저장된 값이 있으면 로컬 appState를 그 값으로 덮어쓴다(여러 기기 동기화가
+ *  목적이므로 "마지막으로 로그인한 곳"의 서버 값이 항상 이긴다 — 기존 프로필 동기화의 "로컬 우선"과 다르다). */
+async function pullStateFromServer(){
+  const auth = getAuth();
+  if (!auth || !AI_WORKER_URL) return true;
+  try {
+    const res = await fetch(AI_WORKER_URL + '/state', { headers: authHeaders() });
+    if (res.status === 401) return false; // 토큰이 서버에서 무효화됨 — 호출부가 로그아웃 처리하도록 알림
+    if (!res.ok) return true;
+    const data = await res.json();
+    if (data.state) {
+      const s = data.state;
+      if (s.history) appState.history = s.history;
+      if (s.schedule) appState.schedule = s.schedule;
+      if (s.settings) appState.settings = Object.assign(appState.settings, s.settings);
+      if (s.guardian) appState.guardian = Object.assign(appState.guardian, s.guardian);
+      if (s.profile) appState.profile = Object.assign(appState.profile, s.profile);
+      if (s.onboardingDone) appState.onboardingDone = true;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(Object.assign({ avatarPhoto: appState.avatarPhoto }, s)));
+    } else {
+      // 서버에 아직 아무것도 없음(첫 가입 직후) — 지금 로컬 값을 최초 스냅샷으로 올린다
+      await pushStateToServer();
+    }
+    return true;
+  } catch (err) {
+    console.warn('서버 상태 불러오기 실패(로컬 값 유지):', err);
+    return true;
   }
 }
 
@@ -141,7 +202,7 @@ function stopVoice(){
    4. 화면 전환 + 진행바
    --------------------------------------------------------- */
 /* 안내(온보딩) 화면 동안에는 긴급 도움 FAB을 숨긴다 */
-const onboardScreens = new Set(['screen-greet', 'screen-profile', 'screen-guardian-profile', 'screen-tutorial-ai-notice']);
+const onboardScreens = new Set(['screen-greet', 'screen-signup', 'screen-login', 'screen-reset-pin', 'screen-profile', 'screen-guardian-profile', 'screen-tutorial-ai-notice']);
 
 /* 하단 네비게이션 바를 노출할 최상위 화면. 여기 없는 화면(촬영·로딩·결과 등 흐름 중간)에서는 숨겨서
    "네비바가 보이면 출발점, 안 보이면 진행 중"이라는 규칙을 만든다. */
@@ -160,6 +221,8 @@ function syncBottomNav(id){
 let activeScreenEl = document.querySelector('.screen.active');
 
 function goTo(id){
+  // 인앱 카메라를 켠 채로 촬영 화면을 벗어나면(뒤로가기 등) 카메라를 계속 켜두지 않도록 반드시 먼저 끈다
+  if (activeScreenEl && activeScreenEl.id === 'screen-doc-capture' && id !== 'screen-doc-capture') stopInAppCamera();
   if (activeScreenEl) activeScreenEl.classList.remove('active');
   const target = document.getElementById(id);
   target.classList.add('active');
@@ -182,13 +245,15 @@ function goTo(id){
     saveState();
   }
 
-  if (id === 'screen-home') renderHomeDashboard();
+  if (id === 'screen-home') { renderHomeGreet(); renderAvatarPhoto(); }
+  if (id === 'screen-more') renderHomeDashboard();
   if (id === 'screen-info') renderInfoTab();
   if (id === 'screen-stats') renderStats();
   if (id === 'screen-settings') syncSettingsUI();
   if (id === 'screen-profile') syncProfileUI();
   if (id === 'screen-history') renderHistory();
   if (id === 'screen-welfare-nearby') loadWelfareNearby();
+  if (id === 'screen-doc-capture') startInAppCamera();
   if (id === 'screen-loading-doc') startLoadingProgress('progressFillLoadDoc');
   if (id === 'screen-doc-collect') renderPendingPhotos();
   if (id === 'screen-ask') renderAskScreen();
@@ -955,14 +1020,12 @@ const fullCoachSteps = [
   { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-doc-choice"]', cat: 'doc', key: 'doc1' },
   { screen: 'screen-doc-choice', target: '#screen-doc-choice .feature-card[onclick*="screen-doc-capture"]', cat: 'doc', key: 'doc2' },
   { screen: 'screen-doc-capture', target: '#screen-doc-capture .camera-shutter', cat: 'doc', key: 'doc3', advance: 'click' },
-  // 문자 확인 입구가 홈에서 'AI 문서 분석하기' 화면(screen-doc-choice) 안으로 옮겨져 이 단계도 그리로 옮겼다.
-  { screen: 'screen-doc-choice', target: '#screen-doc-choice .feature-card[onclick*="screen-sms-phone"]', cat: 'sms', key: 'sms1' },
-  { screen: 'screen-sms-phone', target: '#screen-sms-phone .app-icon.msg', cat: 'sms', key: 'sms2' },
-  { screen: 'screen-tutorial-sms-mock', target: '#screen-tutorial-sms-mock .compose-box', cat: 'sms', key: 'sms3' },
-  { screen: 'screen-sms-switch', target: '#screen-sms-switch .primary-btn', cat: 'sms', key: 'sms4' },
-  { screen: 'screen-sms-paste', target: '#smsPasteInput', cat: 'sms', key: 'sms5', advance: 'input' },
-  { screen: 'screen-sms-paste', target: '#screen-sms-paste .primary-btn', cat: 'sms', key: 'sms6' },
-  { screen: 'screen-sms-filled', target: '#screen-sms-filled .primary-btn', cat: 'sms', key: 'sms7' },
+  // 2026-07-29: 문자 확인이 복사/붙여넣기 대신 최근 문자 목록에서 바로 고르는 방식으로 바뀌면서
+  // 입구도 screen-doc-choice가 아니라 홈의 "문자 내용 요약" 카드(openSmsCheck())로 옮겨졌다.
+  // 권한이 이미 있으면 smsPermission 단계 자체가 통째로 건너뛰어진다(coachOnNavigate의 2단계 lookahead가 처리).
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="openSmsCheck"]', cat: 'sms', key: 'sms1' },
+  { screen: 'screen-sms-permission-needed', target: '#smsPermissionRetryBtn', cat: 'sms', key: 'smsPermission', skippable: true },
+  { screen: 'screen-sms-recent', target: '#screen-sms-recent .row:first-child', cat: 'sms', key: 'sms2' },
   { screen: 'screen-home', target: '#bottomNav [data-tab="screen-history"]', cat: 'history', key: 'history1' },
   { screen: 'screen-history', target: '#screen-history .nav-btn', cat: 'history', key: 'history2' },
   { screen: 'screen-info', target: '#publicInfoList .row:first-child', cat: 'info', key: 'info1' },
@@ -983,14 +1046,14 @@ const fullCoachSteps = [
 /** "사용 방법 안내"의 각 항목별 "체험해보기": 전체 투어(fullCoachSteps)에서 해당 구간만 골라 재사용한다.
  *  아래 slice/인덱스는 fullCoachSteps의 순서에 의존하므로, 그 배열의 항목을 지우거나 순서를 바꾸지 말 것. */
 const docMiniCoachSteps = fullCoachSteps.slice(0, 3);
-const smsMiniCoachSteps = fullCoachSteps.slice(3, 10);
-const historyMiniCoachSteps = fullCoachSteps.slice(10, 12);
-const publicInfoMiniCoachSteps = fullCoachSteps.slice(12, 14);
-const welfareMiniCoachSteps = fullCoachSteps.slice(14, 16);
-const voiceMiniCoachSteps = [fullCoachSteps[16]];
-const emergencyMiniCoachSteps = [fullCoachSteps[17]];
+const smsMiniCoachSteps = fullCoachSteps.slice(3, 6);
+const historyMiniCoachSteps = fullCoachSteps.slice(6, 8);
+const publicInfoMiniCoachSteps = fullCoachSteps.slice(8, 10);
+const welfareMiniCoachSteps = fullCoachSteps.slice(10, 12);
+const voiceMiniCoachSteps = [fullCoachSteps[12]];
+const emergencyMiniCoachSteps = [fullCoachSteps[13]];
 const settingsLanguageMiniStep = { screen: 'screen-settings', target: '#languageGroup', cat: 'settings', key: 'language', skippable: true };
-const settingsMiniCoachSteps = [fullCoachSteps[19], fullCoachSteps[20], fullCoachSteps[21], settingsLanguageMiniStep, fullCoachSteps[24]];
+const settingsMiniCoachSteps = [fullCoachSteps[15], fullCoachSteps[16], fullCoachSteps[17], settingsLanguageMiniStep, fullCoachSteps[20]];
 
 /** 첫 실행 안내: 앱의 핵심인 문서 촬영·문자 확인만 다루고 마지막에 "나머지는 여기서 볼 수 있어요"로 마무리한다.
  *  예전에는 8개 분류 25단계를 첫 실행에 한 번에 보여줬는데, 처음 쓰는 어르신에게는 부담이 컸다.
@@ -1001,23 +1064,10 @@ const firstRunHelpStep = {
   cat: 'help', key: 'moreHelp', skippable: true
 };
 
-/** 첫 실행 투어 전용 다리 단계: 촬영(doc3) 다음은 실제로는 screen-doc-choice가 아니라
- *  "찍은 사진" 모아보기 화면(screen-doc-collect)으로 이어지고, 거기서 분석하거나 취소하면
- *  결국 screen-home으로 돌아온다 — screen-doc-choice로 저절로 되돌아오는 경로가 없어
- *  문자 확인 데모(sms1, screen-doc-choice 기대)가 영원히 대기만 하다 조용히 끊기던 문제가 있었다.
- *  fullCoachSteps는 다른 미니 투어들이 인덱스로 참조하므로 건드리지 않고, 첫 실행 투어에서만
- *  screen-home에서 'AI 문서 분석하기' 카드를 다시 눌러 문자 데모로 이어지도록 다리를 놓는다. */
-const firstRunDocToSmsBridgeStep = {
-  screen: 'screen-home',
-  target: '#screen-home .feature-card[onclick*="screen-doc-choice"]',
-  cat: 'sms', key: 'sms1b'
-};
-const firstRunCoachSteps = [
-  ...fullCoachSteps.slice(0, 3),
-  firstRunDocToSmsBridgeStep,
-  ...fullCoachSteps.slice(3, 10),
-  firstRunHelpStep
-];
+// 촬영(doc3) 다음 단계(sms1)는 이제 screen-home을 기다린다. 촬영 후 실제 흐름은
+// screen-doc-collect(찍은 사진 모아보기) → 분석하거나 취소 → 결국 screen-home으로 돌아오므로,
+// 예전처럼 screen-doc-choice로 돌아오길 기다리다 끊기는 다리(bridge) 단계가 더 이상 필요 없다.
+const firstRunCoachSteps = [...fullCoachSteps.slice(0, 6), firstRunHelpStep];
 
 let coachSteps = firstRunCoachSteps;
 let coachIndex = -1;
@@ -1071,12 +1121,18 @@ function coachOnNavigate(id){
   const step = coachSteps[coachIndex];
   if (!step) return;
   const nextStep = coachSteps[coachIndex + 1];
+  const nextNextStep = coachSteps[coachIndex + 2];
   // 현재 단계와 다음 단계가 같은 화면일 수 있으므로(예: 설정 화면 안에서 이어지는 단계들), "지금 단계가 기다리는 화면"인지 먼저 확인해야
   // 이제 막 시작한 단계를 건너뛰지 않는다. 다른 화면으로 실제로 넘어갔을 때만 다음 단계로 진행한다.
   if (id === step.screen) {
     setTimeout(showCoachStep, 200);
   } else if (nextStep && id === nextStep.screen) {
     coachIndex++;
+    setTimeout(showCoachStep, 200);
+  } else if (nextNextStep && id === nextNextStep.screen) {
+    // 조건에 따라 중간 단계가 통째로 생략될 수 있는 경우(예: 문자 읽기 권한이 이미 있어 권한 안내 화면을 거치지 않음) —
+    // 그 단계는 건너뛰고 실제로 도착한 화면부터 바로 이어받는다
+    coachIndex += 2;
     setTimeout(showCoachStep, 200);
   } else if (!nextStep) {
     // advance 없이 마지막 단계를 벗어난 경우(예: 미니 투어에서 재사용한 단계의 원래 다음 단계가 없음): 더 기다릴 단계가 없으므로 투어를 종료한다
@@ -1287,6 +1343,49 @@ function cancelPendingPhotos(){
 function capturePhoto(){ return pickPhoto(true, 'environment'); }
 function pickFromGallery(){ return pickPhoto(false, null); }
 
+/* ---- 인앱 카메라: 외부 카메라 앱이나 파일 선택기로 나가지 않고 웹뷰 안에서 바로 촬영한다.
+   getUserMedia를 지원하지 않거나 권한이 거부되면(구형 기기, 데스크톱에서 권한 거부 등) 조용히
+   기존 capturePhoto()(네이티브 플러그인 또는 파일 선택) 경로로 폴백한다 — 화면은 안내 테두리만 보여준 채로 그대로 둔다. ---- */
+let inAppCameraStream = null;
+
+async function startInAppCamera(){
+  const video = document.getElementById('inAppCameraVideo');
+  if (!video || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+    inAppCameraStream = stream;
+    video.srcObject = stream;
+    video.style.display = 'block';
+  } catch (err) {
+    inAppCameraStream = null; // 권한 거부·카메라 없음: 안내 테두리만 남기고 촬영 버튼은 capturePhoto() 폴백으로 동작
+  }
+}
+
+function stopInAppCamera(){
+  if (inAppCameraStream) {
+    inAppCameraStream.getTracks().forEach(track => track.stop());
+    inAppCameraStream = null;
+  }
+  const video = document.getElementById('inAppCameraVideo');
+  if (video) { video.srcObject = null; video.style.display = 'none'; }
+}
+
+/** 촬영 버튼: 인앱 카메라 미리보기가 켜져 있으면 지금 보이는 화면을 그대로 캡처하고,
+ *  아니면(폴백) 기존 capturePhoto()(네이티브 플러그인 또는 파일 선택)로 넘어간다. */
+function captureInAppPhoto(){
+  if (!inAppCameraStream) { capturePhoto(); return; }
+  const video = document.getElementById('inAppCameraVideo');
+  const canvas = document.getElementById('inAppCameraCanvas');
+  canvas.width = video.videoWidth || 720;
+  canvas.height = video.videoHeight || 960;
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+  stopInAppCamera();
+  pendingPhotos.push(dataUrl);
+  lastCapturedPhoto = pendingPhotos[0];
+  goTo('screen-doc-collect');
+}
+
 /* ---- 홈 화면 프로필 사진 ----
    문서 사진과 달리 서버로 보내지 않고 이 기기에만 작은 크기로 저장한다(appState.avatarPhoto). */
 const AVATAR_MAX_SIDE = 320;
@@ -1470,7 +1569,7 @@ function retryAiError(){
     analyzeDocument(lastCapturedPhoto);
     return;
   }
-  if (aiErrorRetryScreen === 'screen-sms-paste' && pendingSmsText) {
+  if (aiErrorRetryScreen === 'screen-sms-recent' && pendingSmsText) {
     goTo('screen-loading-text');
     analyzeSmsText(pendingSmsText);
     return;
@@ -1524,14 +1623,22 @@ function showDocAnalysis(index){
   renderDocPager();
 }
 
+/** 문서가 여러 장일 때 이전/다음 화살표로 넘기는 페이지 표시. 숫자(1/2)를 크게 보여줘 몇 번째인지 한눈에 알 수 있게 한다. */
 function renderDocPager(){
   const pager = document.getElementById('docPager');
   if (!pager) return;
   if (docAnalyses.length < 2) { pager.style.display = 'none'; return; }
+  const isFirst = docAnalysisIndex === 0;
+  const isLast = docAnalysisIndex === docAnalyses.length - 1;
   pager.innerHTML = `
-    <div class="pager-label">${escapeHtml(t('result.docCountLabel').replace('{i}', docAnalysisIndex + 1).replace('{n}', docAnalyses.length))}</div>
-    <div class="pager-dots">
-      ${docAnalyses.map((_, i) => `<button type="button" class="pager-dot${i === docAnalysisIndex ? ' is-active' : ''}" onclick="showDocAnalysis(${i})" aria-label="${i + 1}">${i + 1}</button>`).join('')}
+    <div class="pager-arrows">
+      <button type="button" class="pager-arrow-btn" onclick="showDocAnalysis(${docAnalysisIndex - 1})" ${isFirst ? 'disabled' : ''} aria-label="${t('result.docPrev')}">
+        <svg class="inline-icon" viewBox="0 0 24 24" style="transform:scaleX(-1);"><use href="#ic-chevron"></use></svg>
+      </button>
+      <div class="pager-label">${escapeHtml(t('result.docCountLabel').replace('{i}', docAnalysisIndex + 1).replace('{n}', docAnalyses.length))}</div>
+      <button type="button" class="pager-arrow-btn" onclick="showDocAnalysis(${docAnalysisIndex + 1})" ${isLast ? 'disabled' : ''} aria-label="${t('result.docNext')}">
+        <svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+      </button>
     </div>`;
   pager.style.display = 'block';
 }
@@ -1683,76 +1790,101 @@ function currentDocShareText(){
 let pendingSmsText = '';
 let lastSmsAnalysis = null;
 
-/** 실제 문자 앱을 열면서, 돌아왔을 때 안내할 화면으로 같이 넘어가둠 */
-/** Android 네이티브 앱에서는 MessagingLauncher 플러그인으로 문자 앱(대화 목록)을 바로 열고,
- *  플러그인이 없는 환경(웹/iOS)에서는 sms: 스킴으로 대체한다(이 경우 작성 화면이 뜨는 건 플랫폼 제약) */
-function openRealSmsApp(){
-  goTo('screen-sms-switch');
-  const launcher = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.MessagingLauncher;
-  if (launcher) {
-    launcher.openMessagingApp().catch(() => { window.location.href = 'sms:'; });
-  } else {
-    window.location.href = 'sms:';
+function getSmsReaderPlugin(){
+  return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SmsReader) || null;
+}
+
+/** 문자 확인 화면 진입점. 권한이 있으면 바로 목록을 보여주고, 없으면 요청하거나
+ *  (플러그인 자체가 없는 웹/iOS라면) 권한 필요 화면으로 보낸다. 복사/붙여넣기로는 폴백하지 않는다. */
+async function openSmsCheck(){
+  const SmsReader = getSmsReaderPlugin();
+  if (!SmsReader) { showSmsPermissionNeeded('unsupported'); return; }
+  try {
+    const status = await SmsReader.checkPermissions();
+    if (status.sms === 'granted') { await loadAndShowRecentSms(SmsReader); return; }
+    const requested = await SmsReader.requestPermissions();
+    if (requested.sms === 'granted') { await loadAndShowRecentSms(SmsReader); return; }
+    showSmsPermissionNeeded('denied');
+  } catch (err) {
+    showSmsPermissionNeeded('denied');
   }
 }
 
-/** 튜토리얼 중에는 실제 문자 앱으로 나가지 않고, 앱 안의 연습 화면(screen-tutorial-sms-mock)을 대신 보여준다 */
-function handleSmsAppOpen(){
-  // 이전에 붙여넣었던 내용이 칸에 그대로 남아있던 문제 — 새 확인을 시작하는 시점에 비워둔다
-  const pasteEl = document.getElementById('smsPasteInput');
-  if (pasteEl) pasteEl.value = '';
-  if (coachActive) { goTo('screen-tutorial-sms-mock'); return; }
-  openRealSmsApp();
+function showSmsPermissionNeeded(reason){
+  const isUnsupported = reason === 'unsupported';
+  document.getElementById('smsPermissionTitle').innerHTML = isUnsupported
+    ? t('sms.permission.unsupportedTitle')
+    : t('sms.permission.title');
+  document.getElementById('smsPermissionDesc').innerHTML = isUnsupported
+    ? t('sms.permission.unsupportedDesc')
+    : t('sms.permission.desc');
+  document.getElementById('smsPermissionSettingsBtn').style.display = isUnsupported ? 'none' : '';
+  goTo('screen-sms-permission-needed');
 }
 
-/** 실제 폰의 "길게 눌러 복사" 동작을 흉내: 1초 이상 누르고 있어야 복사하기 버튼이 뜬다(짧게 떼면 아무 일도 없음) */
-let tutorialHoldTimer = null;
-function tutorialHoldStart(){
-  clearTimeout(tutorialHoldTimer);
-  tutorialHoldTimer = setTimeout(() => {
-    document.getElementById('tutorialCopyPopup').style.display = 'block';
-    expandCoachHoleForPopup();
-  }, 1000);
-}
-function tutorialHoldCancel(){
-  clearTimeout(tutorialHoldTimer);
+function openSmsAppSettings(){
+  const SmsReader = getSmsReaderPlugin();
+  if (SmsReader) SmsReader.openAppSettings();
 }
 
-/** "복사하기" 팝업이 문자 말풍선 위쪽 어두운 영역에 걸쳐 흐릿하게 보이던 문제 — 스포트라이트 구멍을
- *  말풍선+팝업을 모두 감싸는 크기로 넓혀서 팝업도 밝은 강조 영역 안에 들어오게 한다 */
-function expandCoachHoleForPopup(){
-  if (!coachActive) return;
-  const bubble = document.querySelector('#screen-tutorial-sms-mock .compose-box');
-  const popup = document.getElementById('tutorialCopyPopup');
-  if (!bubble || !popup) return;
-  const b = bubble.getBoundingClientRect();
-  const p = popup.getBoundingClientRect();
-  const pad = 8;
-  const top = Math.min(b.top, p.top) - pad;
-  const left = Math.min(b.left, p.left) - pad;
-  const right = Math.max(b.right, p.right) + pad;
-  const bottom = Math.max(b.bottom, p.bottom) + pad;
-  const hole = document.getElementById('coachHole');
-  hole.style.top = top + 'px';
-  hole.style.left = left + 'px';
-  hole.style.width = (right - left) + 'px';
-  hole.style.height = (bottom - top) + 'px';
+async function loadAndShowRecentSms(SmsReader){
+  goTo('screen-sms-recent');
+  document.getElementById('smsRecentCount').textContent = t('sms.recent.loading');
+  try {
+    const { messages } = await SmsReader.getRecentMessages({ limit: 30 });
+    renderSmsRecentList(messages || []);
+  } catch (err) {
+    renderSmsRecentList([]);
+  }
 }
 
-/** 연습 화면의 샘플 문자를 "복사"한 것처럼 실제 클립보드에 담아준다 — 이후 진짜 붙여넣기 칸에서 실제로 붙여넣기가 동작한다 */
-function tutorialCopySms(){
-  const text = '[국민건강보험공단] 건강검진비 환급 대상입니다. 아래 링크에서 계좌번호를 입력해주세요. bit.ly/hcheck-refund';
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(() => {});
-  document.getElementById('tutorialCopyPopup').style.display = 'none';
-  goTo('screen-sms-switch');
+/** 문자 미리보기 한 줄(50자)만 보여주고, 발신번호·받은 시각은 그대로 표시한다.
+ *  AI가 만든 텍스트가 아니라 기기 문자 원문이므로 XSS 방지를 위해 항상 textContent로만 채운다. */
+function renderSmsRecentList(messages){
+  const listEl = document.getElementById('smsRecentList');
+  const emptyEl = document.getElementById('smsRecentEmpty');
+  const countEl = document.getElementById('smsRecentCount');
+  listEl.innerHTML = '';
+  if (messages.length === 0) {
+    countEl.style.display = 'none';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  countEl.style.display = '';
+  countEl.textContent = t('sms.recent.desc');
+  emptyEl.style.display = 'none';
+  messages.forEach((msg) => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.setAttribute('role', 'button');
+    row.setAttribute('tabindex', '0');
+    row.onclick = () => selectSmsMessage(msg.body);
+
+    const iconChip = document.createElement('div');
+    iconChip.className = 'icon-chip accent';
+    iconChip.innerHTML = '<svg viewBox="0 0 24 24"><use href="#ic-chat"></use></svg>';
+
+    const text = document.createElement('div');
+    text.className = 'text';
+    const t1 = document.createElement('div');
+    t1.className = 't1';
+    t1.textContent = msg.address || t('sms.recent.unknownSender');
+    const t2 = document.createElement('div');
+    t2.className = 't2';
+    const preview = (msg.body || '').replace(/\s+/g, ' ').trim();
+    t2.textContent = preview.length > 50 ? preview.slice(0, 50) + '…' : preview;
+    text.appendChild(t1);
+    text.appendChild(t2);
+
+    row.appendChild(iconChip);
+    row.appendChild(text);
+    listEl.appendChild(row);
+  });
 }
 
-function confirmSmsPaste(){
-  const text = document.getElementById('smsPasteInput').value.trim();
-  if (text.length < 10) { goTo('screen-text-error'); return; }
-  pendingSmsText = text;
-  document.getElementById('smsFilledPreview').textContent = text;
-  goTo('screen-sms-filled');
+function selectSmsMessage(body){
+  pendingSmsText = body;
+  startSmsAnalysis();
 }
 
 function startSmsAnalysis(){
@@ -1761,7 +1893,7 @@ function startSmsAnalysis(){
 }
 
 async function analyzeSmsText(text){
-  if (!navigator.onLine) { goToAiError('screen-sms-paste', true); return; }
+  if (!navigator.onLine) { goToAiError('screen-sms-recent', true); return; }
 
   try {
     const res = await fetch(AI_WORKER_URL + '/analyze-text', {
@@ -1770,12 +1902,12 @@ async function analyzeSmsText(text){
       body: JSON.stringify({ text, profile: appState.profile })
     });
     const data = await res.json();
-    if (!res.ok || data.error) { goToAiError('screen-sms-paste'); return; }
+    if (!res.ok || data.error) { goToAiError('screen-sms-recent'); return; }
     lastSmsAnalysis = data;
     finishAllProgress();
     goTo('screen-result-text');
   } catch (err) {
-    goToAiError('screen-sms-paste', !navigator.onLine);
+    goToAiError('screen-sms-recent', !navigator.onLine);
   }
 }
 
@@ -1983,9 +2115,12 @@ const I18N = {
     'home.assistantActive': '온담 비서가 활성화되었습니다',
     'home.greetDefault': '어르신',
     'home.greetNameSuffix': '님', 'home.greetAge': '{age}대 어르신', 'home.greetAgeGender': '{age}대 {gender} 어르신',
-    'home.aiAnalyzeTitle': 'AI 문서 분석하기',
-    'home.aiAnalyzeDesc': '사진 촬영하기·사진 불러오기·문자 내용 불러오기 중에서 골라 AI가 분석해드려요',
+    'home.docCaptureTitle': '문서 촬영',
+    'home.docCaptureDesc': '사진을 찍거나 불러오면 AI가 쉽게 설명해드려요',
+    'home.smsCheckTitle': '문자 내용 요약',
+    'home.smsCheckDesc': '받은 문자가 안전한지 AI가 확인해드려요',
     'home.welfareTitle': '주변 복지센터·경로당 찾기',
+    'home.moreMenu': '더보기',
     'home.welfareDesc': '내 위치 주변 복지센터·경로당 위치를 알려드려요',
     'home.todayTasks': '오늘 해야 할 일',
     'home.viewAll': '전체 보기',
@@ -1997,7 +2132,6 @@ const I18N = {
     'stats.title': '고지서 통계',
     'result.share': '자녀에게 보내기',
     'result.ask': '이 문서에 대해 물어보기',
-    'result.askSms': '이 문자에 대해 물어보기',
     'ask.title': '물어보기',
     'ask.voice': '궁금한 것을 눌러보시거나 직접 적어주세요.',
     'ask.suggested': '이런 걸 물어보실 수 있어요',
@@ -2019,7 +2153,9 @@ const I18N = {
     'docCollect.voice': '사진을 더 찍으시거나, 다 찍으셨으면 분석하기를 눌러주세요.',
     'docChoice.photoLimit': '사진은 다섯 장까지 찍으실 수 있어요.',
     'result.docCountLabel': '문서 {i} / {n}',
+    'result.docPrev': '이전 문서', 'result.docNext': '다음 문서',
     'result.shareNothing': '보낼 결과가 없어요.',
+    'stats.safetyLabel': '보호자용 안전 확인 현황', 'stats.safetyDangerCount': '위험으로 판정된 건수', 'stats.safetyNone': '위험으로 판정된 문서·문자가 없어요.',
     'stats.thisMonth': '이번 달 고지서',
     'stats.cumulative': '달마다 쌓인 금액',
     'stats.upcoming': '다가오는 납부 기한',
@@ -2035,6 +2171,7 @@ const I18N = {
     'settings.rate1': '1배속', 'settings.rate15': '1.5배속', 'settings.rate2': '2배속',
     'settings.replay': '다시 읽기', 'settings.stop': '멈추기',
     'settings.voiceEnable': '음성 안내 사용하기',
+    'settings.accountTitle': '계정', 'settings.logout': '로그아웃',
     'settings.myInfo': '내 정보 (맞춤 안내용, 선택 사항)',
     'settings.nameLabel': '이름', 'settings.namePlaceholder': '예: 홍길동',
     'settings.male': '남성', 'settings.female': '여성',
@@ -2075,6 +2212,24 @@ const I18N = {
     'onboard.greet.desc': '문서를 쉽게 이해하고<br>해야 할 일을 알려드리겠습니다.',
     'onboard.greet.start': '시작하기',
     'onboard.greet.voice': '안녕하세요. AI 디지털 도우미입니다. 실제 화면을 보여드리며 사용 방법을 간단히 안내해드릴게요.',
+    'onboard.signup.title': '회원가입', 'onboard.signup.desc': '전화번호와 PIN 번호로 계정을 만들어요.<br>이 계정으로 다른 기기에서도 내 정보를 이어서 쓸 수 있어요.',
+    'onboard.signup.phoneLabel': '전화번호',
+    'onboard.signup.pinLabel': 'PIN 번호 (숫자 4자리)', 'onboard.signup.pinConfirmPlaceholder': 'PIN 다시 입력',
+    'onboard.signup.submit': '가입하기', 'onboard.signup.toLogin': '이미 계정이 있으신가요? 로그인하기',
+    'onboard.signup.errorPhone': '전화번호를 다시 확인해주세요', 'onboard.signup.errorPinFormat': 'PIN은 숫자 4자리로 입력해주세요',
+    'onboard.signup.errorPinMismatch': '입력하신 PIN이 서로 달라요', 'onboard.signup.errorPhoneExists': '이미 가입된 전화번호예요. 로그인해주세요',
+    'onboard.signup.errorGeneric': '가입에 실패했어요. 잠시 후 다시 시도해주세요',
+    'onboard.login.title': '로그인', 'onboard.login.desc': '가입할 때 쓴 전화번호와 PIN 번호를 입력해주세요.',
+    'onboard.login.submit': '로그인', 'onboard.login.toSignup': '계정이 없으신가요? 회원가입', 'onboard.login.forgotPin': 'PIN을 잊으셨나요?',
+    'onboard.login.errorInvalid': '전화번호 또는 PIN이 올바르지 않습니다', 'onboard.login.errorLocked': '너무 여러 번 틀렸어요. 15분 후 다시 시도해주세요',
+    'onboard.resetPin.title': 'PIN 재설정', 'onboard.resetPin.desc': '가입할 때 쓴 이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요.',
+    'onboard.resetPin.requestOtp': '인증번호 받기', 'onboard.resetPin.otpLabel': '인증번호 (6자리)', 'onboard.resetPin.submit': '재설정하기',
+    'onboard.resetPin.otpSentNotice': '인증번호를 보냈습니다', 'onboard.resetPin.errorSmsFailed': '문자 발송에 실패했어요. 잠시 후 다시 시도해주세요',
+    'onboard.resetPin.errorOtpExpired': '인증번호가 만료됐어요. 다시 받아주세요', 'onboard.resetPin.errorOtpLocked': '너무 여러 번 틀렸어요. 처음부터 다시 시도해주세요',
+    'onboard.resetPin.errorOtpInvalid': '인증번호가 올바르지 않습니다 ({n}회 남음)',
+    'onboard.signup.voice': '이름과 전화번호, 4자리 숫자 PIN을 입력해서 가입해주세요.',
+    'onboard.login.voice': '전화번호와 PIN 번호를 입력해서 로그인해주세요.',
+    'onboard.resetPin.voice': '이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요.',
     'onboard.profile.title': '몇 가지만<br>알려주시겠어요?',
     'onboard.profile.desc': '입력하신 정보는 이 기기와 안전한 서버에만 저장되고,<br>더 알맞은 설명을 드리는 데만 사용돼요.<br>원하지 않으면 건너뛰어도 됩니다.',
     'onboard.profile.genderLabel': '성별', 'onboard.profile.ageLabel': '나이',
@@ -2097,13 +2252,8 @@ const I18N = {
     'coach.doc2.title': '직접 촬영해볼게요', 'coach.doc2.desc': '카메라로 문서를 찍어보세요.', 'coach.doc2.voice': '직접 촬영하기를 눌러보세요.',
     'coach.doc3.title': '촬영 버튼을 눌러주세요', 'coach.doc3.desc': '문서가 화면 가운데 오도록 맞추고 눌러주세요.', 'coach.doc3.voice': '촬영 버튼을 눌러주세요.',
     'coach.sms1.title': '문자도 확인해보세요', 'coach.sms1.desc': '받은 문자가 안전한지도 여기서 확인할 수 있어요.', 'coach.sms1.voice': '문자 내용 불러오기 카드를 눌러보세요.',
-    'coach.sms1b.title': '이번엔 문자를 확인해볼까요', 'coach.sms1b.desc': '사진 확인은 여기까지예요. AI 분석하기 카드를 다시 눌러주세요.', 'coach.sms1b.voice': 'AI 분석하기 카드를 다시 눌러주세요.',
-    'coach.sms2.title': '문자 앱을 눌러보세요', 'coach.sms2.desc': '문자 앱을 열어볼게요.', 'coach.sms2.voice': '문자 앱을 눌러보세요.',
-    'coach.sms3.title': '문자를 길게 눌러 복사해보세요', 'coach.sms3.desc': '실제로는 확인하고 싶은 문자를 길게 눌러 복사하면 돼요.', 'coach.sms3.voice': '문자를 길게 눌러 복사해보세요.',
-    'coach.sms4.title': '다시 이 앱으로 돌아와주세요', 'coach.sms4.desc': '복사했다면 이 버튼을 눌러 앱으로 돌아오세요.', 'coach.sms4.voice': '앱 열기 버튼을 눌러주세요.',
-    'coach.sms5.title': '길게 눌러 붙여넣어보세요', 'coach.sms5.desc': '이 칸을 길게 눌러 붙여넣기를 선택하세요. 화면을 빠르게 두 번 톡톡 두드리면 더 쉽게 붙여넣을 수 있어요.', 'coach.sms5.voice': '붙여넣기 칸을 눌러보세요. 빠르게 두 번 두드리면 더 쉽게 붙여넣을 수 있어요.',
-    'coach.sms6.title': '확인을 눌러주세요', 'coach.sms6.desc': '붙여넣기가 끝나면 확인을 눌러주세요.', 'coach.sms6.voice': '확인 버튼을 눌러주세요.',
-    'coach.sms7.title': '확인을 눌러 결과를 보세요', 'coach.sms7.desc': '이 버튼을 누르면 AI가 문자를 확인해드려요.', 'coach.sms7.voice': '확인 버튼을 눌러 결과를 확인하세요.',
+    'coach.smsPermission.title': '문자 읽기를 허용해주세요', 'coach.smsPermission.desc': '허용하면 최근 문자를 바로 보여드려요.', 'coach.smsPermission.voice': '허용을 눌러주세요.',
+    'coach.sms2.title': '이 문자를 눌러 확인해보세요', 'coach.sms2.desc': '탭 한 번으로 바로 확인할 수 있어요.', 'coach.sms2.voice': '문자를 눌러 확인해보세요.',
     'coach.history1.title': '기록도 볼 수 있어요', 'coach.history1.desc': '지금까지 확인한 문서와 문자 기록을 모아볼 수 있어요.', 'coach.history1.voice': '아래 기록 버튼을 눌러보세요.',
     'coach.history2.title': '다시 홈으로 돌아가볼게요', 'coach.history2.desc': '← 홈으로 버튼을 누르면 언제든 돌아갈 수 있어요.', 'coach.history2.voice': '홈으로 버튼을 눌러 돌아가보세요.',
     'coach.info1.title': '알아두면 좋은 정보도 있어요', 'coach.info1.desc': '기초연금, 건강검진 같은 유용한 정보를 안내해드려요.', 'coach.info1.voice': '알아두면 좋은 정보를 눌러보세요.',
@@ -2122,15 +2272,14 @@ const I18N = {
     'coach.language.title': '언어도 바꿀 수 있어요', 'coach.language.desc': '중국어·베트남어·태국어·우즈베크어 중에서 골라보세요. 다 고르셨으면 다음으로 넘어가세요.', 'coach.language.voice': '언어 설정을 눌러보세요. 다 고르셨으면 다음으로 눌러 넘어가세요.',
     'common.home': '← 홈으로', 'common.back': '← 뒤로',
     'docChoice.title': 'AI 분석하기',
-    'docChoice.desc': '분석하고 싶은 문서를 촬영하거나 사진첩에서 불러오세요.<br>문자 내용도 불러와 확인할 수 있어요.',
+    'docChoice.desc': '분석하고 싶은 문서를 촬영하거나 사진첩에서 불러오세요.',
     'docChoice.voicePill': '음성 안내 다시 듣기',
     'docChoice.cameraTitle': '사진 촬영하기', 'docChoice.cameraDesc': '카메라로 문서를 찍습니다',
     'docChoice.galleryTitle': '사진 불러오기', 'docChoice.galleryDesc': '저장된 사진을 불러옵니다',
-    'docChoice.smsTitle': '문자 내용 불러오기', 'docChoice.smsDesc': '문자 앱에서 문자를 복사해 불러옵니다',
     'docChoice.tipTitle': '꼭 확인해 주세요!',
     'docChoice.tip1': '문서의 글자가 선명하게 보이도록 촬영해 주세요.',
     'docChoice.tip2': '빛 반사가 적은 밝은 곳에서 촬영하면 더 정확합니다.',
-    'docChoice.voice': '사진 촬영하기, 사진 불러오기, 문자 내용 불러오기 중에서 골라주세요.',
+    'docChoice.voice': '사진 촬영하기, 사진 불러오기 중에서 골라주세요.',
     'docCapture.inProgress': '🔵 진행 중',
     'docCapture.guide': '문서를 화면 가운데<br>오도록 맞춰주세요',
     'docCapture.caption': '👆 촬영 버튼을 눌러주세요',
@@ -2146,28 +2295,24 @@ const I18N = {
     'result.shareTitle': '공유하기', 'result.shareSms': '문자', 'result.shareKakao': '💛 카카오톡', 'result.shareCopy': '복사하기',
     'result.docConfirm': '확인 완료',
     'result.textTitle': '진위 판별 결과', 'result.dangerPill': '⚠ 위험 감지', 'result.listenVoice': '음성으로 듣기',
-    'result.actNowLabel': '지금 바로 대처하세요',
-    'result.textTip1': '상대방이 요구하는 계좌번호나 비밀번호를 절대 말하지 마세요.',
-    'result.textTip2': '가족이나 가까운 지인에게 지금 상황을 꼭 알리세요.',
-    'result.notifyGuardian': '보호자에게 문자로 알리기',
-    'result.report118': '118 신고(경찰청 상담)', 'result.callFamily': '가족에게 전화',
+    'result.reasonLabel': '왜 위험한가요?',
+    'result.notifyGuardian': '보호자에게 문자 전달하기',
     'result.checkAnotherSms': '다른 문자 확인하기',
     'result.legalNote': '본 판별은 인공지능 분석 결과이므로 법적 효력이 없습니다.<br>의심스러운 경우 반드시 관계 기관에 직접 문의하세요.',
     'result.textConfirm': '확인했습니다', 'result.practiceAgain': '연습 다시 하기',
-    'sms.statusTime': '오후 2:34', 'sms.phoneHome': '휴대폰 홈',
-    'sms.appPhone': '전화', 'sms.appSms': '💬 문자', 'sms.appCamera': '카메라',
-    'sms.phoneCaption': '👆 💬 문자 앱을 눌러주세요', 'sms.openSmsApp': '문자 앱 열기',
-    'sms.phoneVoice': '문자 앱을 눌러주세요.',
-    'sms.switchTitle': '복사가 완료됐어요!',
-    'sms.switchDesc': '이제 AI 디지털 도우미 앱으로<br>돌아가주세요.',
-    'sms.switchOpenApp': 'AI 디지털 도우미 앱 열기',
-    'sms.switchVoice': '복사가 완료됐어요. 이제 AI 디지털 도우미 앱으로 돌아가주세요.',
-    'sms.pasteTitle': '여기에<br>문자 내용을 붙여넣어주세요.',
-    'sms.pastePlaceholder': '여기를 길게 눌러 붙여넣기(Paste)를 선택하세요',
-    'sms.confirm': '확인',
-    'sms.pasteVoice': '문자 내용을 길게 눌러 이 칸에 붙여넣어주세요.',
-    'sms.filledTitle': '문자 내용이<br>들어왔어요.',
-    'sms.filledVoice': '문자 내용이 잘 들어왔어요. 확인 버튼을 눌러 결과를 확인해보세요.',
+    'sms.permission.voice': '문자 확인을 하려면 문자 읽기 권한이 필요해요.',
+    'sms.permission.title': '문자 확인을 하려면<br>문자 읽기 권한이 필요해요.',
+    'sms.permission.desc': '확인을 누른 문자만 서버로 보내 분석해요.<br>다른 문자는 읽지 않아요.',
+    'sms.permission.unsupportedTitle': '이 기능은<br>안드로이드 앱에서만 사용할 수 있어요.',
+    'sms.permission.unsupportedDesc': '이 기기·브라우저에서는<br>문자를 직접 불러올 수 없어요.',
+    'sms.permission.retry': '다시 시도',
+    'sms.permission.openSettings': '앱 설정에서 허용하기',
+    'sms.recent.voice': '최근 문자 목록을 가져왔어요. 확인하고 싶은 문자를 눌러주세요.',
+    'sms.recent.title': '최근 문자',
+    'sms.recent.desc': '최근 문자를 가져왔어요. 확인하고 싶은 문자를 눌러주세요.',
+    'sms.recent.empty': '받은 문자가 없어요.',
+    'sms.recent.loading': '문자를 불러오는 중이에요...',
+    'sms.recent.unknownSender': '알 수 없는 발신자',
     'emergency.title': '긴급 도움', 'emergency.guardian': '보호자',
     'emergency.howToAgain': '사용법 다시 보기', 'emergency.close': '닫기',
     'error.docBlurTitle': '사진이 흐려요.',
@@ -2177,20 +2322,18 @@ const I18N = {
     'error.docBlurVoice': '사진이 흐려서 읽을 수 없어요. 밝은 곳에서 다시 찍어주세요.',
     'error.retry': '다시 시도', 'error.goHome': '홈으로 돌아가기',
     'error.aiVoice': '지금은 분석이 어려워요. 잠시 후 다시 시도해주세요.',
-    'error.textShortTitle': '내용이 너무 짧아요.',
-    'error.textShortDesc': '문자 전체가 복사되지 않은 것 같아요.<br>다시 복사해서 붙여넣어주세요.',
-    'error.textShortHint': "💡 문자를 길게 눌렀을 때 나오는 메뉴에서 '복사'를 눌렀는지 확인해주세요.",
-    'error.pasteAgain': '다시 붙여넣기',
-    'error.textShortVoice': '문자 내용이 너무 짧아서 확인하기 어려워요. 문자 전체를 다시 복사해주세요.'
   },
   zh: {
     'home.sectionTitle': '需要什么帮助？',
     'home.assistantActive': '온담 助手已启用',
     'home.greetDefault': '您好',
     'home.greetNameSuffix': '', 'home.greetAge': '{age}多岁的您', 'home.greetAgeGender': '{age}多岁的{gender}士',
-    'home.aiAnalyzeTitle': 'AI文件分析',
-    'home.aiAnalyzeDesc': '可选择拍摄照片、导入照片或导入短信内容，由AI为您分析',
+    'home.docCaptureTitle': '文件拍摄',
+    'home.docCaptureDesc': '拍摄或导入照片，AI会为您简单说明',
+    'home.smsCheckTitle': '短信内容摘要',
+    'home.smsCheckDesc': 'AI帮您确认收到的短信是否安全',
     'home.welfareTitle': '附近福利中心·老人活动中心',
+    'home.moreMenu': '更多',
     'home.welfareDesc': '为您查找所在位置附近的福利中心、老人活动中心',
     'home.todayTasks': '今天要做的事',
     'home.viewAll': '查看全部',
@@ -2202,7 +2345,6 @@ const I18N = {
     'stats.title': '缴费单统计',
     'result.share': '发送给子女',
     'result.ask': '询问关于这份文件',
-    'result.askSms': '询问关于这条短信',
     'ask.title': '提问',
     'ask.voice': '请点击想了解的内容，或直接输入。',
     'ask.suggested': '您可以这样提问',
@@ -2224,7 +2366,9 @@ const I18N = {
     'docCollect.voice': '可以继续拍照，拍完后请点击开始分析。',
     'docChoice.photoLimit': '照片最多可以拍五张。',
     'result.docCountLabel': '文件 {i} / {n}',
+    'result.docPrev': '上一份文件', 'result.docNext': '下一份文件',
     'result.shareNothing': '没有可发送的结果。',
+    'stats.safetyLabel': '监护人安全确认现况', 'stats.safetyDangerCount': '被判定为危险的件数', 'stats.safetyNone': '没有被判定为危险的文件或短信。',
     'stats.thisMonth': '本月缴费单',
     'stats.cumulative': '每月累计金额',
     'stats.upcoming': '临近的缴纳期限',
@@ -2299,13 +2443,8 @@ const I18N = {
     'coach.doc2.title': '直接拍摄一下', 'coach.doc2.desc': '用相机拍摄文件吧。', 'coach.doc2.voice': '请点击直接拍摄。',
     'coach.doc3.title': '请按拍摄按钮', 'coach.doc3.desc': '将文件对准屏幕中央后按下按钮。', 'coach.doc3.voice': '请按拍摄按钮。',
     'coach.sms1.title': '短信也可以确认', 'coach.sms1.desc': '也可以在这里确认收到的短信是否安全。', 'coach.sms1.voice': '请点击导入短信内容卡片。',
-    'coach.sms1b.title': '接下来确认一下短信吧', 'coach.sms1b.desc': '照片确认到此为止。请再次点击AI分析卡片。', 'coach.sms1b.voice': '请再次点击AI分析卡片。',
-    'coach.sms2.title': '请点击短信应用', 'coach.sms2.desc': '我们来打开短信应用。', 'coach.sms2.voice': '请点击短信应用。',
-    'coach.sms3.title': '长按短信复制试试看', 'coach.sms3.desc': '实际使用时，长按想确认的短信即可复制。', 'coach.sms3.voice': '请长按短信进行复制。',
-    'coach.sms4.title': '请再回到本应用', 'coach.sms4.desc': '复制完成后，请点击此按钮返回应用。', 'coach.sms4.voice': '请点击打开应用按钮。',
-    'coach.sms5.title': '长按粘贴试试看', 'coach.sms5.desc': '长按此处后选择粘贴。快速点击两下屏幕可以更轻松地粘贴。', 'coach.sms5.voice': '请点击粘贴框。快速点击两下可以更轻松粘贴。',
-    'coach.sms6.title': '请点击确认', 'coach.sms6.desc': '粘贴完成后请点击确认。', 'coach.sms6.voice': '请点击确认按钮。',
-    'coach.sms7.title': '点击确认查看结果', 'coach.sms7.desc': '点击此按钮AI会为您确认短信。', 'coach.sms7.voice': '请点击确认按钮查看结果。',
+    'coach.smsPermission.title': '请允许读取短信', 'coach.smsPermission.desc': '允许后会立即显示最近的短信。', 'coach.smsPermission.voice': '请点击允许。',
+    'coach.sms2.title': '点击这条短信确认', 'coach.sms2.desc': '轻触一下即可确认。', 'coach.sms2.voice': '请点击短信确认。',
     'coach.history1.title': '也可以查看记录', 'coach.history1.desc': '可以汇总查看至今确认过的文件和短信记录。', 'coach.history1.voice': '请点击下方的记录按钮。',
     'coach.history2.title': '我们再回到首页', 'coach.history2.desc': '点击←返回首页按钮可以随时返回。', 'coach.history2.voice': '请点击返回首页按钮。',
     'coach.info1.title': '还有值得了解的信息', 'coach.info1.desc': '为您提供基础养老金、健康体检等实用信息。', 'coach.info1.voice': '请点击值得了解的信息。',
@@ -2324,15 +2463,14 @@ const I18N = {
     'coach.language.title': '语言也可以更改', 'coach.language.desc': '请在中文·越南语·泰语·乌兹别克语中选择。选好后请点击下一步。', 'coach.language.voice': '请点击语言设置。选好后请点击下一步继续。',
     'common.home': '← 返回主页', 'common.back': '← 返回',
     'docChoice.title': 'AI分析',
-    'docChoice.desc': '请拍摄想要分析的文件，或从相册中选择。<br>也可以导入短信内容进行确认。',
+    'docChoice.desc': '请拍摄想要分析的文件，或从相册中选择。',
     'docChoice.voicePill': '重新收听语音讲解',
     'docChoice.cameraTitle': '拍摄照片', 'docChoice.cameraDesc': '用相机拍摄文件',
     'docChoice.galleryTitle': '导入照片', 'docChoice.galleryDesc': '载入已保存的照片',
-    'docChoice.smsTitle': '导入短信内容', 'docChoice.smsDesc': '从短信应用复制短信后导入',
     'docChoice.tipTitle': '请务必确认！',
     'docChoice.tip1': '请拍摄时让文件上的字清晰可见。',
     'docChoice.tip2': '在反光少的明亮处拍摄会更准确。',
-    'docChoice.voice': '请选择拍摄照片、导入照片或导入短信内容。',
+    'docChoice.voice': '请选择拍摄照片或导入照片。',
     'docCapture.inProgress': '🔵 进行中',
     'docCapture.guide': '请将文件对准<br>屏幕中央',
     'docCapture.caption': '👆 请按拍摄按钮',
@@ -2348,28 +2486,24 @@ const I18N = {
     'result.shareTitle': '分享', 'result.shareSms': '短信', 'result.shareKakao': '💛 KakaoTalk', 'result.shareCopy': '复制',
     'result.docConfirm': '确认完成',
     'result.textTitle': '真伪判别结果', 'result.dangerPill': '⚠ 检测到危险', 'result.listenVoice': '语音收听',
-    'result.actNowLabel': '请立即采取措施',
-    'result.textTip1': '绝对不要告诉对方账号或密码。',
-    'result.textTip2': '请务必把现在的情况告诉家人或身边熟人。',
-    'result.notifyGuardian': '用短信告知监护人',
-    'result.report118': '118举报（警察厅咨询）', 'result.callFamily': '给家人打电话',
+    'result.reasonLabel': '为什么危险？',
+    'result.notifyGuardian': '转发短信给监护人',
     'result.checkAnotherSms': '确认其他短信',
     'result.legalNote': '本判别为人工智能分析结果，不具有法律效力。<br>如有可疑之处，请务必直接向相关机构咨询。',
     'result.textConfirm': '我知道了', 'result.practiceAgain': '重新练习',
-    'sms.statusTime': '下午 2:34', 'sms.phoneHome': '手机主屏幕',
-    'sms.appPhone': '电话', 'sms.appSms': '💬 短信', 'sms.appCamera': '相机',
-    'sms.phoneCaption': '👆 请点击💬短信应用', 'sms.openSmsApp': '打开短信应用',
-    'sms.phoneVoice': '请点击短信应用。',
-    'sms.switchTitle': '复制完成了！',
-    'sms.switchDesc': '现在请返回<br>AI数字助手应用。',
-    'sms.switchOpenApp': '打开AI数字助手应用',
-    'sms.switchVoice': '复制完成了。现在请返回AI数字助手应用。',
-    'sms.pasteTitle': '请把短信内容<br>粘贴到这里。',
-    'sms.pastePlaceholder': '请长按此处并选择粘贴（Paste）',
-    'sms.confirm': '确认',
-    'sms.pasteVoice': '请长按短信内容并粘贴到这个框里。',
-    'sms.filledTitle': '短信内容<br>已输入。',
-    'sms.filledVoice': '短信内容已经输入好了。请点击确认按钮查看结果。',
+    'sms.permission.voice': '要确认短信，需要短信读取权限。',
+    'sms.permission.title': '要确认短信，<br>需要短信读取权限。',
+    'sms.permission.desc': '只会把您点击确认的短信发送到服务器分析。<br>不会读取其他短信。',
+    'sms.permission.unsupportedTitle': '此功能<br>仅支持安卓应用。',
+    'sms.permission.unsupportedDesc': '此设备/浏览器<br>无法直接读取短信。',
+    'sms.permission.retry': '重试',
+    'sms.permission.openSettings': '在应用设置中允许',
+    'sms.recent.voice': '已获取最近的短信列表。请点击想确认的短信。',
+    'sms.recent.title': '最近短信',
+    'sms.recent.desc': '已获取最近的短信。请点击想确认的短信。',
+    'sms.recent.empty': '没有收到的短信。',
+    'sms.recent.loading': '正在加载短信...',
+    'sms.recent.unknownSender': '未知发件人',
     'emergency.title': '紧急求助', 'emergency.guardian': '监护人',
     'emergency.howToAgain': '重新查看使用方法', 'emergency.close': '关闭',
     'error.docBlurTitle': '照片模糊了。',
@@ -2379,20 +2513,18 @@ const I18N = {
     'error.docBlurVoice': '照片太模糊，无法读取。请在明亮的地方重新拍摄。',
     'error.retry': '重试', 'error.goHome': '返回主页',
     'error.aiVoice': '现在暂时无法分析。请稍后再试。',
-    'error.textShortTitle': '内容太短了。',
-    'error.textShortDesc': '好像没有复制到完整的短信。<br>请重新复制后粘贴。',
-    'error.textShortHint': '💡 请确认长按短信后出现的菜单中是否点击了“复制”。',
-    'error.pasteAgain': '重新粘贴',
-    'error.textShortVoice': '短信内容太短，难以确认。请重新复制完整的短信。'
   },
   vi: {
     'home.sectionTitle': 'Bạn cần giúp gì?',
     'home.assistantActive': 'Trợ lý 온담 đã được kích hoạt',
     'home.greetDefault': 'Cô/Chú',
     'home.greetNameSuffix': '', 'home.greetAge': 'Cô/Chú khoảng {age} tuổi', 'home.greetAgeGender': '{gender} khoảng {age} tuổi',
-    'home.aiAnalyzeTitle': 'Phân tích tài liệu bằng AI',
-    'home.aiAnalyzeDesc': 'Chọn chụp ảnh, tải ảnh lên hoặc tải nội dung tin nhắn để AI phân tích',
+    'home.docCaptureTitle': 'Chụp tài liệu',
+    'home.docCaptureDesc': 'Chụp hoặc tải ảnh lên, AI sẽ giải thích dễ hiểu cho bạn',
+    'home.smsCheckTitle': 'Tóm tắt nội dung tin nhắn',
+    'home.smsCheckDesc': 'AI sẽ xác nhận giúp bạn tin nhắn nhận được có an toàn không',
     'home.welfareTitle': 'Tìm trung tâm phúc lợi và nhà sinh hoạt người cao tuổi',
+    'home.moreMenu': 'Xem thêm',
     'home.welfareDesc': 'Tìm trung tâm phúc lợi, nhà sinh hoạt người cao tuổi gần vị trí của bạn',
     'home.todayTasks': 'Việc cần làm hôm nay',
     'home.viewAll': 'Xem tất cả',
@@ -2404,7 +2536,6 @@ const I18N = {
     'stats.title': 'Thống kê hóa đơn',
     'result.share': 'Gửi cho con cái',
     'result.ask': 'Hỏi về tài liệu này',
-    'result.askSms': 'Hỏi về tin nhắn này',
     'ask.title': 'Hỏi đáp',
     'ask.voice': 'Hãy bấm vào điều bạn thắc mắc hoặc tự nhập câu hỏi.',
     'ask.suggested': 'Bạn có thể hỏi như thế này',
@@ -2426,7 +2557,9 @@ const I18N = {
     'docCollect.voice': 'Bạn có thể chụp thêm, hoặc bấm Phân tích khi đã chụp xong.',
     'docChoice.photoLimit': 'Bạn có thể chụp tối đa năm ảnh.',
     'result.docCountLabel': 'Tài liệu {i} / {n}',
+    'result.docPrev': 'Tài liệu trước', 'result.docNext': 'Tài liệu sau',
     'result.shareNothing': 'Không có kết quả để gửi.',
+    'stats.safetyLabel': 'Tình trạng xác nhận an toàn dành cho người giám hộ', 'stats.safetyDangerCount': 'Số trường hợp được đánh giá nguy hiểm', 'stats.safetyNone': 'Không có tài liệu/tin nhắn nào được đánh giá là nguy hiểm.',
     'stats.thisMonth': 'Hóa đơn tháng này',
     'stats.cumulative': 'Số tiền tích lũy theo tháng',
     'stats.upcoming': 'Hạn nộp sắp tới',
@@ -2501,13 +2634,8 @@ const I18N = {
     'coach.doc2.title': 'Chúng ta chụp trực tiếp nhé', 'coach.doc2.desc': 'Hãy chụp tài liệu bằng camera.', 'coach.doc2.voice': 'Hãy nhấn chụp trực tiếp.',
     'coach.doc3.title': 'Hãy nhấn nút chụp', 'coach.doc3.desc': 'Canh tài liệu vào giữa màn hình rồi nhấn nút.', 'coach.doc3.voice': 'Hãy nhấn nút chụp.',
     'coach.sms1.title': 'Cũng có thể kiểm tra tin nhắn', 'coach.sms1.desc': 'Bạn cũng có thể kiểm tra ở đây xem tin nhắn nhận được có an toàn không.', 'coach.sms1.voice': 'Hãy nhấn vào thẻ tải nội dung tin nhắn.',
-    'coach.sms1b.title': 'Bây giờ hãy kiểm tra tin nhắn nhé', 'coach.sms1b.desc': 'Phần xem ảnh đến đây là xong. Hãy nhấn lại vào thẻ Phân tích tài liệu bằng AI.', 'coach.sms1b.voice': 'Hãy nhấn lại vào thẻ Phân tích tài liệu bằng AI.',
-    'coach.sms2.title': 'Hãy nhấn vào ứng dụng tin nhắn', 'coach.sms2.desc': 'Chúng ta sẽ mở ứng dụng tin nhắn.', 'coach.sms2.voice': 'Hãy nhấn vào ứng dụng tin nhắn.',
-    'coach.sms3.title': 'Hãy thử nhấn giữ tin nhắn để sao chép', 'coach.sms3.desc': 'Trong thực tế, bạn nhấn giữ tin nhắn muốn kiểm tra để sao chép.', 'coach.sms3.voice': 'Hãy nhấn giữ tin nhắn để sao chép.',
-    'coach.sms4.title': 'Hãy quay lại ứng dụng này', 'coach.sms4.desc': 'Sau khi sao chép, nhấn nút này để quay lại ứng dụng.', 'coach.sms4.voice': 'Hãy nhấn nút mở ứng dụng.',
-    'coach.sms5.title': 'Hãy thử nhấn giữ để dán', 'coach.sms5.desc': 'Nhấn giữ ô này rồi chọn dán. Chạm nhanh hai lần vào màn hình sẽ dễ dán hơn.', 'coach.sms5.voice': 'Hãy nhấn vào ô dán. Chạm nhanh hai lần sẽ dễ dán hơn.',
-    'coach.sms6.title': 'Hãy nhấn xác nhận', 'coach.sms6.desc': 'Sau khi dán xong, hãy nhấn xác nhận.', 'coach.sms6.voice': 'Hãy nhấn nút xác nhận.',
-    'coach.sms7.title': 'Nhấn xác nhận để xem kết quả', 'coach.sms7.desc': 'Nhấn nút này để AI kiểm tra tin nhắn giúp bạn.', 'coach.sms7.voice': 'Hãy nhấn nút xác nhận để xem kết quả.',
+    'coach.smsPermission.title': 'Hãy cho phép đọc tin nhắn', 'coach.smsPermission.desc': 'Cho phép thì sẽ hiện tin nhắn gần đây ngay.', 'coach.smsPermission.voice': 'Hãy nhấn cho phép.',
+    'coach.sms2.title': 'Nhấn vào tin nhắn này để kiểm tra', 'coach.sms2.desc': 'Chỉ cần chạm một lần là kiểm tra được ngay.', 'coach.sms2.voice': 'Hãy nhấn vào tin nhắn để kiểm tra.',
     'coach.history1.title': 'Cũng có thể xem lịch sử', 'coach.history1.desc': 'Bạn có thể xem lại các tài liệu và tin nhắn đã kiểm tra.', 'coach.history1.voice': 'Hãy nhấn nút Lịch sử ở bên dưới.',
     'coach.history2.title': 'Chúng ta quay lại trang chủ nhé', 'coach.history2.desc': 'Nhấn nút ← Về trang chủ để quay lại bất cứ lúc nào.', 'coach.history2.voice': 'Hãy nhấn nút về trang chủ.',
     'coach.info1.title': 'Cũng có thông tin nên biết', 'coach.info1.desc': 'Chúng tôi cung cấp thông tin hữu ích như lương hưu cơ bản, khám sức khỏe.', 'coach.info1.voice': 'Hãy nhấn vào thông tin nên biết.',
@@ -2526,15 +2654,14 @@ const I18N = {
     'coach.language.title': 'Cũng có thể đổi ngôn ngữ', 'coach.language.desc': 'Hãy chọn giữa tiếng Trung·Việt·Thái·Uzbek. Chọn xong hãy nhấn tiếp theo.', 'coach.language.voice': 'Hãy nhấn cài đặt ngôn ngữ. Chọn xong hãy nhấn tiếp theo.',
     'common.home': '← Trang chủ', 'common.back': '← Quay lại',
     'docChoice.title': 'Phân tích AI',
-    'docChoice.desc': 'Hãy chụp tài liệu bạn muốn phân tích hoặc chọn từ thư viện ảnh.<br>Bạn cũng có thể tải nội dung tin nhắn để kiểm tra.',
+    'docChoice.desc': 'Hãy chụp tài liệu bạn muốn phân tích hoặc chọn từ thư viện ảnh.',
     'docChoice.voicePill': 'Nghe lại hướng dẫn bằng giọng nói',
     'docChoice.cameraTitle': 'Chụp ảnh', 'docChoice.cameraDesc': 'Chụp tài liệu bằng máy ảnh',
     'docChoice.galleryTitle': 'Tải ảnh lên', 'docChoice.galleryDesc': 'Mở ảnh đã lưu',
-    'docChoice.smsTitle': 'Tải nội dung tin nhắn', 'docChoice.smsDesc': 'Sao chép tin nhắn từ ứng dụng tin nhắn rồi tải lên',
     'docChoice.tipTitle': 'Hãy kiểm tra nhé!',
     'docChoice.tip1': 'Hãy chụp sao cho chữ trên tài liệu hiện rõ.',
     'docChoice.tip2': 'Chụp ở nơi sáng và ít bị phản chiếu ánh sáng sẽ chính xác hơn.',
-    'docChoice.voice': 'Hãy chọn chụp ảnh, tải ảnh lên hoặc tải nội dung tin nhắn.',
+    'docChoice.voice': 'Hãy chọn chụp ảnh hoặc tải ảnh lên.',
     'docCapture.inProgress': '🔵 Đang thực hiện',
     'docCapture.guide': 'Hãy căn tài liệu<br>vào giữa màn hình',
     'docCapture.caption': '👆 Hãy nhấn nút chụp',
@@ -2550,28 +2677,24 @@ const I18N = {
     'result.shareTitle': 'Chia sẻ', 'result.shareSms': 'Tin nhắn', 'result.shareKakao': '💛 KakaoTalk', 'result.shareCopy': 'Sao chép',
     'result.docConfirm': 'Đã xem xong',
     'result.textTitle': 'Kết quả kiểm tra thật giả', 'result.dangerPill': '⚠ Phát hiện nguy hiểm', 'result.listenVoice': 'Nghe bằng giọng nói',
-    'result.actNowLabel': 'Hãy xử lý ngay bây giờ',
-    'result.textTip1': 'Tuyệt đối không nói số tài khoản hay mật khẩu mà đối phương yêu cầu.',
-    'result.textTip2': 'Hãy nhớ báo tình hình hiện tại cho gia đình hoặc người thân quen.',
-    'result.notifyGuardian': 'Báo cho người giám hộ bằng tin nhắn',
-    'result.report118': 'Báo 118 (tư vấn Cảnh sát)', 'result.callFamily': 'Gọi cho gia đình',
+    'result.reasonLabel': 'Tại sao nguy hiểm?',
+    'result.notifyGuardian': 'Chuyển tin nhắn cho người giám hộ',
     'result.checkAnotherSms': 'Kiểm tra tin nhắn khác',
     'result.legalNote': 'Kết quả này là phân tích của trí tuệ nhân tạo nên không có hiệu lực pháp lý.<br>Nếu thấy đáng ngờ, hãy trực tiếp hỏi cơ quan liên quan.',
     'result.textConfirm': 'Tôi đã xem', 'result.practiceAgain': 'Luyện tập lại',
-    'sms.statusTime': '2:34 chiều', 'sms.phoneHome': 'Màn hình chính điện thoại',
-    'sms.appPhone': 'Điện thoại', 'sms.appSms': '💬 Tin nhắn', 'sms.appCamera': 'Máy ảnh',
-    'sms.phoneCaption': '👆 Hãy nhấn vào ứng dụng 💬 Tin nhắn', 'sms.openSmsApp': 'Mở ứng dụng tin nhắn',
-    'sms.phoneVoice': 'Hãy nhấn vào ứng dụng tin nhắn.',
-    'sms.switchTitle': 'Đã sao chép xong!',
-    'sms.switchDesc': 'Bây giờ hãy quay lại<br>ứng dụng Trợ lý số AI.',
-    'sms.switchOpenApp': 'Mở ứng dụng Trợ lý số AI',
-    'sms.switchVoice': 'Đã sao chép xong. Bây giờ hãy quay lại ứng dụng Trợ lý số AI.',
-    'sms.pasteTitle': 'Hãy dán nội dung tin nhắn<br>vào đây.',
-    'sms.pastePlaceholder': 'Hãy nhấn giữ ở đây rồi chọn Dán (Paste)',
-    'sms.confirm': 'Xác nhận',
-    'sms.pasteVoice': 'Hãy nhấn giữ nội dung tin nhắn rồi dán vào ô này.',
-    'sms.filledTitle': 'Nội dung tin nhắn<br>đã được nhập.',
-    'sms.filledVoice': 'Nội dung tin nhắn đã được nhập tốt. Hãy nhấn nút Xác nhận để xem kết quả.',
+    'sms.permission.voice': 'Để kiểm tra tin nhắn, cần quyền đọc tin nhắn.',
+    'sms.permission.title': 'Để kiểm tra tin nhắn,<br>cần quyền đọc tin nhắn.',
+    'sms.permission.desc': 'Chỉ tin nhắn bạn nhấn xác nhận mới được gửi đến máy chủ để phân tích.<br>Các tin nhắn khác sẽ không được đọc.',
+    'sms.permission.unsupportedTitle': 'Tính năng này<br>chỉ dùng được trên ứng dụng Android.',
+    'sms.permission.unsupportedDesc': 'Thiết bị/trình duyệt này<br>không thể đọc tin nhắn trực tiếp.',
+    'sms.permission.retry': 'Thử lại',
+    'sms.permission.openSettings': 'Cho phép trong Cài đặt ứng dụng',
+    'sms.recent.voice': 'Đã lấy danh sách tin nhắn gần đây. Hãy nhấn vào tin nhắn muốn kiểm tra.',
+    'sms.recent.title': 'Tin nhắn gần đây',
+    'sms.recent.desc': 'Đã lấy tin nhắn gần đây. Hãy nhấn vào tin nhắn muốn kiểm tra.',
+    'sms.recent.empty': 'Không có tin nhắn nào.',
+    'sms.recent.loading': 'Đang tải tin nhắn...',
+    'sms.recent.unknownSender': 'Người gửi không xác định',
     'emergency.title': 'Trợ giúp khẩn cấp', 'emergency.guardian': 'Người giám hộ',
     'emergency.howToAgain': 'Xem lại cách sử dụng', 'emergency.close': 'Đóng',
     'error.docBlurTitle': 'Ảnh bị mờ.',
@@ -2581,20 +2704,18 @@ const I18N = {
     'error.docBlurVoice': 'Ảnh bị mờ nên không đọc được. Hãy chụp lại ở nơi sáng hơn.',
     'error.retry': 'Thử lại', 'error.goHome': 'Quay về trang chủ',
     'error.aiVoice': 'Hiện tại chưa thể phân tích. Hãy thử lại sau ít phút.',
-    'error.textShortTitle': 'Nội dung quá ngắn.',
-    'error.textShortDesc': 'Có vẻ tin nhắn chưa được sao chép đầy đủ.<br>Hãy sao chép lại rồi dán vào.',
-    'error.textShortHint': '💡 Hãy kiểm tra xem bạn đã nhấn “Sao chép” trong menu hiện ra khi nhấn giữ tin nhắn chưa.',
-    'error.pasteAgain': 'Dán lại',
-    'error.textShortVoice': 'Nội dung tin nhắn quá ngắn nên khó kiểm tra. Hãy sao chép lại toàn bộ tin nhắn.'
   },
   th: {
     'home.sectionTitle': 'ต้องการความช่วยเหลือเรื่องอะไร?',
     'home.assistantActive': 'ผู้ช่วย 온담 เปิดใช้งานแล้ว',
     'home.greetDefault': 'คุณลูกค้า',
     'home.greetNameSuffix': '', 'home.greetAge': 'ผู้สูงอายุวัย {age} ปีขึ้นไป', 'home.greetAgeGender': 'ผู้สูงอายุเพศ{gender} วัย {age} ปีขึ้นไป',
-    'home.aiAnalyzeTitle': 'วิเคราะห์เอกสารด้วย AI',
-    'home.aiAnalyzeDesc': 'เลือกถ่ายภาพ นำเข้ารูปภาพ หรือนำเข้าข้อความ ให้ AI วิเคราะห์ให้',
+    'home.docCaptureTitle': 'ถ่ายภาพเอกสาร',
+    'home.docCaptureDesc': 'ถ่ายหรือนำเข้ารูปภาพ AI จะอธิบายให้เข้าใจง่าย',
+    'home.smsCheckTitle': 'สรุปเนื้อหาข้อความ',
+    'home.smsCheckDesc': 'AI จะช่วยตรวจสอบว่าข้อความที่ได้รับปลอดภัยหรือไม่',
     'home.welfareTitle': 'ค้นหาศูนย์สวัสดิการ·ศูนย์ผู้สูงอายุใกล้เคียง',
+    'home.moreMenu': 'ดูเพิ่มเติม',
     'home.welfareDesc': 'แจ้งตำแหน่งศูนย์สวัสดิการ·ศูนย์ผู้สูงอายุใกล้ที่อยู่ของคุณ',
     'home.todayTasks': 'สิ่งที่ต้องทำวันนี้',
     'home.viewAll': 'ดูทั้งหมด',
@@ -2606,7 +2727,6 @@ const I18N = {
     'stats.title': 'สถิติใบแจ้งหนี้',
     'result.share': 'ส่งให้ลูกหลาน',
     'result.ask': 'ถามเกี่ยวกับเอกสารนี้',
-    'result.askSms': 'ถามเกี่ยวกับข้อความนี้',
     'ask.title': 'สอบถาม',
     'ask.voice': 'กรุณากดสิ่งที่สงสัย หรือพิมพ์คำถามเอง',
     'ask.suggested': 'คุณถามแบบนี้ได้',
@@ -2628,7 +2748,9 @@ const I18N = {
     'docCollect.voice': 'ถ่ายเพิ่มได้ หรือถ้าถ่ายครบแล้วกรุณากดวิเคราะห์',
     'docChoice.photoLimit': 'ถ่ายรูปได้สูงสุดห้ารูป',
     'result.docCountLabel': 'เอกสาร {i} / {n}',
+    'result.docPrev': 'เอกสารก่อนหน้า', 'result.docNext': 'เอกสารถัดไป',
     'result.shareNothing': 'ไม่มีผลลัพธ์ที่จะส่ง',
+    'stats.safetyLabel': 'สถานะการตรวจสอบความปลอดภัยสำหรับผู้ดูแล', 'stats.safetyDangerCount': 'จำนวนที่ถูกตัดสินว่าอันตราย', 'stats.safetyNone': 'ไม่มีเอกสารหรือข้อความที่ถูกตัดสินว่าอันตราย',
     'stats.thisMonth': 'ใบแจ้งหนี้เดือนนี้',
     'stats.cumulative': 'ยอดสะสมรายเดือน',
     'stats.upcoming': 'กำหนดชำระที่ใกล้เข้ามา',
@@ -2703,13 +2825,8 @@ const I18N = {
     'coach.doc2.title': 'ลองถ่ายภาพเองดูนะ', 'coach.doc2.desc': 'ถ่ายภาพเอกสารด้วยกล้อง', 'coach.doc2.voice': 'กรุณากดถ่ายภาพเอง',
     'coach.doc3.title': 'กรุณากดปุ่มถ่ายภาพ', 'coach.doc3.desc': 'จัดเอกสารให้อยู่กลางจอแล้วกดปุ่ม', 'coach.doc3.voice': 'กรุณากดปุ่มถ่ายภาพ',
     'coach.sms1.title': 'ตรวจสอบข้อความได้เช่นกัน', 'coach.sms1.desc': 'สามารถตรวจสอบที่นี่ได้ว่าข้อความที่ได้รับปลอดภัยหรือไม่', 'coach.sms1.voice': 'กรุณากดการ์ดนำเข้าข้อความ',
-    'coach.sms1b.title': 'มาตรวจสอบข้อความกันต่อ', 'coach.sms1b.desc': 'ดูรูปภาพจบแค่นี้ กรุณากดการ์ดวิเคราะห์ด้วย AI อีกครั้ง', 'coach.sms1b.voice': 'กรุณากดการ์ดวิเคราะห์ด้วย AI อีกครั้ง',
-    'coach.sms2.title': 'กรุณากดแอปข้อความ', 'coach.sms2.desc': 'เราจะเปิดแอปข้อความกัน', 'coach.sms2.voice': 'กรุณากดแอปข้อความ',
-    'coach.sms3.title': 'ลองกดค้างที่ข้อความเพื่อคัดลอกดู', 'coach.sms3.desc': 'ในการใช้งานจริง กดค้างที่ข้อความที่ต้องการตรวจสอบเพื่อคัดลอก', 'coach.sms3.voice': 'กรุณากดค้างที่ข้อความเพื่อคัดลอก',
-    'coach.sms4.title': 'กรุณากลับมาที่แอปนี้อีกครั้ง', 'coach.sms4.desc': 'เมื่อคัดลอกแล้ว กดปุ่มนี้เพื่อกลับมาที่แอป', 'coach.sms4.voice': 'กรุณากดปุ่มเปิดแอป',
-    'coach.sms5.title': 'ลองกดค้างเพื่อวางดู', 'coach.sms5.desc': 'กดค้างที่ช่องนี้แล้วเลือกวาง แตะหน้าจอสองครั้งเร็วๆ จะวางได้ง่ายขึ้น', 'coach.sms5.voice': 'กรุณากดที่ช่องวาง แตะสองครั้งเร็วๆ จะวางได้ง่ายขึ้น',
-    'coach.sms6.title': 'กรุณากดยืนยัน', 'coach.sms6.desc': 'เมื่อวางเสร็จแล้ว กรุณากดยืนยัน', 'coach.sms6.voice': 'กรุณากดปุ่มยืนยัน',
-    'coach.sms7.title': 'กดยืนยันเพื่อดูผลลัพธ์', 'coach.sms7.desc': 'กดปุ่มนี้เพื่อให้ AI ตรวจสอบข้อความให้คุณ', 'coach.sms7.voice': 'กรุณากดปุ่มยืนยันเพื่อดูผลลัพธ์',
+    'coach.smsPermission.title': 'กรุณาอนุญาตให้อ่านข้อความ', 'coach.smsPermission.desc': 'หากอนุญาตจะแสดงข้อความล่าสุดทันที', 'coach.smsPermission.voice': 'กรุณากดอนุญาต',
+    'coach.sms2.title': 'กดข้อความนี้เพื่อตรวจสอบ', 'coach.sms2.desc': 'แตะเพียงครั้งเดียวก็ตรวจสอบได้ทันที', 'coach.sms2.voice': 'กรุณากดข้อความเพื่อตรวจสอบ',
     'coach.history1.title': 'ดูประวัติได้เช่นกัน', 'coach.history1.desc': 'สามารถดูเอกสารและข้อความที่ตรวจสอบมาแล้วทั้งหมด', 'coach.history1.voice': 'กรุณากดปุ่มประวัติด้านล่าง',
     'coach.history2.title': 'กลับไปหน้าหลักกันเถอะ', 'coach.history2.desc': 'กดปุ่ม ← กลับหน้าหลักเพื่อย้อนกลับได้ทุกเมื่อ', 'coach.history2.voice': 'กรุณากดปุ่มกลับหน้าหลัก',
     'coach.info1.title': 'มีข้อมูลที่ควรรู้ด้วย', 'coach.info1.desc': 'แนะนำข้อมูลที่เป็นประโยชน์ เช่น เงินบำนาญพื้นฐาน การตรวจสุขภาพ', 'coach.info1.voice': 'กรุณากดข้อมูลที่ควรรู้',
@@ -2728,15 +2845,14 @@ const I18N = {
     'coach.language.title': 'เปลี่ยนภาษาได้เช่นกัน', 'coach.language.desc': 'เลือกระหว่างจีน·เวียดนาม·ไทย·อุซเบก เลือกเสร็จแล้วกดถัดไป', 'coach.language.voice': 'กรุณากดตั้งค่าภาษา เลือกเสร็จแล้วกรุณากดถัดไป',
     'common.home': '← หน้าแรก', 'common.back': '← ย้อนกลับ',
     'docChoice.title': 'วิเคราะห์ด้วย AI',
-    'docChoice.desc': 'กรุณาถ่ายภาพเอกสารที่ต้องการวิเคราะห์หรือเลือกจากคลังภาพ<br>สามารถนำเข้าข้อความเพื่อตรวจสอบได้เช่นกัน',
+    'docChoice.desc': 'กรุณาถ่ายภาพเอกสารที่ต้องการวิเคราะห์หรือเลือกจากคลังภาพ',
     'docChoice.voicePill': 'ฟังคำแนะนำเสียงอีกครั้ง',
     'docChoice.cameraTitle': 'ถ่ายภาพ', 'docChoice.cameraDesc': 'ถ่ายเอกสารด้วยกล้อง',
     'docChoice.galleryTitle': 'นำเข้ารูปภาพ', 'docChoice.galleryDesc': 'เปิดรูปภาพที่บันทึกไว้',
-    'docChoice.smsTitle': 'นำเข้าข้อความ', 'docChoice.smsDesc': 'คัดลอกข้อความจากแอปข้อความแล้วนำเข้า',
     'docChoice.tipTitle': 'กรุณาตรวจสอบด้วยนะคะ!',
     'docChoice.tip1': 'กรุณาถ่ายให้ตัวอักษรในเอกสารชัดเจน',
     'docChoice.tip2': 'ถ่ายในที่สว่างและมีแสงสะท้อนน้อยจะแม่นยำกว่า',
-    'docChoice.voice': 'กรุณาเลือกถ่ายภาพ นำเข้ารูปภาพ หรือนำเข้าข้อความ',
+    'docChoice.voice': 'กรุณาเลือกถ่ายภาพหรือนำเข้ารูปภาพ',
     'docCapture.inProgress': '🔵 กำลังดำเนินการ',
     'docCapture.guide': 'กรุณาจัดเอกสาร<br>ให้อยู่กลางหน้าจอ',
     'docCapture.caption': '👆 กรุณากดปุ่มถ่ายภาพ',
@@ -2752,28 +2868,24 @@ const I18N = {
     'result.shareTitle': 'แชร์', 'result.shareSms': 'ข้อความ', 'result.shareKakao': '💛 KakaoTalk', 'result.shareCopy': 'คัดลอก',
     'result.docConfirm': 'ตรวจสอบเสร็จแล้ว',
     'result.textTitle': 'ผลการตรวจสอบว่าจริงหรือปลอม', 'result.dangerPill': '⚠ ตรวจพบความเสี่ยง', 'result.listenVoice': 'ฟังด้วยเสียง',
-    'result.actNowLabel': 'กรุณารับมือทันที',
-    'result.textTip1': 'อย่าบอกเลขบัญชีหรือรหัสผ่านที่อีกฝ่ายขอมาเด็ดขาด',
-    'result.textTip2': 'กรุณาแจ้งสถานการณ์นี้ให้ครอบครัวหรือคนใกล้ชิดทราบด้วย',
-    'result.notifyGuardian': 'แจ้งผู้ดูแลทางข้อความ',
-    'result.report118': 'แจ้ง 118 (ปรึกษาสำนักงานตำรวจ)', 'result.callFamily': 'โทรหาครอบครัว',
+    'result.reasonLabel': 'ทำไมถึงอันตราย?',
+    'result.notifyGuardian': 'ส่งต่อข้อความให้ผู้ดูแล',
     'result.checkAnotherSms': 'ตรวจสอบข้อความอื่น',
     'result.legalNote': 'ผลการตัดสินนี้เป็นผลวิเคราะห์จากปัญญาประดิษฐ์ จึงไม่มีผลทางกฎหมาย<br>หากสงสัย กรุณาสอบถามหน่วยงานที่เกี่ยวข้องโดยตรง',
     'result.textConfirm': 'รับทราบแล้ว', 'result.practiceAgain': 'ฝึกอีกครั้ง',
-    'sms.statusTime': '14:34 น.', 'sms.phoneHome': 'หน้าจอหลักโทรศัพท์',
-    'sms.appPhone': 'โทรศัพท์', 'sms.appSms': '💬 ข้อความ', 'sms.appCamera': 'กล้อง',
-    'sms.phoneCaption': '👆 กรุณากดแอป 💬 ข้อความ', 'sms.openSmsApp': 'เปิดแอปข้อความ',
-    'sms.phoneVoice': 'กรุณากดแอปข้อความ',
-    'sms.switchTitle': 'คัดลอกเสร็จแล้ว!',
-    'sms.switchDesc': 'ตอนนี้กรุณากลับไปที่<br>แอปผู้ช่วยดิจิทัล AI',
-    'sms.switchOpenApp': 'เปิดแอปผู้ช่วยดิจิทัล AI',
-    'sms.switchVoice': 'คัดลอกเสร็จแล้ว ตอนนี้กรุณากลับไปที่แอปผู้ช่วยดิจิทัล AI',
-    'sms.pasteTitle': 'กรุณาวางเนื้อหาข้อความ<br>ตรงนี้',
-    'sms.pastePlaceholder': 'กรุณากดค้างตรงนี้แล้วเลือกวาง (Paste)',
-    'sms.confirm': 'ยืนยัน',
-    'sms.pasteVoice': 'กรุณากดค้างที่เนื้อหาข้อความแล้ววางลงในช่องนี้',
-    'sms.filledTitle': 'เนื้อหาข้อความ<br>เข้ามาแล้ว',
-    'sms.filledVoice': 'เนื้อหาข้อความเข้ามาเรียบร้อยแล้ว กรุณากดปุ่มยืนยันเพื่อดูผลลัพธ์',
+    'sms.permission.voice': 'การตรวจสอบข้อความต้องได้รับสิทธิ์อ่านข้อความ',
+    'sms.permission.title': 'การตรวจสอบข้อความ<br>ต้องได้รับสิทธิ์อ่านข้อความ',
+    'sms.permission.desc': 'จะส่งเฉพาะข้อความที่คุณกดยืนยันไปวิเคราะห์ที่เซิร์ฟเวอร์เท่านั้น<br>จะไม่อ่านข้อความอื่น',
+    'sms.permission.unsupportedTitle': 'ฟีเจอร์นี้<br>ใช้ได้เฉพาะแอปแอนดรอยด์เท่านั้น',
+    'sms.permission.unsupportedDesc': 'อุปกรณ์/เบราว์เซอร์นี้<br>ไม่สามารถอ่านข้อความโดยตรงได้',
+    'sms.permission.retry': 'ลองอีกครั้ง',
+    'sms.permission.openSettings': 'อนุญาตในการตั้งค่าแอป',
+    'sms.recent.voice': 'ดึงรายการข้อความล่าสุดมาแล้ว กรุณากดข้อความที่ต้องการตรวจสอบ',
+    'sms.recent.title': 'ข้อความล่าสุด',
+    'sms.recent.desc': 'ดึงข้อความล่าสุดมาแล้ว กรุณากดข้อความที่ต้องการตรวจสอบ',
+    'sms.recent.empty': 'ไม่มีข้อความที่ได้รับ',
+    'sms.recent.loading': 'กำลังโหลดข้อความ...',
+    'sms.recent.unknownSender': 'ผู้ส่งที่ไม่รู้จัก',
     'emergency.title': 'ขอความช่วยเหลือฉุกเฉิน', 'emergency.guardian': 'ผู้ดูแล',
     'emergency.howToAgain': 'ดูวิธีใช้งานอีกครั้ง', 'emergency.close': 'ปิด',
     'error.docBlurTitle': 'รูปภาพเบลอ',
@@ -2783,20 +2895,18 @@ const I18N = {
     'error.docBlurVoice': 'รูปภาพเบลอจนอ่านไม่ได้ กรุณาถ่ายใหม่ในที่สว่าง',
     'error.retry': 'ลองอีกครั้ง', 'error.goHome': 'กลับไปหน้าแรก',
     'error.aiVoice': 'ตอนนี้ยังวิเคราะห์ไม่ได้ กรุณาลองใหม่อีกครั้งในภายหลัง',
-    'error.textShortTitle': 'เนื้อหาสั้นเกินไป',
-    'error.textShortDesc': 'ดูเหมือนว่าคัดลอกข้อความมาไม่ครบ<br>กรุณาคัดลอกใหม่แล้ววางอีกครั้ง',
-    'error.textShortHint': '💡 กรุณาตรวจสอบว่าได้กด “คัดลอก” ในเมนูที่ขึ้นมาตอนกดค้างที่ข้อความหรือไม่',
-    'error.pasteAgain': 'วางใหม่อีกครั้ง',
-    'error.textShortVoice': 'เนื้อหาข้อความสั้นเกินไปจึงตรวจสอบได้ยาก กรุณาคัดลอกข้อความทั้งหมดใหม่'
   },
   uz: {
     'home.sectionTitle': 'Sizga qanday yordam kerak?',
     'home.assistantActive': "온담 yordamchisi faollashtirildi",
     'home.greetDefault': 'Foydalanuvchi',
     'home.greetNameSuffix': '', 'home.greetAge': '{age} yoshli foydalanuvchi', 'home.greetAgeGender': '{age} yoshli {gender}',
-    'home.aiAnalyzeTitle': "AI bilan hujjat tahlili",
-    'home.aiAnalyzeDesc': "Surat olish, rasm yuklash yoki SMS matnini yuklashni tanlang, AI tahlil qilib beradi",
+    'home.docCaptureTitle': "Hujjat suratga olish",
+    'home.docCaptureDesc': "Surat oling yoki yuklang, AI sizga tushunarli qilib tushuntirib beradi",
+    'home.smsCheckTitle': "SMS xabarni qisqacha tekshirish",
+    'home.smsCheckDesc': "AI olingan xabar xavfsizligini tekshirib beradi",
     'home.welfareTitle': "Yaqin atrofdagi ijtimoiy ta'minot markazlari va keksalar markazini toping",
+    'home.moreMenu': "Ko'proq",
     'home.welfareDesc': "Joylashuvingiz yaqinidagi ijtimoiy ta'minot markazlari va keksalar markazini ko'rsatamiz",
     'home.todayTasks': 'Bugungi vazifalar',
     'home.viewAll': "Barchasini ko'rish",
@@ -2808,7 +2918,6 @@ const I18N = {
     'stats.title': 'Hisob-kitob statistikasi',
     'result.share': 'Farzandlarga yuborish',
     'result.ask': 'Bu hujjat haqida so‘rash',
-    'result.askSms': 'Bu SMS haqida so‘rash',
     'ask.title': 'So‘rash',
     'ask.voice': 'Qiziqtirgan narsani bosing yoki o‘zingiz yozing.',
     'ask.suggested': 'Shunday so‘rashingiz mumkin',
@@ -2830,7 +2939,9 @@ const I18N = {
     'docCollect.voice': 'Yana surat olishingiz yoki tugagan bo\'lsa Tahlil qilish tugmasini bosishingiz mumkin.',
     'docChoice.photoLimit': 'Eng ko‘pi bilan besh ta surat olish mumkin.',
     'result.docCountLabel': 'Hujjat {i} / {n}',
+    'result.docPrev': 'Oldingi hujjat', 'result.docNext': 'Keyingi hujjat',
     'result.shareNothing': 'Yuboradigan natija yo\'q.',
+    'stats.safetyLabel': "Vasiy uchun xavfsizlik holati", 'stats.safetyDangerCount': "Xavfli deb topilgan holatlar soni", 'stats.safetyNone': "Xavfli deb topilgan hujjat yoki SMS yo'q.",
     'stats.thisMonth': 'Shu oydagi hisoblar',
     'stats.cumulative': 'Oylar bo\'yicha to\'plangan summa',
     'stats.upcoming': 'Yaqinlashayotgan to\'lov muddati',
@@ -2905,13 +3016,8 @@ const I18N = {
     'coach.doc2.title': 'Bevosita suratga olamiz', 'coach.doc2.desc': 'Kamera bilan hujjatni suratga oling.', 'coach.doc2.voice': 'Bevosita suratga olishni bosing.',
     'coach.doc3.title': 'Suratga olish tugmasini bosing', 'coach.doc3.desc': "Hujjatni ekran markaziga to'g'rilab tugmani bosing.", 'coach.doc3.voice': 'Suratga olish tugmasini bosing.',
     'coach.sms1.title': 'SMS xabarni ham tekshirish mumkin', 'coach.sms1.desc': 'Kelgan SMS xavfsizligini shu yerda ham tekshirish mumkin.', 'coach.sms1.voice': "SMS matnini yuklash kartasini bosing.",
-    'coach.sms1b.title': 'Endi SMS xabarni tekshiramiz', 'coach.sms1b.desc': "Rasmni ko'rish shu yerda tugadi. AI tahlili kartasini yana bosing.", 'coach.sms1b.voice': "AI tahlili kartasini yana bosing.",
-    'coach.sms2.title': 'SMS ilovasini bosing', 'coach.sms2.desc': 'SMS ilovasini ochamiz.', 'coach.sms2.voice': 'SMS ilovasini bosing.',
-    'coach.sms3.title': 'SMS xabarni bosib turib nusxalab ko\'ring', 'coach.sms3.desc': "Haqiqatda tekshirmoqchi bo'lgan SMS ni bosib turib nusxalash mumkin.", 'coach.sms3.voice': 'SMS ni bosib turib nusxalang.',
-    'coach.sms4.title': 'Yana shu ilovaga qaytib keling', 'coach.sms4.desc': "Nusxalagandan so'ng, shu tugmani bosib ilovaga qayting.", 'coach.sms4.voice': 'Ilovani ochish tugmasini bosing.',
-    'coach.sms5.title': 'Bosib turib joylashtirib ko\'ring', 'coach.sms5.desc': 'Shu joyni bosib turib joylashtirishni tanlang. Ekranni tez ikki marta bosish osonroq joylashtiradi.', 'coach.sms5.voice': 'Joylashtirish maydonini bosing. Tez ikki marta bosish osonroq joylashtiradi.',
-    'coach.sms6.title': 'Tasdiqlashni bosing', 'coach.sms6.desc': 'Joylashtirish tugagach tasdiqlashni bosing.', 'coach.sms6.voice': 'Tasdiqlash tugmasini bosing.',
-    'coach.sms7.title': 'Natijani ko\'rish uchun tasdiqlashni bosing', 'coach.sms7.desc': 'Shu tugmani bosganingizda AI SMS ni tekshirib beradi.', 'coach.sms7.voice': 'Natijani ko\'rish uchun tasdiqlash tugmasini bosing.',
+    'coach.smsPermission.title': "Xabar o'qishga ruxsat bering", 'coach.smsPermission.desc': "Ruxsat bersangiz so'nggi xabarlar darhol ko'rsatiladi.", 'coach.smsPermission.voice': "Ruxsat berishni bosing.",
+    'coach.sms2.title': 'Ushbu xabarni tekshirish uchun bosing', 'coach.sms2.desc': "Bir marta bosish bilan darhol tekshirish mumkin.", 'coach.sms2.voice': 'Xabarni tekshirish uchun bosing.',
     'coach.history1.title': 'Tarixni ham ko\'rish mumkin', 'coach.history1.desc': 'Hozirgacha tekshirilgan hujjat va SMS tarixini birgalikda ko\'rish mumkin.', 'coach.history1.voice': 'Pastdagi Tarix tugmasini bosing.',
     'coach.history2.title': 'Yana bosh sahifaga qaytamiz', 'coach.history2.desc': "← Bosh sahifaga tugmasini bosib istalgan vaqtda qaytish mumkin.", 'coach.history2.voice': 'Bosh sahifaga qaytish tugmasini bosing.',
     'coach.info1.title': "Bilish foydali ma'lumotlar ham bor", 'coach.info1.desc': "Asosiy pensiya, sog'liqni tekshirish kabi foydali ma'lumotlarni taqdim etamiz.", 'coach.info1.voice': "Bilish foydali ma'lumotlarni bosing.",
@@ -2930,15 +3036,14 @@ const I18N = {
     'coach.language.title': 'Tilni ham o\'zgartirish mumkin', 'coach.language.desc': "Xitoy·Vetnam·Tay·O'zbek orasidan tanlang. Tanlab bo'lgach keyingiga o'ting.", 'coach.language.voice': "Til sozlamasini bosing. Tanlab bo'lgach keyingi tugmasini bosing.",
     'common.home': '← Bosh sahifa', 'common.back': '← Orqaga',
     'docChoice.title': "AI bilan tahlil qilish",
-    'docChoice.desc': "Tahlil qilmoqchi bo'lgan hujjatni suratga oling yoki galereyadan tanlang.<br>SMS matnini ham yuklab tekshirishingiz mumkin.",
+    'docChoice.desc': "Tahlil qilmoqchi bo'lgan hujjatni suratga oling yoki galereyadan tanlang.",
     'docChoice.voicePill': "Ovozli yo'riqnomani qayta eshitish",
     'docChoice.cameraTitle': "Surat olish", 'docChoice.cameraDesc': 'Kamera bilan hujjatni suratga olish',
     'docChoice.galleryTitle': "Rasm yuklash", 'docChoice.galleryDesc': 'Saqlangan rasmni ochish',
-    'docChoice.smsTitle': "SMS matnini yuklash", 'docChoice.smsDesc': "SMS ilovasidan xabarni nusxalab yuklang",
     'docChoice.tipTitle': 'Albatta tekshiring!',
     'docChoice.tip1': 'Hujjatdagi harflar aniq ko\'rinadigan qilib suratga oling.',
     'docChoice.tip2': "Yorug' va yorug'lik aks etmaydigan joyda suratga olsangiz aniqroq bo'ladi.",
-    'docChoice.voice': "Surat olish, rasm yuklash yoki SMS matnini yuklashni tanlang.",
+    'docChoice.voice': "Surat olish yoki rasm yuklashni tanlang.",
     'docCapture.inProgress': '🔵 Bajarilmoqda',
     'docCapture.guide': "Hujjatni ekranning<br>o'rtasiga joylashtiring",
     'docCapture.caption': '👆 Suratga olish tugmasini bosing',
@@ -2954,28 +3059,24 @@ const I18N = {
     'result.shareTitle': 'Ulashish', 'result.shareSms': 'SMS', 'result.shareKakao': '💛 KakaoTalk', 'result.shareCopy': 'Nusxa olish',
     'result.docConfirm': "Tekshirib bo'ldim",
     'result.textTitle': 'Haqiqiyligini aniqlash natijasi', 'result.dangerPill': '⚠ Xavf aniqlandi', 'result.listenVoice': 'Ovozli eshitish',
-    'result.actNowLabel': "Hoziroq chora ko'ring",
-    'result.textTip1': "Suhbatdosh so'ragan hisob raqami yoki parolni hech qachon aytmang.",
-    'result.textTip2': "Hozirgi vaziyatni oila a'zolaringizga yoki yaqin tanishingizga albatta ayting.",
-    'result.notifyGuardian': 'Vasiyga SMS orqali xabar berish',
-    'result.report118': '118 ga xabar berish (Politsiya maslahati)', 'result.callFamily': "Oilaga qo'ng'iroq qilish",
+    'result.reasonLabel': "Nega xavfli?",
+    'result.notifyGuardian': 'Xabarni vasiyga yuborish',
     'result.checkAnotherSms': 'Boshqa SMS ni tekshirish',
     'result.legalNote': "Ushbu xulosa sun'iy intellekt tahlili bo'lgani uchun yuridik kuchga ega emas.<br>Shubha tug'ilsa, albatta tegishli idoraga o'zingiz murojaat qiling.",
     'result.textConfirm': 'Tanishib chiqdim', 'result.practiceAgain': 'Qaytadan mashq qilish',
-    'sms.statusTime': '14:34', 'sms.phoneHome': 'Telefon bosh ekrani',
-    'sms.appPhone': 'Telefon', 'sms.appSms': '💬 SMS', 'sms.appCamera': 'Kamera',
-    'sms.phoneCaption': '👆 💬 SMS ilovasini bosing', 'sms.openSmsApp': 'SMS ilovasini ochish',
-    'sms.phoneVoice': 'SMS ilovasini bosing.',
-    'sms.switchTitle': 'Nusxa olindi!',
-    'sms.switchDesc': 'Endi AI raqamli yordamchi<br>ilovasiga qayting.',
-    'sms.switchOpenApp': 'AI raqamli yordamchi ilovasini ochish',
-    'sms.switchVoice': 'Nusxa olindi. Endi AI raqamli yordamchi ilovasiga qayting.',
-    'sms.pasteTitle': 'SMS matnini<br>shu yerga joylashtiring.',
-    'sms.pastePlaceholder': 'Shu yerni bosib turing va Joylashtirish (Paste) ni tanlang',
-    'sms.confirm': 'Tasdiqlash',
-    'sms.pasteVoice': 'SMS matnini bosib turib, shu maydonga joylashtiring.',
-    'sms.filledTitle': 'SMS matni<br>kiritildi.',
-    'sms.filledVoice': "SMS matni to'g'ri kiritildi. Natijani ko'rish uchun Tasdiqlash tugmasini bosing.",
+    'sms.permission.voice': "Xabarni tekshirish uchun xabar o'qish ruxsati kerak.",
+    'sms.permission.title': "Xabarni tekshirish uchun<br>xabar o'qish ruxsati kerak.",
+    'sms.permission.desc': "Faqat siz tasdiqlagan xabar serverga yuborilib tahlil qilinadi.<br>Boshqa xabarlar o'qilmaydi.",
+    'sms.permission.unsupportedTitle': "Bu funksiya<br>faqat Android ilovada ishlaydi.",
+    'sms.permission.unsupportedDesc': "Bu qurilma/brauzerda<br>xabarlarni to'g'ridan-to'g'ri o'qib bo'lmaydi.",
+    'sms.permission.retry': 'Qayta urinish',
+    'sms.permission.openSettings': "Ilova sozlamalarida ruxsat berish",
+    'sms.recent.voice': "So'nggi xabarlar ro'yxati olindi. Tekshirmoqchi bo'lgan xabarni bosing.",
+    'sms.recent.title': "So'nggi xabarlar",
+    'sms.recent.desc': "So'nggi xabarlar olindi. Tekshirmoqchi bo'lgan xabarni bosing.",
+    'sms.recent.empty': "Qabul qilingan xabar yo'q.",
+    'sms.recent.loading': 'Xabarlar yuklanmoqda...',
+    'sms.recent.unknownSender': "Noma'lum jo'natuvchi",
     'emergency.title': 'Shoshilinch yordam', 'emergency.guardian': 'Vasiy',
     'emergency.howToAgain': "Foydalanish yo'riqnomasini qayta ko'rish", 'emergency.close': 'Yopish',
     'error.docBlurTitle': 'Rasm xira chiqdi.',
@@ -2985,29 +3086,76 @@ const I18N = {
     'error.docBlurVoice': "Rasm xira bo'lgani uchun o'qib bo'lmadi. Yorug' joyda qaytadan suratga oling.",
     'error.retry': 'Qayta urinish', 'error.goHome': 'Bosh sahifaga qaytish',
     'error.aiVoice': "Hozir tahlil qilib bo'lmadi. Birozdan so'ng qayta urinib ko'ring.",
-    'error.textShortTitle': 'Matn juda qisqa.',
-    'error.textShortDesc': "SMS to'liq nusxalanmaganga o'xshaydi.<br>Qaytadan nusxa olib joylashtiring.",
-    'error.textShortHint': "💡 SMS ni bosib turganda chiqadigan menyuda “Nusxa olish” ni bosganingizni tekshiring.",
-    'error.pasteAgain': 'Qaytadan joylashtirish',
-    'error.textShortVoice': "SMS matni juda qisqa bo'lgani uchun tekshirish qiyin. Butun SMS ni qaytadan nusxalang."
   }
 };
 
 /** 현재 언어 설정에 맞는 번역 문구를 돌려준다(동적으로 생성되는 화면 문구용). 번역이 없으면 한국어 원문으로 대체 */
+/* ---- 언어: 정적으로 미리 옮겨둔 5개 언어 사전(I18N) 대신, 처음 그 언어를 고른 시점에
+   Worker(Claude API, /translate)로 화면 문구 전체를 실시간 번역해 기기에 캐시해둔다.
+   캐시가 있으면 정적 사전보다 그 결과를 우선 쓴다. 오프라인이거나 호출이 실패하면
+   조용히 기존 정적 사전(I18N)으로 폴백한다 — 화면이 비거나 깨지는 대신 이전과 같은 번역을 계속 보여준다. ---- */
+const TRANSLATION_CACHE_KEY = 'ai_helper_translations_v1';
+let dynamicTranslations = {}; // { [lang]: { [i18nKey]: 번역된 문구 } }
+(function loadDynamicTranslations(){
+  try {
+    const raw = localStorage.getItem(TRANSLATION_CACHE_KEY);
+    if (raw) dynamicTranslations = JSON.parse(raw) || {};
+  } catch (err) { dynamicTranslations = {}; }
+})();
+
+let translationInFlight = {}; // lang -> Promise. 같은 언어를 여러 번 골라도 중복 호출하지 않도록 막는다.
+
+/** 이 언어를 API로 번역해둔 적이 없으면 Worker(/translate)를 한 번 호출해 I18N.ko 전체를 번역하고 캐시한다.
+ *  실패해도 조용히 넘어간다 — t()/applyLanguage()가 정적 사전(I18N)으로 자동 폴백하기 때문에
+ *  이 호출 자체가 실패해도 사용자 눈에는 아무 문제가 없다(그저 초벌 정적 번역이 계속 보일 뿐). */
+async function translateUiIfNeeded(lang){
+  if (lang === 'ko' || dynamicTranslations[lang] || !AI_WORKER_URL) return;
+  if (translationInFlight[lang]) return translationInFlight[lang];
+
+  const keys = Object.keys(I18N.ko);
+  const texts = keys.map(k => I18N.ko[k]);
+
+  translationInFlight[lang] = (async () => {
+    try {
+      const res = await fetch(AI_WORKER_URL + '/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lang, texts }),
+      });
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data.translations)) return;
+      const dict = {};
+      keys.forEach((k, i) => { dict[k] = data.translations[i] || I18N.ko[k]; });
+      dynamicTranslations[lang] = dict;
+      try { localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(dynamicTranslations)); } catch (err) {}
+      // 번역이 도착했을 때도 여전히 이 언어를 보고 있으면 화면에 바로 반영한다(먼저 정적 사전으로 보여주고 있었으므로)
+      if (appState.settings.language === lang) applyLanguage();
+    } catch (err) {
+      // 네트워크 오류 등: 조용히 넘어가고 기존 정적 사전으로 계속 보여준다
+    } finally {
+      delete translationInFlight[lang];
+    }
+  })();
+  return translationInFlight[lang];
+}
+
 function t(key){
   const lang = I18N[appState.settings.language] ? appState.settings.language : 'ko';
+  const dyn = dynamicTranslations[lang];
+  if (dyn && dyn[key]) return dyn[key];
   return (I18N[lang] && I18N[lang][key]) || I18N.ko[key] || '';
 }
 
 function applyLanguage(){
   const lang = I18N[appState.settings.language] ? appState.settings.language : 'ko';
   const dict = I18N[lang];
+  const dyn = dynamicTranslations[lang];
   document.querySelectorAll('[data-i18n]').forEach(el => {
-    const text = (dict && dict[el.dataset.i18n]) || I18N.ko[el.dataset.i18n];
+    const text = (dyn && dyn[el.dataset.i18n]) || (dict && dict[el.dataset.i18n]) || I18N.ko[el.dataset.i18n];
     if (text) el.innerHTML = text;
   });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-    const text = (dict && dict[el.dataset.i18nPlaceholder]) || I18N.ko[el.dataset.i18nPlaceholder];
+    const text = (dyn && dyn[el.dataset.i18nPlaceholder]) || (dict && dict[el.dataset.i18nPlaceholder]) || I18N.ko[el.dataset.i18nPlaceholder];
     if (text) el.placeholder = text;
   });
   syncToggleGroupString('languageGroup', lang);
@@ -3017,6 +3165,7 @@ function setLanguage(lang){
   appState.settings.language = lang;
   saveState();
   applyLanguage();
+  translateUiIfNeeded(lang);
 }
 
 function syncSettingsUI(){
@@ -3025,7 +3174,25 @@ function syncSettingsUI(){
   syncGuardianUI();
   syncVoiceEnabledToggles();
   syncProfileUI();
+  const acct = document.getElementById('accountInfoLine');
+  if (acct) {
+    const auth = getAuth();
+    if (auth && auth.phone) {
+      const digits = auth.phone;
+      const masked = digits.length >= 8
+        ? digits.slice(0, digits.length - 8) + digits.slice(-8, -4) + '****' + digits.slice(-4)
+        : digits;
+      acct.textContent = (auth.name ? auth.name + ' · ' : '') + masked;
+    } else {
+      acct.textContent = '';
+    }
+  }
   applyLanguage();
+}
+
+function handleLogout(){
+  clearAuth();
+  goTo('screen-login');
 }
 
 /* ---- 내 정보(성별/연령대/지역, 선택 사항): 첫 화면 안내와 설정 화면 두 곳에 같은 값을 반영 ---- */
@@ -3045,7 +3212,6 @@ function setProfileField(field, value){
   renderHomeInfoCard(); // 인사말이 이름·나이를 따라가므로 홈 요약 카드도 같이 갱신한다
   renderHomeGreet();    // 홈 인사 카드의 "OOO님"도 마찬가지
   if (field === 'region') queueRegionInfoRefresh();
-  queueProfileSave();
 }
 
 /** 나이 직접 입력: 만 나이를 그대로 저장한다(기초연금 65세처럼 혜택 기준이 한 살 단위라 반올림하지 않는다).
@@ -3072,54 +3238,165 @@ function queueRegionInfoRefresh(){
   regionInfoTimer = setTimeout(renderRegionInfoCard, 800);
 }
 
-/* ---- 프로필 서버 저장 (Cloudflare D1, 로그인 없이 기기별 deviceId로 구분) ---- */
-const DEVICE_ID_KEY = 'ai_helper_device_id';
-function getDeviceId(){
-  let id = localStorage.getItem(DEVICE_ID_KEY);
-  if (!id) {
-    id = (crypto.randomUUID ? crypto.randomUUID() : 'device-' + Date.now() + '-' + Math.random().toString(16).slice(2));
-    localStorage.setItem(DEVICE_ID_KEY, id);
-  }
-  return id;
-}
+/* ---- 인증(회원가입/로그인) 상태: appState와 분리된 별도 localStorage 키에 저장한다.
+   토큰이 서버로 동기화되는 appState JSON 안에 섞여 들어가면 안 되기 때문이다. ---- */
+const AUTH_KEY = 'ai_helper_auth_v1';
 
-let profileSaveTimer = null;
-function queueProfileSave(){
-  clearTimeout(profileSaveTimer);
-  profileSaveTimer = setTimeout(saveProfileToServer, 800);
-}
-
-async function saveProfileToServer(){
-  if (!AI_WORKER_URL) return;
+function getAuth(){
   try {
-    await fetch(AI_WORKER_URL + '/profile', {
+    const raw = localStorage.getItem(AUTH_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) { return null; }
+}
+function setAuth(auth){
+  try { localStorage.setItem(AUTH_KEY, JSON.stringify(auth)); } catch (err) {}
+}
+function clearAuth(){
+  try { localStorage.removeItem(AUTH_KEY); } catch (err) {}
+}
+function authHeaders(){
+  const auth = getAuth();
+  if (!auth) return {};
+  return { 'X-User-Id': String(auth.userId), 'X-Auth-Token': auth.token };
+}
+
+async function signupRequest(phone, pin, name){
+  try {
+    const res = await fetch(AI_WORKER_URL + '/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deviceId: getDeviceId(), ...appState.profile })
+      body: JSON.stringify({ phone, pin, name }),
     });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error || 'unknown' };
+    setAuth({ userId: data.userId, token: data.token, name: data.name, phone: phone.replace(/\D/g, '') });
+    return { ok: true };
   } catch (err) {
-    console.warn('프로필 서버 저장 실패:', err);
+    return { ok: false, error: 'network' };
   }
 }
 
-/** 기기를 바꿔도 같은 deviceId면 서버에 저장된 프로필을 불러온다(이 기기에 이미 있는 값이 없을 때만 덮어씀) */
-async function loadProfileFromServer(){
-  if (!AI_WORKER_URL) return;
+async function loginRequest(phone, pin){
   try {
-    const res = await fetch(AI_WORKER_URL + '/profile?deviceId=' + encodeURIComponent(getDeviceId()));
-    if (!res.ok) return;
+    const res = await fetch(AI_WORKER_URL + '/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, pin }),
+    });
     const data = await res.json();
-    const hasLocal = appState.profile.name || appState.profile.gender || appState.profile.region;
-    if (!hasLocal && data && (data.name || data.gender || data.age || data.region)) {
-      appState.profile = Object.assign(appState.profile, data);
-      saveState();
-      syncProfileUI();
-      renderPublicInfoCard();
-      renderHomeInfoCard();
-    }
+    if (!res.ok) return { ok: false, error: data.error || 'unknown' };
+    setAuth({ userId: data.userId, token: data.token, name: data.name, phone: phone.replace(/\D/g, '') });
+    return { ok: true };
   } catch (err) {
-    console.warn('프로필 서버 불러오기 실패:', err);
+    return { ok: false, error: 'network' };
   }
+}
+
+async function requestPinResetOtp(phone, name){
+  try {
+    const res = await fetch(AI_WORKER_URL + '/request-pin-reset-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, name }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error || 'unknown' };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: 'network' };
+  }
+}
+
+async function verifyPinResetOtp(phone, otp, newPin){
+  try {
+    const res = await fetch(AI_WORKER_URL + '/verify-pin-reset-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, otp, newPin }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error || 'unknown', attemptsLeft: data.attemptsLeft };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: 'network' };
+  }
+}
+
+function showFieldError(id, message){
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = message;
+  el.style.display = message ? 'block' : 'none';
+}
+
+async function handleSignupSubmit(){
+  const name = document.getElementById('signupName').value.trim();
+  const phone = document.getElementById('signupPhone').value.trim();
+  const pin = document.getElementById('signupPin').value.trim();
+  const pinConfirm = document.getElementById('signupPinConfirm').value.trim();
+
+  if (guardianPhoneDigits(phone).length < 9) return showFieldError('signupError', t('onboard.signup.errorPhone'));
+  if (!/^\d{4}$/.test(pin)) return showFieldError('signupError', t('onboard.signup.errorPinFormat'));
+  if (pin !== pinConfirm) return showFieldError('signupError', t('onboard.signup.errorPinMismatch'));
+
+  showFieldError('signupError', '');
+  const result = await signupRequest(phone, pin, name);
+  if (!result.ok) {
+    if (result.error === 'phone_exists') return showFieldError('signupError', t('onboard.signup.errorPhoneExists'));
+    return showFieldError('signupError', t('onboard.signup.errorGeneric'));
+  }
+  appState.profile.name = name;
+  saveState();
+  goTo('screen-profile');
+}
+
+async function handleLoginSubmit(){
+  const phone = document.getElementById('loginPhone').value.trim();
+  const pin = document.getElementById('loginPin').value.trim();
+
+  showFieldError('loginError', '');
+  const result = await loginRequest(phone, pin);
+  if (!result.ok) {
+    if (result.error === 'locked') return showFieldError('loginError', t('onboard.login.errorLocked'));
+    return showFieldError('loginError', t('onboard.login.errorInvalid'));
+  }
+  await pullStateFromServer();
+  saveState();
+  syncSettingsUI();
+  goTo('screen-home');
+}
+
+async function handleRequestResetOtp(){
+  const name = document.getElementById('resetPinName').value.trim();
+  const phone = document.getElementById('resetPinPhone').value.trim();
+
+  showFieldError('resetPinError', '');
+  const result = await requestPinResetOtp(phone, name);
+  if (!result.ok) return showFieldError('resetPinError', t('onboard.resetPin.errorSmsFailed'));
+
+  document.getElementById('resetPinStep2').style.display = '';
+  const notice = document.getElementById('resetPinNotice');
+  notice.textContent = t('onboard.resetPin.otpSentNotice');
+  notice.style.display = 'block';
+}
+
+async function handleVerifyResetOtp(){
+  const phone = document.getElementById('resetPinPhone').value.trim();
+  const otp = document.getElementById('resetPinOtp').value.trim();
+  const newPin = document.getElementById('resetPinNewPin').value.trim();
+  const newPinConfirm = document.getElementById('resetPinNewPinConfirm').value.trim();
+
+  if (!/^\d{4}$/.test(newPin)) return showFieldError('resetPinError', t('onboard.signup.errorPinFormat'));
+  if (newPin !== newPinConfirm) return showFieldError('resetPinError', t('onboard.signup.errorPinMismatch'));
+
+  showFieldError('resetPinError', '');
+  const result = await verifyPinResetOtp(phone, otp, newPin);
+  if (!result.ok) {
+    if (result.error === 'otp_expired') return showFieldError('resetPinError', t('onboard.resetPin.errorOtpExpired'));
+    if (result.error === 'otp_locked') return showFieldError('resetPinError', t('onboard.resetPin.errorOtpLocked'));
+    return showFieldError('resetPinError', t('onboard.resetPin.errorOtpInvalid').replace('{n}', result.attemptsLeft != null ? result.attemptsLeft : 0));
+  }
+  goTo('screen-login');
 }
 
 /** 값이 다를 때만 반영해 입력 중인 커서 위치가 튀지 않게 한다 */
@@ -3420,6 +3697,26 @@ function renderStats(){
   const dueItems = upcomingDueEntries();
   const hasAmount = buckets.length > 0;
 
+  // 0) 보호자용 안전 확인 현황: 전체 확인 건수와 그중 위험 판정 건수, 최근 위험 판정 목록
+  const safetySection = document.getElementById('statsSafetySection');
+  const dangerEntries = appState.history.filter(h => h.analysis && h.analysis.status === 'danger');
+  const hasHistory = appState.history.length > 0;
+  safetySection.style.display = hasHistory ? 'block' : 'none';
+  if (hasHistory) {
+    document.getElementById('statsSafetyDangerCount').textContent = `${dangerEntries.length}건`;
+    document.getElementById('statsSafetyTotalCount').textContent = `전체 확인 ${appState.history.length}건 중`;
+    const listEl = document.getElementById('statsSafetyList');
+    if (dangerEntries.length === 0) {
+      listEl.innerHTML = `<div class="empty-state" style="padding:14px;" data-i18n="stats.safetyNone">위험으로 판정된 문서·문자가 없어요.</div>`;
+    } else {
+      listEl.innerHTML = dangerEntries.slice(0, 5).map(h => `
+        <div class="row">
+          <div class="icon-chip" style="background:var(--danger-strong);"><svg viewBox="0 0 24 24"><use href="#ic-alert"></use></svg></div>
+          <div class="text"><div class="t1">${escapeHtml(h.title)}</div><div class="t2">${escapeHtml(h.time || '')}</div></div>
+        </div>`).join('');
+    }
+  }
+
   // 1) 이번 달 합계
   const now = new Date();
   const thisKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -3468,7 +3765,7 @@ function renderStats(){
     }).join('');
   }
 
-  document.getElementById('statsEmpty').style.display = (hasAmount || dueItems.length) ? 'none' : 'block';
+  document.getElementById('statsEmpty').style.display = (hasAmount || dueItems.length || hasHistory) ? 'none' : 'block';
 }
 
 /** 프로필이 있으면 "○○님을 위한 정보"처럼 인사말을 맞춰준다(지역별 실데이터가 아니라 호칭만 맞춤). */
@@ -3524,7 +3821,7 @@ function renderHomeInfoCard(){
 }
 
 /* ---- 보호자에게 알리기 ----
-   외부 문자 발송 API(계정·비용 필요)를 쓰지 않고, 문자 확인 흐름(openRealSmsApp)과 똑같이
+   외부 문자 발송 API(계정·비용 필요)를 쓰지 않고,
    기기의 문자 앱을 sms: 스킴으로 열어 받는 사람과 본문만 미리 채워준다.
    실제 '전송'은 사용자가 문자 앱에서 직접 누르는 것이므로, 앱은 절대 "보냈습니다"라고 말하지 않는다. */
 
@@ -3533,11 +3830,16 @@ function renderHomeInfoCard(){
  *  (CLAUDE.md 9번 항목: AI 분석 결과는 오역 위험 때문에 항상 한국어로 유지). */
 const GUARDIAN_STATUS_LABEL = { danger: '위험', info: '정보', normal: '정상' };
 function guardianSmsBody(){
-  const lines = ['[온담] 방금 확인한 문자에 대해 알려드립니다.'];
+  const lines = ['[온담] 방금 확인한 문자를 전달드려요.'];
   if (lastSmsAnalysis) {
     lines.push('판정: ' + (GUARDIAN_STATUS_LABEL[lastSmsAnalysis.status] || '확인 필요'));
     const headline = String(lastSmsAnalysis.headline || '').trim();
     if (headline) lines.push(headline.length > 60 ? headline.slice(0, 60) + '…' : headline);
+  }
+  // "보호자에게 문자 전달하기" — 판정 요약뿐 아니라 실제 원문도 함께 보내 보호자가 직접 확인할 수 있게 한다.
+  if (pendingSmsText) {
+    lines.push('--- 받은 문자 원문 ---');
+    lines.push(pendingSmsText);
   }
   lines.push('확인 부탁드립니다.');
   return lines.join('\n');
@@ -3656,25 +3958,31 @@ document.addEventListener('click', (e) => {
   }
 });
 
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
   loadState();
+  translateUiIfNeeded(appState.settings.language);
 
   const docPreviewEl = document.getElementById('docPreviewContent');
   if (docPreviewEl) docPreviewDefaultHTML = docPreviewEl.innerHTML;
 
-  // 온보딩을 이미 마친 기기라면 인사 화면을 건너뛰고 홈에서 시작한다.
+  // 로그인 토큰이 있으면 홈에서 시작(서버 상태를 조용히 불러온다), 없으면 인사 화면(회원가입 유도)에서 시작한다.
   // goTo()를 쓰지 않는 이유: 앱을 열자마자 안내 음성이 재생되는 걸 막기 위함(기존 동작 유지).
-  const first = document.getElementById(appState.onboardingDone ? 'screen-home' : 'screen-greet');
+  let firstScreenId = 'screen-greet';
+  if (getAuth()) {
+    const stillValid = await pullStateFromServer();
+    firstScreenId = stillValid ? 'screen-home' : 'screen-login';
+    if (!stillValid) clearAuth();
+  }
+  const first = document.getElementById(firstScreenId);
   if (first !== activeScreenEl) {
     activeScreenEl.classList.remove('active');
     first.classList.add('active');
     activeScreenEl = first;
     document.body.classList.toggle('in-onboarding', onboardScreens.has(first.id));
   }
-  // 이 경로는 goTo()를 우회하므로 네비바 표시도 여기서 직접 맞춰준다(빠뜨리면 첫 화면에서 네비바가 안 보인다)
   document.body.classList.toggle('has-bottom-nav', TAB_SCREENS.has(first.id));
   syncBottomNav(first.id);
-  first.scrollTop = 0; // goTo()와 동일하게 항상 맨 위에서 시작(브라우저의 스크롤 복원 방지)
+  first.scrollTop = 0;
   document.getElementById('liveRegion').textContent = screenVoiceText(first);
 
   document.documentElement.style.setProperty('--scale', appState.settings.fontScale);
@@ -3684,5 +3992,4 @@ window.addEventListener('load', () => {
 
   attachRippleEffect();
   renderHomeDashboard();
-  loadProfileFromServer();
 });

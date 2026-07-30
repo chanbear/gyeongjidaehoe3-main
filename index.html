@@ -70,8 +70,108 @@
           <h1 data-i18n="onboard.greet.title">안녕하세요.<br>AI 디지털 도우미입니다.</h1>
           <p class="desc" data-i18n="onboard.greet.desc">문서를 쉽게 이해하고<br>해야 할 일을 알려드리겠습니다.</p>
         </div>
-        <button class="primary-btn" onclick="goTo('screen-profile')" data-i18n="onboard.greet.start">시작하기</button>
+        <button class="primary-btn" onclick="goTo('screen-signup')" data-i18n="onboard.greet.start">시작하기</button>
         <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="confirmSkipTutorial()" data-i18n="onboard.skip">건너뛰기</button>
+      </section>
+
+      <!-- 회원가입: 전화번호+PIN 계정을 만든다. 로그인해야만 앱을 쓸 수 있다. -->
+      <section class="screen" id="screen-signup" data-voice="이름과 전화번호, 4자리 숫자 PIN을 입력해서 가입해주세요." data-voice-i18n="onboard.signup.voice">
+        <div class="topbar"><span></span><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
+        <h1 data-i18n="onboard.signup.title">회원가입</h1>
+        <p class="desc" data-i18n="onboard.signup.desc">전화번호와 PIN 번호로 계정을 만들어요.<br>이 계정으로 다른 기기에서도 내 정보를 이어서 쓸 수 있어요.</p>
+
+        <div class="settings-section">
+          <h2 data-i18n="settings.nameLabel">이름</h2>
+          <div class="field-row">
+            <input type="text" id="signupName" placeholder="예: 홍길동" data-i18n-placeholder="settings.namePlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h2 data-i18n="onboard.signup.phoneLabel">전화번호</h2>
+          <div class="field-row">
+            <input type="tel" id="signupPhone" placeholder="예: 010-1234-5678" data-i18n-placeholder="settings.guardianPhonePlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h2 data-i18n="onboard.signup.pinLabel">PIN 번호 (숫자 4자리)</h2>
+          <div class="field-row">
+            <input type="password" inputmode="numeric" maxlength="4" id="signupPin" placeholder="예: 1234" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+          </div>
+          <div class="field-row" style="margin-top:10px;">
+            <input type="password" inputmode="numeric" maxlength="4" id="signupPinConfirm" placeholder="PIN 다시 입력" data-i18n-placeholder="onboard.signup.pinConfirmPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+          </div>
+        </div>
+
+        <p class="settings-save-note" id="signupError" style="display:none;color:var(--danger-strong,#c0392b);"></p>
+
+        <button class="primary-btn" onclick="handleSignupSubmit()" data-i18n="onboard.signup.submit">가입하기</button>
+        <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="goTo('screen-login')" data-i18n="onboard.signup.toLogin">이미 계정이 있으신가요? 로그인하기</button>
+      </section>
+
+      <!-- 로그인 -->
+      <section class="screen" id="screen-login" data-voice="전화번호와 PIN 번호를 입력해서 로그인해주세요." data-voice-i18n="onboard.login.voice">
+        <div class="topbar"><span></span><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
+        <h1 data-i18n="onboard.login.title">로그인</h1>
+        <p class="desc" data-i18n="onboard.login.desc">가입할 때 쓴 전화번호와 PIN 번호를 입력해주세요.</p>
+
+        <div class="settings-section">
+          <h2 data-i18n="onboard.signup.phoneLabel">전화번호</h2>
+          <div class="field-row">
+            <input type="tel" id="loginPhone" placeholder="예: 010-1234-5678" data-i18n-placeholder="settings.guardianPhonePlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h2 data-i18n="onboard.signup.pinLabel">PIN 번호 (숫자 4자리)</h2>
+          <div class="field-row">
+            <input type="password" inputmode="numeric" maxlength="4" id="loginPin" placeholder="예: 1234" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+          </div>
+        </div>
+
+        <p class="settings-save-note" id="loginError" style="display:none;color:var(--danger-strong,#c0392b);"></p>
+
+        <button class="primary-btn" onclick="handleLoginSubmit()" data-i18n="onboard.login.submit">로그인</button>
+        <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="goTo('screen-signup')" data-i18n="onboard.login.toSignup">계정이 없으신가요? 회원가입</button>
+        <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="goTo('screen-reset-pin')" data-i18n="onboard.login.forgotPin">PIN을 잊으셨나요?</button>
+      </section>
+
+      <!-- PIN 재설정: 알리고 OTP 인증 -->
+      <section class="screen" id="screen-reset-pin" data-voice="이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요." data-voice-i18n="onboard.resetPin.voice">
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-login')" data-i18n="onboard.login.title">← 로그인</button><span></span></div>
+        <h1 data-i18n="onboard.resetPin.title">PIN 재설정</h1>
+        <p class="desc" data-i18n="onboard.resetPin.desc">가입할 때 쓴 이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요.</p>
+
+        <div class="settings-section" id="resetPinStep1">
+          <h2 data-i18n="settings.nameLabel">이름</h2>
+          <div class="field-row">
+            <input type="text" id="resetPinName" placeholder="예: 홍길동" data-i18n-placeholder="settings.namePlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+          </div>
+          <h2 data-i18n="onboard.signup.phoneLabel">전화번호</h2>
+          <div class="field-row" style="margin-top:10px;">
+            <input type="tel" id="resetPinPhone" placeholder="예: 010-1234-5678" data-i18n-placeholder="settings.guardianPhonePlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+          </div>
+          <button class="secondary-btn" style="margin-top:12px;" onclick="handleRequestResetOtp()" data-i18n="onboard.resetPin.requestOtp">인증번호 받기</button>
+        </div>
+
+        <div class="settings-section" id="resetPinStep2" style="display:none;">
+          <h2 data-i18n="onboard.resetPin.otpLabel">인증번호 (6자리)</h2>
+          <div class="field-row">
+            <input type="text" inputmode="numeric" maxlength="6" id="resetPinOtp" placeholder="예: 123456" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+          </div>
+          <h2 style="margin-top:16px;" data-i18n="onboard.signup.pinLabel">PIN 번호 (숫자 4자리)</h2>
+          <div class="field-row">
+            <input type="password" inputmode="numeric" maxlength="4" id="resetPinNewPin" placeholder="예: 1234" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+          </div>
+          <div class="field-row" style="margin-top:10px;">
+            <input type="password" inputmode="numeric" maxlength="4" id="resetPinNewPinConfirm" placeholder="PIN 다시 입력" data-i18n-placeholder="onboard.signup.pinConfirmPlaceholder" style="min-height:56px;border:2px solid var(--line);border-radius:var(--radius-md);padding:0 16px;font-size:18px;color:var(--ink);font-family:inherit;">
+          </div>
+          <button class="primary-btn" style="margin-top:12px;" onclick="handleVerifyResetOtp()" data-i18n="onboard.resetPin.submit">재설정하기</button>
+        </div>
+
+        <p class="settings-save-note" id="resetPinError" style="display:none;color:var(--danger-strong,#c0392b);"></p>
+        <p class="settings-save-note" id="resetPinNotice" style="display:none;"></p>
       </section>
 
       <!-- 이름/성별/연령대/지역 입력 (맞춤 안내용, 선택 사항) -->
@@ -144,7 +244,7 @@
 
 
       <!-- 홈 화면 -->
-      <section class="screen" id="screen-home" data-voice="무엇을 도와드릴까요? AI 문서 분석하기를 눌러 시작해보세요.">
+      <section class="screen" id="screen-home" data-voice="무엇을 도와드릴까요? 문서 촬영, 문자 내용 요약, 경로당 찾기 중에서 골라보세요.">
         <div class="topbar">
           <button class="gear-btn" data-replay aria-label="음성으로 안내받기" style="background:var(--accent-soft);color:var(--accent-strong);"><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg></button>
           <div class="wordmark"><svg class="mark" viewBox="0 0 24 24"><use href="#ic-shield"></use></svg><span>온담</span></div>
@@ -170,18 +270,35 @@
 
         <div class="large-title" data-i18n="home.sectionTitle">무엇을 도와드릴까요?</div>
 
+        <!-- 홈은 가장 자주 쓰는 핵심 기능 3개만 크게 보여준다. 기록·통계·정보 등 나머지는 "더보기"(screen-more)로 옮겼다. -->
         <div class="section">
-          <div class="feature-card ai-analyze-card" onclick="goTo('screen-doc-choice')" role="button" tabindex="0">
-            <div class="fc-icon"><svg viewBox="0 0 24 24"><use href="#ic-doc"></use></svg></div>
-            <div class="fc-text"><div class="fc-title" data-i18n="home.aiAnalyzeTitle">AI 문서 분석하기</div><div class="fc-desc" data-i18n="home.aiAnalyzeDesc">사진 촬영하기·사진 불러오기·문자 내용 불러오기 중에서 골라 AI가 분석해드려요</div></div>
+          <div class="feature-card home-big-card" onclick="goTo('screen-doc-choice')" role="button" tabindex="0">
+            <div class="fc-icon"><svg viewBox="0 0 24 24"><use href="#ic-camera"></use></svg></div>
+            <div class="fc-text"><div class="fc-title" data-i18n="home.docCaptureTitle">문서 촬영</div><div class="fc-desc" data-i18n="home.docCaptureDesc">사진을 찍거나 불러오면 AI가 쉽게 설명해드려요</div></div>
             <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
           </div>
-          <div class="feature-card" onclick="goTo('screen-welfare-nearby')" role="button" tabindex="0">
+          <div class="feature-card home-big-card" onclick="openSmsCheck()" role="button" tabindex="0">
+            <div class="fc-icon" style="background:var(--accent-strong);"><svg viewBox="0 0 24 24"><use href="#ic-chat"></use></svg></div>
+            <div class="fc-text"><div class="fc-title" data-i18n="home.smsCheckTitle">문자 내용 요약</div><div class="fc-desc" data-i18n="home.smsCheckDesc">받은 문자가 안전한지 AI가 확인해드려요</div></div>
+            <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+          </div>
+          <div class="feature-card home-big-card" onclick="goTo('screen-welfare-nearby')" role="button" tabindex="0">
             <div class="fc-icon" style="background:var(--success-strong);"><svg viewBox="0 0 24 24"><use href="#ic-pin"></use></svg></div>
             <div class="fc-text"><div class="fc-title" data-i18n="home.welfareTitle">주변 복지센터·경로당 찾기</div><div class="fc-desc" data-i18n="home.welfareDesc">내 위치 주변 복지센터·경로당 위치를 알려드려요</div></div>
             <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
           </div>
         </div>
+
+        <button class="dashboard-more-btn" style="margin-top:6px;" onclick="goTo('screen-more')" data-i18n="home.moreMenu">더보기</button>
+
+        <div class="disclaimer-banner" data-i18n="home.disclaimer">본 서비스는 AI 분석 결과로 참고용이며,<br>중요 문서는 전문가와 상담하시기 바랍니다.</div>
+      </section>
+
+      <!-- 더보기: 예전에 홈에 있던 오늘 할 일·통계·정보 요약·다가오는 일정을 모아둔 화면.
+           홈을 핵심 3개 기능만 남기고 단순화하면서 여기로 옮겼다. -->
+      <section class="screen" id="screen-more" data-voice="오늘 해야 할 일과 다가오는 일정, 정보를 모아뒀어요.">
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span></span></div>
+        <h1 class="page-title" data-i18n="home.moreMenu">더보기</h1>
 
         <!-- 오늘 해야 할 일 대시보드 카드 -->
         <div class="dashboard-card">
@@ -193,7 +310,7 @@
         </div>
 
         <!-- 다가오는 납부 기한: 기록에 dueDate 가 있는 항목 중 아직 안 지난 것만. 없으면 카드를 숨긴다.
-             합계 금액보다 "언제까지 뭘 내야 하는지"가 실제로 도움이 되므로 홈에 둔다. -->
+             합계 금액보다 "언제까지 뭘 내야 하는지"가 실제로 도움이 되므로 여기 둔다. -->
         <div class="dashboard-card" id="homeDueCard" style="display:none;">
           <div class="dashboard-card-title"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-calendar"></use></svg><span data-i18n="home.dueTitle">곧 내야 할 것</span></div>
           <div class="group" id="homeDueList" style="background:#fff;"></div>
@@ -201,7 +318,7 @@
         </div>
 
         <!-- 정보 요약: 전체 목록은 정보 탭(screen-info)에 있고, 여기서는 앞의 2개만 보여준 뒤 "더보기"로 넘긴다.
-             홈이 다시 길어지지 않도록 항목 수를 늘리지 말 것(HOME_INFO_PREVIEW_COUNT). -->
+             항목 수를 늘리지 말 것(HOME_INFO_PREVIEW_COUNT). -->
         <div class="dashboard-card" id="homeInfoCard" style="display:none;">
           <div class="dashboard-card-title" id="homeInfoTitle"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-info"></use></svg><span data-i18n="home.publicInfoDefault">알아두면 좋은 정보</span></div>
           <div class="group" id="homeInfoList" style="background:#fff;"></div>
@@ -223,10 +340,6 @@
             <div id="scheduleLaterList"></div>
           </div>
         </div>
-
-        <!-- 기록·설정 아이콘 버튼과 최근 기록 카드는 하단 네비게이션 바가 대체한다 -->
-
-        <div class="disclaimer-banner" data-i18n="home.disclaimer">본 서비스는 AI 분석 결과로 참고용이며,<br>중요 문서는 전문가와 상담하시기 바랍니다.</div>
       </section>
 
       <!-- 되묻기: 방금 확인한 문서·문자에 대해서만 질문한다(자유 대화가 아니다).
@@ -261,7 +374,7 @@
 
         <p class="settings-save-note" style="text-align:left;" data-i18n="docCollect.hint">여러 장을 찍으셔도 됩니다. 같은 문서의 앞뒤든, 서로 다른 문서든 알아서 구분해 드려요.</p>
 
-        <button class="secondary-btn" id="pendingAddBtn" style="margin-top:14px;" onclick="capturePhoto()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-camera"></use></svg><span data-i18n="docCollect.addMore">사진 더 찍기</span></button>
+        <button class="secondary-btn" id="pendingAddBtn" style="margin-top:14px;" onclick="goTo('screen-doc-capture')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-camera"></use></svg><span data-i18n="docCollect.addMore">사진 더 찍기</span></button>
         <button class="primary-btn" style="margin-top:12px;" onclick="analyzePendingPhotos()" data-i18n="docCollect.analyze">분석하기</button>
       </section>
 
@@ -269,6 +382,18 @@
            기록에 금액·기한이 하나도 없으면(=Worker 배포 전) 안내 문구만 보여준다. -->
       <section class="screen" id="screen-stats" data-voice="지금까지 확인한 고지서의 금액과 납부 기한을 모아서 보여드려요.">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-list"></use></svg><span data-i18n="stats.title">고지서 통계</span></span><span></span></div>
+
+        <!-- 보호자용 안전 확인 현황: 지금까지 몇 건을 확인했고, 그중 위험으로 판정된 게 몇 건인지 요약.
+             appState.history에 이미 저장된 분석 결과(entry.analysis.status)만 집계하므로 새 데이터를 만들지 않는다. -->
+        <div class="section" id="statsSafetySection" style="display:none;">
+          <div class="section-label" data-i18n="stats.safetyLabel">보호자용 안전 확인 현황</div>
+          <div class="stat-hero" id="statsSafetyHero" style="background:var(--danger-soft);">
+            <div class="stat-hero-label" data-i18n="stats.safetyDangerCount">위험으로 판정된 건수</div>
+            <div class="stat-hero-value" id="statsSafetyDangerCount" style="color:var(--danger-strong);"></div>
+            <div class="stat-hero-sub" id="statsSafetyTotalCount"></div>
+          </div>
+          <div class="group" id="statsSafetyList" style="background:#fff;margin-top:10px;"></div>
+        </div>
 
         <div class="stat-hero" id="statsMonthCard" style="display:none;">
           <div class="stat-hero-label" data-i18n="stats.thisMonth">이번 달 고지서</div>
@@ -510,13 +635,12 @@
       </section>
 
       <!-- 사용 방법 안내: 문자 설명 -->
-      <section class="screen" id="screen-help-sms" data-voice="홈 화면에서 문자 내용 요약을 누르고, 문자 앱에서 실제 문자를 복사해 붙여넣으면 AI가 안전한지 확인해드려요.">
+      <section class="screen" id="screen-help-sms" data-voice="홈 화면에서 문자 내용 요약을 누르면 최근 받은 문자 중에서 골라 AI가 안전한지 확인해드려요.">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-help')">← 뒤로</button><span></span></div>
         <h1 class="page-title"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-chat"></use></svg>문자 확인 방법</h1>
         <div class="todo-list">
           <div class="checklist-row"><label style="cursor:default;">홈 화면에서 "문자 내용 요약" 카드를 누르세요</label></div>
-          <div class="checklist-row"><label style="cursor:default;">문자 앱을 열어 확인하고 싶은 문자를 길게 눌러 복사하세요</label></div>
-          <div class="checklist-row"><label style="cursor:default;">다시 이 앱으로 돌아와 복사한 문자를 붙여넣으세요</label></div>
+          <div class="checklist-row"><label style="cursor:default;">최근 받은 문자 목록이 뜨면 확인하고 싶은 문자를 누르세요</label></div>
           <div class="checklist-row"><label style="cursor:default;">AI가 안전한 문자인지, 위험한 문자인지 알려드려요</label></div>
         </div>
         <div class="tip-card">
@@ -527,7 +651,7 @@
             <li>"위험 감지" 표시가 뜨면 절대 응답하지 말고 118로 신고하세요</li>
           </ul>
         </div>
-        <button class="primary-btn" onclick="goTo('screen-sms-phone')">문자 확인하러 가기</button>
+        <button class="primary-btn" onclick="openSmsCheck()">문자 확인하러 가기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="startCoachmark(smsMiniCoachSteps)">체험해보기</button>
         <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-help')">다른 게 궁금해요</button>
       </section>
@@ -624,12 +748,12 @@
       </section>
 
       <!-- 문서 찍기: 사진/갤러리 선택 -->
-      <section class="screen" id="screen-doc-choice" data-voice="사진 촬영하기, 사진 불러오기, 문자 내용 불러오기 중에서 골라주세요." data-voice-i18n="docChoice.voice">
+      <section class="screen" id="screen-doc-choice" data-voice="사진 촬영하기, 사진 불러오기 중에서 골라주세요." data-voice-i18n="docChoice.voice">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span class="header-title"><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg><span data-i18n="docChoice.title">AI 분석하기</span></span><button class="gear-btn" onclick="goTo('screen-settings')" aria-label="설정"><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg></button></div>
 
         <div class="hero-card">
           <div class="hero-icon"><svg viewBox="0 0 24 24"><use href="#ic-doc"></use></svg></div>
-          <p class="desc" data-i18n="docChoice.desc">분석하고 싶은 문서를 촬영하거나 사진첩에서 불러오세요.<br>문자 내용도 불러와 확인할 수 있어요.</p>
+          <p class="desc" data-i18n="docChoice.desc">분석하고 싶은 문서를 촬영하거나 사진첩에서 불러오세요.</p>
         </div>
         <button class="voice-pill block" data-replay><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="docChoice.voicePill">음성 안내 다시 듣기</span></button>
 
@@ -641,11 +765,6 @@
         <div class="feature-card" onclick="pickFromGallery()" role="button" tabindex="0">
           <div class="fc-icon soft"><svg viewBox="0 0 24 24"><use href="#ic-image"></use></svg></div>
           <div class="fc-text"><div class="fc-title" data-i18n="docChoice.galleryTitle">사진 불러오기</div><div class="fc-desc" data-i18n="docChoice.galleryDesc">저장된 사진을 불러옵니다</div></div>
-          <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
-        </div>
-        <div class="feature-card" onclick="goTo('screen-sms-phone')" role="button" tabindex="0">
-          <div class="fc-icon soft"><svg viewBox="0 0 24 24"><use href="#ic-chat"></use></svg></div>
-          <div class="fc-text"><div class="fc-title" data-i18n="docChoice.smsTitle">문자 내용 불러오기</div><div class="fc-desc" data-i18n="docChoice.smsDesc">문자 앱에서 문자를 복사해 불러옵니다</div></div>
           <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
         </div>
 
@@ -705,11 +824,15 @@
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-doc-choice')" data-i18n="common.back">← 뒤로</button><span></span></div>
         <p class="step-label" data-i18n="docCapture.inProgress">🔵 진행 중</p>
         <div class="camera-view">
-          <!-- 실제 카메라 미리보기가 아니므로 가짜 문서를 그리지 않고, 촬영 자세만 안내하는 테두리 가이드를 보여준다 -->
-          <div class="camera-guide">
+          <!-- 인앱 카메라: 외부 카메라 앱으로 나가지 않고 getUserMedia로 웹뷰 안에 실시간 미리보기를 띄운다.
+               지원 안 되는 환경(구형 기기·데스크톱 권한 거부 등)에서는 startInAppCamera()가 안내 문구만 남기고
+               capturePhoto()(네이티브/파일 선택)로 조용히 폴백한다. -->
+          <video id="inAppCameraVideo" autoplay playsinline muted class="camera-live-video" style="display:none;"></video>
+          <canvas id="inAppCameraCanvas" style="display:none;"></canvas>
+          <div class="camera-guide" id="cameraGuideText">
             <span data-i18n="docCapture.guide">문서를 화면 가운데<br>오도록 맞춰주세요</span>
           </div>
-          <div class="camera-shutter" onclick="capturePhoto()" role="button" tabindex="0" aria-label="촬영하기"></div>
+          <div class="camera-shutter" onclick="captureInAppPhoto()" role="button" tabindex="0" aria-label="촬영하기"></div>
         </div>
         <p class="caption" data-i18n="docCapture.caption">👆 촬영 버튼을 눌러주세요</p>
         <button class="nav-btn" style="align-self:center;color:var(--ink-faint);font-size:14px;" onclick="goTo('screen-doc-blur-example')" data-i18n="docCapture.blurExample">사진이 흐릿하게 나왔다면? (예시 보기)</button>
@@ -841,84 +964,32 @@
         <button class="primary-btn" style="margin-top:12px;" onclick="finishDocResult()" data-i18n="result.docConfirm">확인 완료</button>
       </section>
 
-      <!-- 실사용: 문자 - 휴대폰 홈 -->
-      <section class="screen" id="screen-sms-phone" data-voice="문자 앱을 눌러주세요." data-voice-i18n="sms.phoneVoice">
+      <!-- 실사용: 문자 읽기 권한이 없거나(거부/미지원) 요청 중일 때 -->
+      <section class="screen" id="screen-sms-permission-needed" data-voice="문자 확인을 하려면 문자 읽기 권한이 필요해요." data-voice-i18n="sms.permission.voice">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span></span></div>
-        <div class="phone-status-bar" data-i18n="sms.statusTime">오후 2:34</div>
-        <h1 style="text-align:center;font-size:20px;" data-i18n="sms.phoneHome">휴대폰 홈</h1>
-        <div class="app-grid">
-          <div class="app-icon-wrap disabled"><div class="app-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8a938e" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.34 1.79.65 2.65a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.43-1.27a2 2 0 0 1 2.11-.45c.86.31 1.75.53 2.65.65A2 2 0 0 1 22 16.92z"/></svg></div><span class="app-icon-label" data-i18n="sms.appPhone">전화</span></div>
-          <div class="app-icon-wrap">
-            <div class="app-icon msg pulse" onclick="handleSmsAppOpen()" role="button" tabindex="0"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-            <span class="app-icon-label" style="color:var(--accent-strong);font-weight:700;" data-i18n="sms.appSms">💬 문자</span>
-          </div>
-          <div class="app-icon-wrap disabled"><div class="app-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8a938e" stroke-width="2"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="3.5"/></svg></div><span class="app-icon-label" data-i18n="sms.appCamera">카메라</span></div>
-        </div>
-        <p class="caption" data-i18n="sms.phoneCaption">👆 💬 문자 앱을 눌러주세요</p>
-        <div style="flex:1;"></div>
-        <button class="secondary-btn" onclick="handleSmsAppOpen()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-chat"></use></svg><span data-i18n="sms.openSmsApp">문자 앱 열기</span></button>
-      </section>
-
-      <!-- 튜토리얼 전용: 실제 문자 앱으로 나가는 대신, 앱 안에서 문자 앱처럼 보이는 연습 화면 -->
-      <section class="screen" id="screen-tutorial-sms-mock" data-voice="이 문자를 길게 눌러 복사해보세요. 실제 문자 앱에서도 이렇게 하시면 돼요.">
-        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-sms-phone')">← 뒤로</button><span></span></div>
-        <div class="phone-status-bar">오후 2:34</div>
-        <h1 style="text-align:center;font-size:20px;">💬 문자</h1>
-        <p class="desc" style="text-align:center;">이 문자를 길게 눌러 복사해보세요.<br>실제 문자 앱에서도 이렇게 하시면 돼요.</p>
-        <div style="position:relative;">
-          <div class="compose-box filled pulse" role="button" tabindex="0" style="margin:0;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;"
-            onmousedown="tutorialHoldStart()" onmouseup="tutorialHoldCancel()" onmouseleave="tutorialHoldCancel()"
-            ontouchstart="tutorialHoldStart()" ontouchend="tutorialHoldCancel()">[국민건강보험공단] 건강검진비 환급 대상입니다. 아래 링크에서 계좌번호를 입력해주세요. bit.ly/hcheck-refund</div>
-          <button class="tutorial-copy-popup" id="tutorialCopyPopup" style="display:none;" onclick="tutorialCopySms()">📋 복사하기</button>
-        </div>
-      </section>
-
-      <!-- 실사용: 복사 완료 → 앱 전환 -->
-      <section class="screen" id="screen-sms-switch" data-voice="복사가 완료됐어요. 이제 AI 디지털 도우미 앱으로 돌아가주세요." data-voice-i18n="sms.switchVoice">
-        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
         <div class="center-col">
           <div class="icon-circle">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#2454e6" stroke-width="2" width="40" height="40"><path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#2454e6" stroke-width="2" width="40" height="40"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01" stroke-linecap="round" stroke-width="2.4"/></svg>
           </div>
-          <h1 data-i18n="sms.switchTitle">복사가 완료됐어요!</h1>
-          <p class="desc" data-i18n="sms.switchDesc">이제 AI 디지털 도우미 앱으로<br>돌아가주세요.</p>
+          <h1 id="smsPermissionTitle" data-i18n="sms.permission.title">문자 확인을 하려면<br>문자 읽기 권한이 필요해요.</h1>
+          <p class="desc" id="smsPermissionDesc" data-i18n="sms.permission.desc">확인을 누른 문자만 서버로 보내 분석해요.<br>다른 문자는 읽지 않아요.</p>
         </div>
-        <button class="primary-btn pulse" onclick="goTo('screen-sms-paste')" data-i18n="sms.switchOpenApp">AI 디지털 도우미 앱 열기</button>
+        <button class="primary-btn" id="smsPermissionRetryBtn" onclick="openSmsCheck()" data-i18n="sms.permission.retry">다시 시도</button>
+        <button class="secondary-btn" id="smsPermissionSettingsBtn" style="margin-top:12px;" onclick="openSmsAppSettings()" data-i18n="sms.permission.openSettings">앱 설정에서 허용하기</button>
       </section>
 
-      <!-- 실사용: 붙여넣기 -->
-      <section class="screen" id="screen-sms-paste" data-voice="문자 내용을 길게 눌러 이 칸에 붙여넣어주세요." data-voice-i18n="sms.pasteVoice">
-        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-sms-switch')" data-i18n="common.back">← 뒤로</button><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
-        <h1 data-i18n="sms.pasteTitle">여기에<br>문자 내용을 붙여넣어주세요.</h1>
-        <textarea id="smsPasteInput" class="compose-box" style="min-height:140px;width:100%;text-align:left;align-items:flex-start;font-family:inherit;font-size:calc(17px * var(--scale));padding:16px;" placeholder="여기를 길게 눌러 붙여넣기(Paste)를 선택하세요" data-i18n-placeholder="sms.pastePlaceholder"></textarea>
-        <button class="primary-btn" style="margin-top:16px;" onclick="confirmSmsPaste()" data-i18n="sms.confirm">확인</button>
-      </section>
-
-      <!-- 오류: 붙여넣은 문자 내용이 너무 짧음 -->
-      <section class="screen" id="screen-text-error" data-voice="문자 내용이 너무 짧아서 확인하기 어려워요. 문자 전체를 다시 복사해주세요." data-voice-i18n="error.textShortVoice">
-        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-sms-paste')" data-i18n="common.back">← 뒤로</button><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
-        <div class="center-col">
-          <div class="icon-circle danger">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#b3261e" stroke-width="2" width="40" height="40"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M9.5 10.5 14.5 13.5M14.5 10.5 9.5 13.5" stroke-linecap="round"/></svg>
-          </div>
-          <h1 data-i18n="error.textShortTitle">내용이 너무 짧아요.</h1>
-          <p class="desc" data-i18n="error.textShortDesc">문자 전체가 복사되지 않은 것 같아요.<br>다시 복사해서 붙여넣어주세요.</p>
-        </div>
-        <div class="error-hint" data-i18n="error.textShortHint">💡 문자를 길게 눌렀을 때 나오는 메뉴에서 '복사'를 눌렀는지 확인해주세요.</div>
-        <button class="primary-btn" onclick="goTo('screen-sms-paste')" data-i18n="error.pasteAgain">다시 붙여넣기</button>
-      </section>
-
-      <!-- 실사용: 붙여넣기 완료 -->
-      <section class="screen" id="screen-sms-filled" data-voice="문자 내용이 잘 들어왔어요. 확인 버튼을 눌러 결과를 확인해보세요." data-voice-i18n="sms.filledVoice">
-        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-sms-paste')" data-i18n="common.back">← 뒤로</button><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
-        <h1 data-i18n="sms.filledTitle">문자 내용이<br>들어왔어요.</h1>
-        <div class="compose-box filled" id="smsFilledPreview"></div>
-        <button class="primary-btn" onclick="startSmsAnalysis()" data-i18n="sms.confirm">확인</button>
+      <!-- 실사용: 최근 문자 목록에서 골라 확인 (복사/붙여넣기 없음) -->
+      <section class="screen" id="screen-sms-recent" data-voice="최근 문자 목록을 가져왔어요. 확인하고 싶은 문자를 눌러주세요." data-voice-i18n="sms.recent.voice">
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">← 홈으로</button><span></span></div>
+        <h1 class="page-title" data-i18n="sms.recent.title">최근 문자</h1>
+        <p class="desc" id="smsRecentCount" data-i18n="sms.recent.desc">최근 문자를 가져왔어요. 확인하고 싶은 문자를 눌러주세요.</p>
+        <div class="group" id="smsRecentList" style="background:#fff;"></div>
+        <div class="empty-state" id="smsRecentEmpty" style="display:none;" data-i18n="sms.recent.empty">받은 문자가 없어요.</div>
       </section>
 
       <!-- 실사용: 문자 로딩 -->
       <section class="screen" id="screen-loading-text" data-voice="문자를 확인하고, 해야 할 일을 그림으로도 준비하고 있습니다. 잠시만 기다려주세요.">
-        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-sms-filled')">← 뒤로</button><span></span></div>
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-sms-recent')">← 뒤로</button><span></span></div>
         <p class="step-label"><span class="badge badge-blue" style="font-size:14px;padding:4px 10px;">🔵 진행 중</span></p>
         <div class="progress-wrap">
           <div class="spin" aria-hidden="true"></div>
@@ -938,6 +1009,7 @@
           <span class="danger-pill" data-i18n="result.dangerPill">⚠ 위험 감지</span>
           <span class="badge">위험 · 응답하지 마세요</span>
           <div class="headline">이 문자는 위험할 수 있어요.</div>
+          <div class="reason-label" data-i18n="result.reasonLabel">왜 위험한가요?</div>
           <div class="subtext">공공기관은 문자로 계좌번호나 링크 클릭을 요구하지 않습니다. 절대 누르지 마세요.</div>
         </div>
         <button class="voice-pill block" data-replay><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="result.listenVoice">음성으로 듣기</span></button>
@@ -947,23 +1019,9 @@
           <img id="smsIllustrationImg" alt="">
         </div>
 
-        <div class="section-label" data-i18n="result.actNowLabel">지금 바로 대처하세요</div>
-        <!-- renderSmsResult()가 이번 분석의 checklist로 채운다. 예전에는 아래 두 문장이 고정 텍스트라
-             문자가 바뀌어도 그대로였다 - 지금은 매번 실제 판별 결과로 다시 그린다. -->
-        <div class="todo-list" id="smsTodoList">
-          <div class="checklist-row"><label style="cursor:default;">상대방이 요구하는 계좌번호나 비밀번호를 절대 말하지 마세요.</label></div>
-          <div class="checklist-row"><label style="cursor:default;">가족이나 가까운 지인에게 지금 상황을 꼭 알리세요.</label></div>
-        </div>
-
-        <button class="guardian-btn" onclick="notifyGuardian()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-bell"></use></svg><span data-i18n="result.notifyGuardian">보호자에게 문자로 알리기</span></button>
+        <button class="guardian-btn" onclick="notifyGuardian()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-bell"></use></svg><span data-i18n="result.notifyGuardian">보호자에게 문자 전달하기</span></button>
         <p class="guardian-note" id="guardianNoteText"></p>
-        <div class="action-row">
-          <a class="secondary-btn" href="tel:118"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg><span data-i18n="result.report118">118 신고(경찰청 상담)</span></a>
-          <button class="secondary-btn" onclick="callGuardian()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-phone"></use></svg><span data-i18n="result.callFamily">가족에게 전화</span></button>
-        </div>
-        <button class="secondary-btn" style="margin-top:10px;" onclick="openAsk('sms')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-question"></use></svg><span data-i18n="result.askSms">이 문자에 대해 물어보기</span></button>
-        <button class="secondary-btn" style="margin-top:10px;" onclick="shareResult('sms')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-share"></use></svg><span data-i18n="result.share">자녀에게 보내기</span></button>
-        <button class="secondary-btn" style="margin-top:10px;" onclick="goTo('screen-sms-phone')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-chat"></use></svg><span data-i18n="result.checkAnotherSms">다른 문자 확인하기</span></button>
+        <button class="secondary-btn" style="margin-top:10px;" onclick="openSmsCheck()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-chat"></use></svg><span data-i18n="result.checkAnotherSms">다른 문자 확인하기</span></button>
         <p class="settings-save-note" style="margin-top:14px;" data-i18n="result.legalNote">본 판별은 인공지능 분석 결과이므로 법적 효력이 없습니다.<br>의심스러운 경우 반드시 관계 기관에 직접 문의하세요.</p>
         <button class="primary-btn" style="margin-top:14px;" onclick="finishSmsResult()" data-i18n="result.textConfirm">확인했습니다</button>
         <button class="practice-again-box" style="margin-top:12px;" onclick="goTo('screen-greet')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-refresh"></use></svg><span data-i18n="result.practiceAgain">연습 다시 하기</span></button>
@@ -991,9 +1049,9 @@
         <div class="settings-section">
           <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-textsize"></use></svg><span data-i18n="settings.fontSize">화면 글자 크기</span></h2>
           <div class="segmented" id="fontScaleGroup">
-            <button data-scale="1" onclick="setFontScale(1)" data-i18n="settings.fontNormal">보통</button>
-            <button data-scale="1.15" onclick="setFontScale(1.15)" data-i18n="settings.fontLarge">크게</button>
-            <button data-scale="1.3" onclick="setFontScale(1.3)" data-i18n="settings.fontXLarge">아주 크게</button>
+            <button data-scale="1.15" onclick="setFontScale(1.15)" data-i18n="settings.fontNormal">보통</button>
+            <button data-scale="1.3" onclick="setFontScale(1.3)" data-i18n="settings.fontLarge">크게</button>
+            <button data-scale="1.45" onclick="setFontScale(1.45)" data-i18n="settings.fontXLarge">아주 크게</button>
           </div>
         </div>
 
@@ -1015,6 +1073,12 @@
               <span class="track"></span>
             </label>
           </div>
+        </div>
+
+        <div class="settings-section">
+          <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-user"></use></svg><span data-i18n="settings.accountTitle">계정</span></h2>
+          <p class="settings-save-note" style="text-align:left;" id="accountInfoLine"></p>
+          <button class="secondary-btn" style="margin-top:10px;" onclick="handleLogout()" data-i18n="settings.logout">로그아웃</button>
         </div>
 
         <div class="settings-section">

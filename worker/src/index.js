@@ -24,7 +24,7 @@ export class AnthropicProxy {
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, X-Auth-Token',
 };
 
 const ANALYSIS_SCHEMA = {
@@ -153,9 +153,68 @@ function json(data, status) {
   });
 }
 
+/** 토큰·salt용 랜덤 hex 문자열. bytes=16이면 32자 hex. */
+function randomHex(bytes) {
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** SHA-256 해시를 hex 문자열로. PIN/OTP는 평문으로 저장하지 않고 항상 이걸 거친다. */
+async function sha256Hex(text) {
+  const data = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** "123456" 형식의 6자리 숫자 OTP 하나를 만든다. */
+function generateOtp() {
+  const n = crypto.getRandomValues(new Uint32Array(1))[0] % 1000000;
+  return String(n).padStart(6, '0');
+}
+
+/** 알리고(Aligo) SMS 발송. 자격 증명이 없거나 호출이 실패하면 false만 반환한다(throw하지 않음) —
+ *  호출부가 "OTP를 만들었는지"와 "실제로 보내졌는지"를 구분해 처리할 수 있게 하기 위함. */
+async function sendAligoSms(env, phoneDigits, message) {
+  if (!env.ALIGO_API_KEY || !env.ALIGO_USER_ID || !env.ALIGO_SENDER) return false;
+  try {
+    const form = new URLSearchParams({
+      key: env.ALIGO_API_KEY,
+      user_id: env.ALIGO_USER_ID,
+      sender: env.ALIGO_SENDER,
+      receiver: phoneDigits,
+      msg: message,
+    });
+    const res = await fetch('https://apis.aligo.in/send/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    // 알리고는 HTTP 200이어도 result_code가 음수면 실패다.
+    return Number(data.result_code) >= 0;
+  } catch (err) {
+    console.warn('알리고 발송 실패:', err && err.message || err);
+    return false;
+  }
+}
+
+/** X-User-Id/X-Auth-Token 헤더가 실제 발급된 토큰과 일치하는 유저인지 확인한다.
+ *  일치하면 유저 id(숫자)를, 아니면 null을 반환한다 — throw하지 않아 호출부가 항상 401 처리로 통일할 수 있다. */
+async function authenticateRequest(env, request) {
+  const userId = Number(request.headers.get('X-User-Id'));
+  const token = request.headers.get('X-Auth-Token');
+  if (!userId || !token) return null;
+  const row = await env.ansim_doumi_db.prepare(
+    `SELECT id FROM users WHERE id = ? AND token = ?`
+  ).bind(userId, token).first();
+  return row ? row.id : null;
+}
+
 const RELAY_URL = 'https://relay-jet-six.vercel.app';
 
-async function runAnalysis(env, content, schema = ANALYSIS_SCHEMA) {
+async function runAnalysis(env, content, schema = ANALYSIS_SCHEMA, maxTokens = 4096) {
   // Cloudflare 데이터센터 IP 대역이 Anthropic API에서 차단되어(리전 무관), Cloudflare 밖의
   // Vercel 중계 서버(relay/)를 거쳐 호출한다. RELAY_SECRET은 이 중계 서버를 아무나 호출해
   // Anthropic 크레딧을 소모하지 못하도록 막는 공유 비밀값이다.
@@ -169,7 +228,7 @@ async function runAnalysis(env, content, schema = ANALYSIS_SCHEMA) {
       model: 'claude-opus-4-8',
       // 문서 분석은 문서마다 12개 필드를 채우고 여러 개로 나뉠 수도 있어 1024로는 응답이 잘린다.
       // 잘리면 JSON 파싱이 깨져 "분석에 실패했습니다"로 떨어지므로 넉넉히 잡는다.
-      max_tokens: 4096,
+      max_tokens: maxTokens,
       output_config: { format: { type: 'json_schema', schema } },
       messages: [{ role: 'user', content }],
     }),
@@ -237,7 +296,7 @@ export default {
     }
 
     const url = new URL(request.url);
-    const isAllowedGet = request.method === 'GET' && (url.pathname === '/profile' || url.pathname === '/region-info');
+    const isAllowedGet = request.method === 'GET' && (url.pathname === '/state' || url.pathname === '/region-info');
     if (request.method !== 'POST' && !isAllowedGet) {
       return json({ error: 'Not found' }, 404);
     }
@@ -346,44 +405,195 @@ export default {
       }
     }
 
-    /* 로그인이 없으므로 기기별 임의 deviceId로 프로필(이름/성별/연령대/지역)을 D1에 저장한다 */
-    if (url.pathname === '/profile' && request.method === 'POST') {
+    if (url.pathname === '/signup' && request.method === 'POST') {
       let body;
       try {
         body = await request.json();
       } catch {
         return json({ error: '잘못된 요청입니다.' }, 400);
       }
-      const { deviceId, name, gender, age, region } = body || {};
-      if (!deviceId || typeof deviceId !== 'string') return json({ error: 'deviceId가 없습니다.' }, 400);
+      const { phone, pin, name } = body || {};
+      const phoneDigits = String(phone || '').replace(/\D/g, '');
+      if (phoneDigits.length < 9) return json({ error: 'invalid_phone' }, 400);
+      if (!/^\d{4}$/.test(String(pin || ''))) return json({ error: 'invalid_pin' }, 400);
 
       try {
-        await env.ansim_doumi_db.prepare(
-          `INSERT INTO profiles (device_id, name, gender, age_band, region, updated_at)
-           VALUES (?, ?, ?, ?, ?, datetime('now'))
-           ON CONFLICT(device_id) DO UPDATE SET
-             name = excluded.name, gender = excluded.gender,
-             age_band = excluded.age_band, region = excluded.region,
-             updated_at = excluded.updated_at`
-        ).bind(deviceId, name || '', gender || '', age ? String(age) : '', region || '').run();
-        return json({ ok: true }, 200);
+        const existing = await env.ansim_doumi_db.prepare(
+          `SELECT id FROM users WHERE phone = ?`
+        ).bind(phoneDigits).first();
+        if (existing) return json({ error: 'phone_exists' }, 409);
+
+        const pinSalt = randomHex(16);
+        const pinHash = await sha256Hex(pinSalt + pin);
+        const token = randomHex(32);
+
+        const inserted = await env.ansim_doumi_db.prepare(
+          `INSERT INTO users (phone, pin_hash, pin_salt, name, token)
+           VALUES (?, ?, ?, ?, ?)`
+        ).bind(phoneDigits, pinHash, pinSalt, name || '', token).run();
+
+        const userId = inserted.meta.last_row_id;
+        return json({ userId, token, name: name || '' }, 200);
       } catch (err) {
-        return json({ error: '저장에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+        return json({ error: '가입에 실패했습니다.', detail: String(err && err.message || err) }, 502);
       }
     }
 
-    if (url.pathname === '/profile' && request.method === 'GET') {
-      const deviceId = url.searchParams.get('deviceId');
-      if (!deviceId) return json({ error: 'deviceId가 없습니다.' }, 400);
+    if (url.pathname === '/login' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      const { phone, pin } = body || {};
+      const phoneDigits = String(phone || '').replace(/\D/g, '');
 
       try {
+        const user = await env.ansim_doumi_db.prepare(
+          `SELECT id, pin_hash, pin_salt, name, failed_attempts, locked_until FROM users WHERE phone = ?`
+        ).bind(phoneDigits).first();
+
+        if (!user) return json({ error: 'invalid' }, 401);
+
+        if (user.locked_until && new Date(user.locked_until).getTime() > Date.now()) {
+          return json({ error: 'locked' }, 423);
+        }
+
+        const pinHash = await sha256Hex(user.pin_salt + String(pin || ''));
+        if (pinHash !== user.pin_hash) {
+          const attempts = (user.failed_attempts || 0) + 1;
+          const lockedUntil = attempts >= 5
+            ? new Date(Date.now() + 15 * 60 * 1000).toISOString()
+            : null;
+          await env.ansim_doumi_db.prepare(
+            `UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?`
+          ).bind(attempts, lockedUntil, user.id).run();
+          return json({ error: lockedUntil ? 'locked' : 'invalid' }, lockedUntil ? 423 : 401);
+        }
+
+        const token = randomHex(32);
+        await env.ansim_doumi_db.prepare(
+          `UPDATE users SET token = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?`
+        ).bind(token, user.id).run();
+
+        return json({ userId: user.id, token, name: user.name || '' }, 200);
+      } catch (err) {
+        return json({ error: '로그인에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
+    if (url.pathname === '/request-pin-reset-otp' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      const { phone, name } = body || {};
+      const phoneDigits = String(phone || '').replace(/\D/g, '');
+
+      try {
+        const user = await env.ansim_doumi_db.prepare(
+          `SELECT id FROM users WHERE phone = ? AND name = ?`
+        ).bind(phoneDigits, String(name || '')).first();
+
+        // 계정 존재 여부를 노출하지 않기 위해, 일치하지 않아도 여기서 바로 성공 응답을 준비한다(아래서 return).
+        if (user) {
+          const otp = generateOtp();
+          const otpHash = await sha256Hex(otp);
+          const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+          await env.ansim_doumi_db.prepare(
+            `UPDATE users SET otp_hash = ?, otp_expires_at = ?, otp_attempts = 0 WHERE id = ?`
+          ).bind(otpHash, expiresAt, user.id).run();
+
+          const sent = await sendAligoSms(env, phoneDigits, `[온담] 인증번호는 ${otp}입니다. 5분 이내에 입력해주세요.`);
+          if (!sent) return json({ error: 'sms_failed' }, 502);
+        }
+
+        return json({ ok: true }, 200);
+      } catch (err) {
+        return json({ error: '요청 처리에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
+    if (url.pathname === '/verify-pin-reset-otp' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      const { phone, otp, newPin } = body || {};
+      const phoneDigits = String(phone || '').replace(/\D/g, '');
+      if (!/^\d{4}$/.test(String(newPin || ''))) return json({ error: 'invalid_pin' }, 400);
+
+      try {
+        const user = await env.ansim_doumi_db.prepare(
+          `SELECT id, otp_hash, otp_expires_at, otp_attempts FROM users WHERE phone = ?`
+        ).bind(phoneDigits).first();
+        if (!user || !user.otp_hash) return json({ error: 'otp_invalid', attemptsLeft: 0 }, 401);
+
+        if (new Date(user.otp_expires_at).getTime() < Date.now()) {
+          return json({ error: 'otp_expired' }, 410);
+        }
+        if ((user.otp_attempts || 0) >= 5) {
+          return json({ error: 'otp_locked' }, 429);
+        }
+
+        const otpHash = await sha256Hex(String(otp || ''));
+        if (otpHash !== user.otp_hash) {
+          const attempts = (user.otp_attempts || 0) + 1;
+          await env.ansim_doumi_db.prepare(
+            `UPDATE users SET otp_attempts = ? WHERE id = ?`
+          ).bind(attempts, user.id).run();
+          return json({ error: 'otp_invalid', attemptsLeft: 5 - attempts }, 401);
+        }
+
+        const pinSalt = randomHex(16);
+        const pinHash = await sha256Hex(pinSalt + String(newPin));
+        await env.ansim_doumi_db.prepare(
+          `UPDATE users SET pin_hash = ?, pin_salt = ?, otp_hash = NULL, otp_expires_at = NULL, otp_attempts = 0 WHERE id = ?`
+        ).bind(pinHash, pinSalt, user.id).run();
+
+        return json({ ok: true }, 200);
+      } catch (err) {
+        return json({ error: '재설정에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
+    if (url.pathname === '/state' && request.method === 'GET') {
+      const userId = await authenticateRequest(env, request);
+      if (!userId) return json({ error: 'unauthorized' }, 401);
+      try {
         const row = await env.ansim_doumi_db.prepare(
-          `SELECT name, gender, age_band as age, region FROM profiles WHERE device_id = ?`
-        ).bind(deviceId).first();
-        if (row && row.age) row.age = parseInt(row.age, 10) || null;
-        return json(row || { name: '', gender: '', age: null, region: '' }, 200);
+          `SELECT state_json FROM user_state WHERE user_id = ?`
+        ).bind(userId).first();
+        return json({ state: row ? JSON.parse(row.state_json) : null }, 200);
       } catch (err) {
         return json({ error: '불러오기에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
+    if (url.pathname === '/state' && request.method === 'POST') {
+      const userId = await authenticateRequest(env, request);
+      if (!userId) return json({ error: 'unauthorized' }, 401);
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      try {
+        await env.ansim_doumi_db.prepare(
+          `INSERT INTO user_state (user_id, state_json, updated_at)
+           VALUES (?, ?, datetime('now'))
+           ON CONFLICT(user_id) DO UPDATE SET
+             state_json = excluded.state_json, updated_at = excluded.updated_at`
+        ).bind(userId, JSON.stringify(body.state || {})).run();
+        return json({ ok: true }, 200);
+      } catch (err) {
+        return json({ error: '저장에 실패했습니다.', detail: String(err && err.message || err) }, 502);
       }
     }
 
@@ -396,6 +606,52 @@ export default {
       '의왕시', '하남시', '용인시', '파주시', '이천시', '안성시', '김포시', '화성시',
       '광주시', '양주시', '포천시', '여주시', '연천군', '가평군', '양평군'
     ];
+
+    /* 언어 설정: 정적으로 미리 옮겨둔 5개 언어 번역 대신, 화면 문구(I18N.ko)를 실시간으로 번역한다.
+       기기별로 언어당 한 번만 호출하고 결과를 localStorage에 캐시해 재사용한다(js/script.js의
+       translateUiIfNeeded 참고) — 매번 언어를 바꿀 때마다 호출하지 않는다. */
+    const TRANSLATE_LANG_NAMES = { zh: '중국어(간체)', vi: '베트남어', th: '태국어', uz: '우즈베크어' };
+    const TRANSLATE_SCHEMA = {
+      type: 'object',
+      properties: { translations: { type: 'array', items: { type: 'string' } } },
+      required: ['translations'],
+      additionalProperties: false,
+    };
+
+    if (url.pathname === '/translate' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+
+      const { lang, texts } = body || {};
+      const langName = TRANSLATE_LANG_NAMES[lang];
+      if (!langName) return json({ error: '지원하지 않는 언어입니다.' }, 400);
+      if (!Array.isArray(texts) || texts.length === 0) return json({ error: '번역할 문구가 없습니다.' }, 400);
+      if (texts.length > 500) return json({ error: '한 번에 번역할 수 있는 문구는 500개까지입니다.' }, 400);
+
+      const prompt = `다음은 고령자를 위한 한국어 앱의 화면 UI 문구 목록(JSON 배열)입니다. 각 문구를 자연스럽고 정중한 ${langName}로 번역하세요.
+
+- <br> 같은 HTML 태그와 {i}, {n}, {age}, {gender} 같은 중괄호 플레이스홀더는 번역하지 말고 위치까지 그대로 유지하세요.
+- 이모지(예: ⚠, 💛)는 그대로 두세요.
+- 문구가 비어 있으면("") 빈 문자열로 그대로 두세요.
+- 입력 배열과 같은 개수, 같은 순서로 translations 배열을 채우세요.
+
+문구 목록:
+${JSON.stringify(texts)}`;
+
+      try {
+        const result = await runAnalysis(env, [{ type: 'text', text: prompt }], TRANSLATE_SCHEMA, 8192);
+        if (!Array.isArray(result.translations) || result.translations.length !== texts.length) {
+          return json({ error: 'AI 응답 형식이 올바르지 않습니다.' }, 502);
+        }
+        return json({ translations: result.translations }, 200);
+      } catch (err) {
+        return json({ error: '번역에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
 
     if (url.pathname === '/region-info' && request.method === 'GET') {
       const region = (url.searchParams.get('region') || '').trim();

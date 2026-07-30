@@ -18,3 +18,27 @@ CREATE TABLE IF NOT EXISTS senior_centers (
   phone TEXT,
   address TEXT
 );
+
+-- 회원가입 계정(전화번호+PIN). PIN은 salt+SHA-256 해시로만 저장한다.
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  phone TEXT UNIQUE NOT NULL,
+  pin_hash TEXT NOT NULL,
+  pin_salt TEXT NOT NULL,
+  name TEXT DEFAULT '',
+  token TEXT,
+  failed_attempts INTEGER DEFAULT 0,
+  locked_until TEXT,
+  otp_hash TEXT,
+  otp_expires_at TEXT,
+  otp_attempts INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- appState 전체(기록·일정·설정·프로필·보호자 정보)를 통짜 JSON으로 저장한다.
+-- 서버는 내용을 해석하지 않고 그대로 저장/반환만 한다.
+CREATE TABLE IF NOT EXISTS user_state (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id),
+  state_json TEXT NOT NULL,
+  updated_at TEXT DEFAULT (datetime('now'))
+);
