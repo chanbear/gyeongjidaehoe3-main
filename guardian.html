@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#17695b">
   <title>온담 보호자</title>
-  <link rel="stylesheet" href="css/guardian.css?v=20260730-7">
+  <link rel="stylesheet" href="css/guardian.css?v=20260730-8">
 </head>
 <body>
   <main class="guardian-shell">
@@ -25,6 +25,15 @@
         <small id="guardianAccountPhone"></small>
       </div>
       <section class="connect-card guardian-match-card" id="guardianMatchCard">
+        <div class="match-lookup" id="guardianMatchLookup" hidden>
+          <strong>연결할 어르신 정보를 입력해주세요</strong>
+          <p class="field-help">어르신이 설정에서 등록한 보호자 이름·전화번호가 이 계정과 일치해야 연결됩니다.</p>
+          <label for="elderLookupName">어르신 이름</label>
+          <input type="text" id="elderLookupName" placeholder="예: 김온담" autocomplete="off">
+          <label for="elderLookupPhone">어르신 전화번호</label>
+          <input type="tel" id="elderLookupPhone" placeholder="예: 010-1234-5678" autocomplete="off">
+          <button class="primary-action" type="button" id="elderLookupButton">확인하기</button>
+        </div>
         <div class="match-loading" id="guardianMatchLoading">
           <span class="match-spinner" aria-hidden="true"></span>
           <strong>연결할 어르신을 확인하고 있어요</strong>
@@ -214,6 +223,6 @@
     </div>
   </div>
   <div class="toast" id="guardianToast" role="status"></div>
-  <script src="js/guardian.js?v=20260730-7"></script>
+  <script src="js/guardian.js?v=20260730-8"></script>
 </body>
 </html>

@@ -248,27 +248,31 @@ function guardianMatchesSeniorState(guardianUser, seniorState) {
     && normalizedPersonName(registeredGuardian.name) === normalizedPersonName(guardianUser.name);
 }
 
-async function guardianCandidates(env, guardianUser) {
-  const rows = await env.ansim_doumi_db.prepare(
+/** 보호자가 입력한 어르신 이름+전화번호와, 어르신이 저장한 보호자 이름+전화번호가
+ *  양쪽 다 일치할 때만 후보를 반환한다("서로 입력" 상호 확인) — 어느 조건에서 실패했는지는
+ *  호출부에 노출하지 않고 항상 빈 배열로 통일해, 계정 존재 여부가 유출되지 않게 한다. */
+async function guardianCandidates(env, guardianUser, seniorName, seniorPhone) {
+  const phone = normalizedPhone(seniorPhone);
+  if (phone.length < 9 || !String(seniorName || '').trim()) return [];
+  const row = await env.ansim_doumi_db.prepare(
     `SELECT u.id, u.name, us.state_json
        FROM users u
        JOIN user_state us ON us.user_id = u.id
-      WHERE COALESCE(u.role, 'senior') = 'senior'
-      ORDER BY us.updated_at DESC`
-  ).all();
-  return ((rows && rows.results) || []).flatMap((row) => {
-    let seniorState;
-    try {
-      seniorState = JSON.parse(row.state_json || '{}');
-    } catch {
-      return [];
-    }
-    if (!guardianMatchesSeniorState(guardianUser, seniorState)) return [];
-    return [{
-      seniorUserId: Number(row.id),
-      seniorName: String(seniorState.profile && seniorState.profile.name || row.name || '어르신').trim(),
-    }];
-  });
+      WHERE u.phone = ? AND COALESCE(u.role, 'senior') = 'senior'`
+  ).bind(phone).first();
+  if (!row) return [];
+  if (normalizedPersonName(row.name) !== normalizedPersonName(seniorName)) return [];
+  let seniorState;
+  try {
+    seniorState = JSON.parse(row.state_json || '{}');
+  } catch {
+    return [];
+  }
+  if (!guardianMatchesSeniorState(guardianUser, seniorState)) return [];
+  return [{
+    seniorUserId: Number(row.id),
+    seniorName: String(seniorState.profile && seniorState.profile.name || row.name || '어르신').trim(),
+  }];
 }
 
 /** 보호자 토큰을 검증하고 활성 연결 정보를 반환한다. 토큰 평문은 DB에 저장하지 않는다. */
@@ -601,8 +605,17 @@ export default {
       const guardianUser = await authenticatedUser(env, request);
       if (!guardianUser) return json({ error: 'unauthorized' }, 401);
       if (guardianUser.role !== 'guardian') return json({ error: 'guardian_only' }, 403);
+      let body;
       try {
-        return json({ candidates: await guardianCandidates(env, guardianUser) }, 200);
+        body = await request.json();
+      } catch {
+        body = {};
+      }
+      const seniorName = String(body && body.seniorName || '').trim();
+      const seniorPhone = normalizedPhone(body && body.seniorPhone);
+      if (!seniorName || seniorPhone.length < 9) return json({ error: 'invalid_senior_lookup' }, 400);
+      try {
+        return json({ candidates: await guardianCandidates(env, guardianUser, seniorName, seniorPhone) }, 200);
       } catch (err) {
         return json({ error: 'guardian_candidates_failed', detail: String(err && err.message || err) }, 502);
       }

@@ -59,7 +59,27 @@
     return data.state;
   }
 
-  async function loadGuardianCandidates(account) {
+  function showElderLookupForm() {
+    $('guardianMatchLookup').hidden = false;
+    $('guardianMatchLoading').hidden = true;
+    $('guardianMatchQuestion').hidden = true;
+    $('guardianMatchEmpty').hidden = true;
+    $('connectError').textContent = '';
+  }
+
+  async function submitElderLookup() {
+    const account = readAccount();
+    const name = $('elderLookupName').value.trim();
+    const phone = $('elderLookupPhone').value;
+    $('connectError').textContent = '';
+    if (!name) return showConnectError('어르신 이름을 입력해주세요.', 'elderLookupName');
+    if (phoneDigits(phone).length < 9) return showConnectError('어르신 전화번호를 정확히 입력해주세요.', 'elderLookupPhone');
+    $('guardianMatchLookup').hidden = true;
+    await loadGuardianCandidates(account, name, phone);
+  }
+
+  async function loadGuardianCandidates(account, seniorName, seniorPhone) {
+    $('guardianMatchLookup').hidden = true;
     $('guardianMatchLoading').hidden = false;
     $('guardianMatchQuestion').hidden = true;
     $('guardianMatchEmpty').hidden = true;
@@ -69,7 +89,7 @@
       const response = await fetch(`${AI_WORKER_URL}/guardian-candidates`, {
         method: 'POST',
         headers: accountHeaders(account),
-        body: '{}',
+        body: JSON.stringify({ seniorName, seniorPhone }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -503,7 +523,8 @@
 
   $('confirmGuardianButton').addEventListener('click', confirmGuardianCandidate);
   $('rejectGuardianButton').addEventListener('click', rejectGuardianCandidate);
-  $('retryGuardianButton').addEventListener('click', () => loadGuardianCandidates(readAccount()));
+  $('elderLookupButton').addEventListener('click', submitElderLookup);
+  $('retryGuardianButton').addEventListener('click', showElderLookupForm);
   document.querySelectorAll('.guardian-nav button').forEach((button) => button.addEventListener('click', () => switchView(button.dataset.view)));
   document.querySelectorAll('[data-view-target]').forEach((button) => button.addEventListener('click', () => switchView(button.dataset.viewTarget)));
   $('historyFilters').addEventListener('click', (event) => {
@@ -606,7 +627,7 @@
           showConnectError('연결 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요.');
           return;
         }
-        await loadGuardianCandidates(account);
+        showElderLookupForm();
       }
     }
   }
