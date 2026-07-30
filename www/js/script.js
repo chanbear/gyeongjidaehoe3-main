@@ -27,11 +27,11 @@ const appState = {
   settings: { fontScale: 1.15, voiceRate: 1, voiceEnabled: true, language: 'ko' }, // 접근성 설정 — 어르신 대상 서비스라 기본 글자 크기 자체를 키움
   guardian: { name: '', phone: '', autoNotify: false },
   profile: { name: '', gender: '', age: '', region: '' }, // 맞춤 안내용(선택 사항): AI 분석 요청에 참고 정보로만 함께 전달됨.
-                    // age는 실제로 입력받기 전까지 빈 값으로 둔다 — 기본값을 숫자로 두면 온보딩 나이 입력칸에
-                    // 사용자가 입력한 적 없는 값이 이미 채워진 것처럼 보이는 문제가 있었다.
+  // age는 실제로 입력받기 전까지 빈 값으로 둔다 — 기본값을 숫자로 두면 온보딩 나이 입력칸에
+  // 사용자가 입력한 적 없는 값이 이미 채워진 것처럼 보이는 문제가 있었다.
   avatarPhoto: '', // 홈 화면에 보여줄 프로필 사진(선택 사항). profile과 분리해두는 이유: pushStateToServer()가
-                    // profile을 포함한 나머지 필드는 그대로 서버(D1)로 보내는데, 사진은 순전히 이 기기에서만
-                    // 쓰는 것이라 서버로 전송되면 안 된다.
+  // profile을 포함한 나머지 필드는 그대로 서버(D1)로 보내는데, 사진은 순전히 이 기기에서만
+  // 쓰는 것이라 서버로 전송되면 안 된다.
   onboardingDone: false // 인사→프로필→튜토리얼을 한 번이라도 끝냈는지. true면 다음 실행부터 홈에서 시작한다
 };
 
@@ -39,10 +39,10 @@ let voices = [];
 let pendingReminder = { text: '', source: '' };
 let idCounter = 1;
 
-function genId(){ return 'item-' + (idCounter++) + '-' + Date.now(); }
+function genId() { return 'item-' + (idCounter++) + '-' + Date.now(); }
 
 /** 상태를 localStorage에 저장 (일정/기록/설정/보호자 정보 자동 저장) */
-function saveState(){
+function saveState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       history: appState.history,
@@ -61,13 +61,13 @@ function saveState(){
 }
 
 let stateSyncTimer = null;
-function queueStateSync(){
+function queueStateSync() {
   if (!getAuth()) return;
   clearTimeout(stateSyncTimer);
   stateSyncTimer = setTimeout(pushStateToServer, 1500);
 }
 
-async function pushStateToServer(){
+async function pushStateToServer() {
   const auth = getAuth();
   if (!auth || !AI_WORKER_URL) return;
   try {
@@ -93,7 +93,7 @@ async function pushStateToServer(){
 
 /** 로그인 직후 1회 호출: 서버에 저장된 값이 있으면 로컬 appState를 그 값으로 덮어쓴다(여러 기기 동기화가
  *  목적이므로 "마지막으로 로그인한 곳"의 서버 값이 항상 이긴다 — 기존 프로필 동기화의 "로컬 우선"과 다르다). */
-async function pullStateFromServer(){
+async function pullStateFromServer() {
   const auth = getAuth();
   if (!auth || !AI_WORKER_URL) return true;
   try {
@@ -123,7 +123,7 @@ async function pullStateFromServer(){
 }
 
 /** localStorage에서 상태 복원 */
-function loadState(){
+function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
@@ -144,19 +144,19 @@ function loadState(){
 /* ---------------------------------------------------------
    3. 음성 안내 (TTS)
    --------------------------------------------------------- */
-function loadVoices(){ voices = window.speechSynthesis ? speechSynthesis.getVoices() : []; }
+function loadVoices() { voices = window.speechSynthesis ? speechSynthesis.getVoices() : []; }
 if (window.speechSynthesis) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
 
 /** 안드로이드 시스템 WebView는 Web Speech API(window.speechSynthesis)를 안정적으로 지원하지 않아
  *  APK에서 음성 안내가 무음이 되는 문제가 있었다 — 네이티브 TTS 플러그인이 있으면 그걸 쓰고,
  *  없으면(웹 브라우저) 기존 speechSynthesis로 폴백한다. */
-function getTtsPlugin(){
+function getTtsPlugin() {
   return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Tts) || null;
 }
 
 /** 음성 지원 on/off 스위치는 홈 화면과 설정 화면 두 곳에 있다(voice-enabled-toggle 클래스로 묶임).
  *  el을 넘기면 그 스위치가 지금 누른 것이고, 나머지 스위치도 같은 상태로 맞춘다. */
-function toggleVoice(el){
+function toggleVoice(el) {
   const checked = el ? el.checked : !appState.settings.voiceEnabled;
   appState.settings.voiceEnabled = checked;
   syncVoiceEnabledToggles();
@@ -165,37 +165,37 @@ function toggleVoice(el){
   saveState();
 }
 
-function stopSpeaking(){
+function stopSpeaking() {
   const Tts = getTtsPlugin();
   if (Tts) Tts.stop();
   else if (window.speechSynthesis) speechSynthesis.cancel();
 }
 
-function syncVoiceEnabledToggles(){
+function syncVoiceEnabledToggles() {
   document.querySelectorAll('.voice-enabled-toggle').forEach(t => { t.checked = appState.settings.voiceEnabled; });
   syncAssistantStatusText();
   syncVoiceRateVisibility();
 }
 
 /** 홈 화면 좌측 "온담 비서가 활성화/비활성화되었습니다" 문구를 토글 상태에 맞게 갱신한다 */
-function syncAssistantStatusText(){
+function syncAssistantStatusText() {
   const el = document.getElementById('homeAssistantStatus');
   if (!el) return;
   el.textContent = t(appState.settings.voiceEnabled ? 'home.assistantActive' : 'home.assistantInactive');
 }
 
 /** 음성 안내가 꺼져 있으면 설정 화면의 "음성 읽기 속도"/다시읽기/멈추기 컨트롤을 숨긴다 */
-function syncVoiceRateVisibility(){
+function syncVoiceRateVisibility() {
   const el = document.getElementById('voiceRateSection');
   if (el) el.style.display = appState.settings.voiceEnabled ? '' : 'none';
 }
 
 /** 화면 안내와 AI 분석 결과를 설정 언어에 맞는 음성으로 읽는다. */
 const TTS_LANG_MAP = { ko: 'ko-KR', zh: 'zh-CN', vi: 'vi-VN', th: 'th-TH', uz: 'uz-UZ' };
-function currentTtsLang(){ return TTS_LANG_MAP[appState.settings.language] || 'ko-KR'; }
+function currentTtsLang() { return TTS_LANG_MAP[appState.settings.language] || 'ko-KR'; }
 
 /** force=true면 음성 안내 켬/끔 설정과 무관하게 읽어준다("다시 듣기" 버튼 전용 — 21번 항목) */
-function speak(text, lang, force){
+function speak(text, lang, force) {
   const liveRegion = document.getElementById('liveRegion');
   if ((!force && !appState.settings.voiceEnabled) || !text) {
     if (text && liveRegion) liveRegion.textContent = text;
@@ -220,12 +220,12 @@ function speak(text, lang, force){
 
 /** 현재 화면의 안내 음성을 다시 읽기 */
 /** data-voice-i18n이 있는 화면(온보딩)은 현재 언어로 번역된 안내 문구를, 없으면 data-voice의 한국어 원문을 읽어준다 */
-function screenVoiceText(screenEl){
+function screenVoiceText(screenEl) {
   const key = screenEl.getAttribute('data-voice-i18n');
   return key ? t(key) : screenEl.getAttribute('data-voice');
 }
 /** data-voice-i18n이 있는 화면만 번역된 언어로 읽고, 나머지 화면은 항상 한국어로 읽는다(대부분의 data-voice가 여전히 한국어 원문이므로) */
-function screenVoiceLang(screenEl){
+function screenVoiceLang(screenEl) {
   return (screenEl.hasAttribute('data-voice-i18n') || screenEl.dataset.voiceLang === 'current')
     ? currentTtsLang()
     : 'ko-KR';
@@ -233,13 +233,13 @@ function screenVoiceLang(screenEl){
 
 /** 자동 음성 안내(화면 진입 시)는 voiceEnabled 토글을 따르지만, "다시 듣기"는 수동으로 누른
  *  동작이라 음성 안내가 꺼져 있어도 항상 소리가 나야 한다(사용자 요청). */
-function replayCurrentVoice(){
+function replayCurrentVoice() {
   const active = document.querySelector('.screen.active');
   if (active) speak(screenVoiceText(active), screenVoiceLang(active), true);
 }
 
 /** 음성 읽기 멈추기 */
-function stopVoice(){
+function stopVoice() {
   if (window.speechSynthesis) speechSynthesis.cancel();
 }
 
@@ -254,7 +254,7 @@ const onboardScreens = new Set(['screen-greet', 'screen-signup', 'screen-login',
 const TAB_SCREENS = new Set(['screen-home', 'screen-info', 'screen-more']);
 
 /** 네비바의 활성 탭 표시를 현재 화면에 맞춘다 */
-function syncBottomNav(id){
+function syncBottomNav(id) {
   document.querySelectorAll('#bottomNav [data-tab]').forEach(btn => {
     const on = btn.dataset.tab === id;
     btn.classList.toggle('is-active', on);
@@ -265,7 +265,7 @@ function syncBottomNav(id){
 
 let activeScreenEl = document.querySelector('.screen.active');
 
-function goTo(id){
+function goTo(id) {
   // 인앱 카메라를 켠 채로 촬영 화면을 벗어나면(뒤로가기 등) 카메라를 계속 켜두지 않도록 반드시 먼저 끈다
   if (activeScreenEl && activeScreenEl.id === 'screen-doc-capture' && id !== 'screen-doc-capture') stopInAppCamera();
   if (activeScreenEl) activeScreenEl.classList.remove('active');
@@ -314,33 +314,33 @@ function goTo(id){
  *  그래서 다른 확인 창들과 같은 바텀시트로 통일했다. 건너뛰기를 눌렀을 때 할 일은 호출한 쪽이 넘겨준다. */
 let pendingSkipAction = null;
 
-function openSkipConfirm(onConfirm){
+function openSkipConfirm(onConfirm) {
   pendingSkipAction = onConfirm;
   document.getElementById('skipConfirmBackdrop').style.display = 'block';
   document.getElementById('skipConfirmSheet').style.display = 'block';
   speak(t('skipConfirm.title'));
 }
 
-function closeSkipConfirm(){
+function closeSkipConfirm() {
   pendingSkipAction = null;
   document.getElementById('skipConfirmBackdrop').style.display = 'none';
   document.getElementById('skipConfirmSheet').style.display = 'none';
 }
 
-function acceptSkipConfirm(){
+function acceptSkipConfirm() {
   const action = pendingSkipAction;
   closeSkipConfirm(); // pendingSkipAction을 비운 뒤 실행해야 화면 전환 중 중복 실행되지 않는다
   if (action) action();
 }
 
 /** 첫 화면의 "건너뛰기": 실수로 누르는 경우가 많아 같은 문구로 한 번 더 확인한다 */
-function confirmSkipTutorial(){
+function confirmSkipTutorial() {
   openSkipConfirm(() => goTo('screen-home'));
 }
 
 /** AI 분석 대기 화면의 진행바: 실제로 언제 끝날지 모르니 90%까지만 천천히 채워두고,
  *  analyzeDocument()/analyzeSmsText()가 실제로 응답을 받으면 finishAllProgress()가 100%로 마무리한다 */
-function startLoadingProgress(fillId){
+function startLoadingProgress(fillId) {
   const fill = document.getElementById(fillId);
   fill.style.transition = 'none';
   fill.style.width = '0%';
@@ -348,7 +348,7 @@ function startLoadingProgress(fillId){
   fill.style.transition = 'width 6s linear';
   fill.style.width = '90%';
 }
-function finishAllProgress(){
+function finishAllProgress() {
   ['progressFillLoadDoc', 'progressFillLoadText'].forEach(id => {
     const fill = document.getElementById(id);
     if (!fill) return;
@@ -360,25 +360,25 @@ function finishAllProgress(){
 /* ---------------------------------------------------------
    5. 홈 대시보드 (오늘 할 일 / 다가오는 일정 / 최근 기록)
    --------------------------------------------------------- */
-function formatYMD(d){
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function formatYMD(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-function todayStr(){ return formatYMD(new Date()); }
-function tomorrowStr(){
+function todayStr() { return formatYMD(new Date()); }
+function tomorrowStr() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
   return formatYMD(d);
 }
-function formatDateLabel(dateStr){
+function formatDateLabel(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   return `${m}월 ${d}일`;
 }
-function formatNow(){
+function formatNow() {
   const d = new Date();
-  return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-function renderHomeDashboard(){
+function renderHomeDashboard() {
   renderTodayTasks();
   renderUpcomingSchedule();
   renderHomeDueCard();
@@ -388,14 +388,14 @@ function renderHomeDashboard(){
 }
 
 /** 프로필의 성별 값("남성"/"여성", 항상 한국어로 저장됨)을 현재 화면 언어로 번역한다 */
-function homeGenderWord(gender){
+function homeGenderWord(gender) {
   if (gender === '남성') return t('settings.male');
   if (gender === '여성') return t('settings.female');
   return '';
 }
 
 /** 홈 인사 카드의 이름 부분("OOO님" / "70대 어르신" / 기본값). 언어를 바꾸면 이 문구도 같이 바뀌도록 t()로 가져온다. */
-function homeGreetName(){
+function homeGreetName() {
   const { name, gender, age } = appState.profile;
   if (name) return name + t('home.greetNameSuffix');
   if (age) {
@@ -406,14 +406,14 @@ function homeGreetName(){
   return t('home.greetDefault');
 }
 
-function renderHomeGreet(){
+function renderHomeGreet() {
   const el = document.getElementById('homeGreetName');
   if (el) el.textContent = homeGreetName();
 }
 
 /** 정보 탭: 홈에 있던 읽을거리를 이쪽으로 옮겼다.
  *  두 카드 모두 조건에 안 맞아 숨겨지면(지역 미입력 등) 빈 화면이 되므로 안내 문구를 대신 띄운다. */
-async function renderInfoTab(){
+async function renderInfoTab() {
   renderPublicInfoCard();
   await renderRegionInfoCard();
   const publicCard = document.getElementById('publicInfoCard');
@@ -421,7 +421,7 @@ async function renderInfoTab(){
   const empty = document.getElementById('infoEmptyState');
   if (!empty) return;
   const anyVisible = (publicCard && publicCard.style.display !== 'none') ||
-                     (regionCard && regionCard.style.display !== 'none');
+    (regionCard && regionCard.style.display !== 'none');
   empty.style.display = anyVisible ? 'none' : 'block';
 }
 
@@ -429,7 +429,7 @@ async function renderInfoTab(){
  *  매칭 안 되면(경기도 밖 등) 지어내지 않고 카드를 숨긴다. */
 let regionInfoCache = {};
 /** 프로필의 "사시는 지역" 텍스트로 경로당 현황(경기데이터드림 공공데이터)을 조회. 홈 카드와 주변 복지센터 화면이 공용으로 쓴다 */
-async function fetchRegionInfo(region){
+async function fetchRegionInfo(region) {
   if (!region || !AI_WORKER_URL) return { matched: false };
   if (!(region in regionInfoCache)) {
     try {
@@ -442,7 +442,7 @@ async function fetchRegionInfo(region){
   return regionInfoCache[region];
 }
 
-function regionCenterRowHtml(c){
+function regionCenterRowHtml(c) {
   return `
     <div class="row" onclick="openWelfareRouteSheet('${escapeHtml(c.name).replace(/'/g, "\\'")}', null, null, '${escapeHtml(c.address || c.name).replace(/'/g, "\\'")}')" role="button" tabindex="0">
       <div class="icon-chip accent"><svg viewBox="0 0 24 24"><use href="#ic-pin"></use></svg></div>
@@ -452,7 +452,7 @@ function regionCenterRowHtml(c){
   `;
 }
 
-async function renderRegionInfoCard(){
+async function renderRegionInfoCard() {
   const card = document.getElementById('regionInfoCard');
   if (!card) return;
   const region = (appState.profile.region || '').trim();
@@ -466,7 +466,7 @@ async function renderRegionInfoCard(){
 }
 
 /** 위경도를 경기데이터드림 시/군 이름으로 역지오코딩(Nominatim, API 키 불필요) */
-async function reverseGeocodeRegion(lat, lon){
+async function reverseGeocodeRegion(lat, lon) {
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
     const data = await res.json();
@@ -478,7 +478,7 @@ async function reverseGeocodeRegion(lat, lon){
 }
 
 /** 주변 복지센터 화면의 경로당(D1) 섹션: 저장된 내 지역이 있으면 그걸 쓰고, 없으면 방금 받은 GPS 위치를 역지오코딩해 지역을 알아내 보여준다(경기도 시/군이 매칭될 때만) */
-async function renderWelfareGyeonggiSection(){
+async function renderWelfareGyeonggiSection() {
   const wrap = document.getElementById('welfareGyeonggiSection');
   if (!wrap) return;
   let region = (appState.profile.region || '').trim();
@@ -495,7 +495,7 @@ async function renderWelfareGyeonggiSection(){
 }
 
 /** 다른 지역 경로당 직접 검색: 자유 텍스트를 그대로 region-info API에 넘겨 시/군 매칭 */
-async function searchWelfareByRegion(){
+async function searchWelfareByRegion() {
   const region = document.getElementById('welfareRegionSearchInput').value.trim();
   const statusEl = document.getElementById('welfareRegionSearchStatus');
   const listEl = document.getElementById('welfareRegionSearchList');
@@ -521,18 +521,18 @@ let welfareRouteTarget = null;
 let welfareUserLat = null;
 let welfareUserLon = null;
 
-function openWelfareRouteSheet(name, lat, lon, address){
+function openWelfareRouteSheet(name, lat, lon, address) {
   welfareRouteTarget = { name, lat, lon, address: address || name };
   document.getElementById('welfareRouteTitle').textContent = name;
   document.getElementById('welfareRouteBackdrop').style.display = 'block';
   document.getElementById('welfareRouteSheet').style.display = 'block';
 }
-function closeWelfareRouteSheet(){
+function closeWelfareRouteSheet() {
   document.getElementById('welfareRouteBackdrop').style.display = 'none';
   document.getElementById('welfareRouteSheet').style.display = 'none';
 }
 
-async function openWelfareRoute(mode){
+async function openWelfareRoute(mode) {
   if (!welfareRouteTarget) return;
   if (welfareUserLat == null) { showGlobalToast('내 위치 정보가 없어요. 다시 찾기를 먼저 눌러주세요.'); return; }
 
@@ -556,7 +556,7 @@ async function openWelfareRoute(mode){
 }
 
 /** 오늘 해야 할 일: 날짜가 오늘이거나 날짜가 없는(항상 표시) 미완료/완료 항목 */
-function renderTodayTasks(){
+function renderTodayTasks() {
   const el = document.getElementById('todayTaskList');
   const today = todayStr();
   const items = appState.schedule.filter(s => !s.date || s.date === today);
@@ -586,7 +586,7 @@ function renderTodayTasks(){
    --------------------------------------------------------- */
 const geocodeCache = {};
 
-async function geocodePlace(query){
+async function geocodePlace(query) {
   if (geocodeCache[query] !== undefined) return geocodeCache[query];
   try {
     const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query));
@@ -602,12 +602,12 @@ async function geocodePlace(query){
 
 /** 네이티브 앱(APK)에서만 Geolocation 플러그인이 존재. 웹/PWA에서는 null. (카메라와 동일한 패턴)
  *  안드로이드 WebView는 navigator.geolocation을 제대로 지원하지 않아, 네이티브 앱에서는 반드시 이 플러그인을 거쳐야 위치 권한 요청이 동작한다. */
-function getGeolocationPlugin(){
+function getGeolocationPlugin() {
   return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Geolocation) || null;
 }
 
 /** 위치 확인 공용: 네이티브 플러그인이 있으면 그걸로, 없으면(웹/PWA) 웹 표준 navigator.geolocation으로 현재 위치를 얻는다 */
-function getCurrentPosition(){
+function getCurrentPosition() {
   const Geo = getGeolocationPlugin();
   if (Geo) return Geo.getCurrentPosition();
   return new Promise((resolve, reject) => {
@@ -617,7 +617,7 @@ function getCurrentPosition(){
 }
 
 /** 프로필의 "사시는 지역"을 기기 위치로 자동 입력. 역지오코딩은 Nominatim을 사용(API 키 불필요) */
-async function useCurrentLocationForRegion(){
+async function useCurrentLocationForRegion() {
   if (!getGeolocationPlugin() && !navigator.geolocation) { showGlobalToast('이 기기에서는 위치 확인을 지원하지 않아요.'); return; }
   showGlobalToast('위치를 확인하는 중이에요...');
   try {
@@ -639,7 +639,7 @@ async function useCurrentLocationForRegion(){
   }
 }
 
-async function renderScheduleMap(containerId, query){
+async function renderScheduleMap(containerId, query) {
   const el = document.getElementById(containerId);
   if (!el || typeof L === 'undefined') return;
   const point = await geocodePlace(query);
@@ -657,7 +657,7 @@ async function renderScheduleMap(containerId, query){
    지어낸 시설 정보를 보여주지 않기 위해, 실시간 조회 결과만 표시하고 찾지 못하면 그대로 안내한다.
    --------------------------------------------------------- */
 /** 공개 Overpass 서버는 부하가 있으면 JSON 대신 오류 XML을 돌려줄 때가 있어 한 번 재시도한다 */
-async function fetchOverpass(query){
+async function fetchOverpass(query) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query });
@@ -670,7 +670,7 @@ async function fetchOverpass(query){
   }
 }
 
-async function loadWelfareNearby(){
+async function loadWelfareNearby() {
   const statusEl = document.getElementById('welfareNearbyStatus');
   const listEl = document.getElementById('welfareNearbyList');
   const mapEl = document.getElementById('welfareNearbyMap');
@@ -725,7 +725,7 @@ async function loadWelfareNearby(){
   }
 }
 
-function overpassRowHtml(p){
+function overpassRowHtml(p) {
   return `
     <div class="row" onclick="openWelfareRouteSheet('${escapeHtml(p.name).replace(/'/g, "\\'")}', ${p.lat}, ${p.lon})" role="button" tabindex="0">
       <div class="icon-chip accent"><svg viewBox="0 0 24 24"><use href="#ic-pin"></use></svg></div>
@@ -738,7 +738,7 @@ function overpassRowHtml(p){
 let welfareMapInstance = null;
 
 /** "다시 찾기"로 여러 번 호출돼도 Leaflet이 같은 컨테이너에서 "Map container is already initialized" 오류를 내지 않도록, 재호출 시 이전 지도 인스턴스를 먼저 제거한다 */
-function renderWelfareMap(el, lat, lon, places){
+function renderWelfareMap(el, lat, lon, places) {
   if (typeof L === 'undefined') return;
   el.style.display = 'block';
   if (welfareMapInstance) { welfareMapInstance.remove(); welfareMapInstance = null; }
@@ -751,7 +751,7 @@ function renderWelfareMap(el, lat, lon, places){
 }
 
 /** 다가오는 일정: 날짜가 지정된 항목을 오늘/내일/그 이후로 그룹핑 */
-function renderUpcomingSchedule(){
+function renderUpcomingSchedule() {
   const wrap = document.getElementById('upcomingSchedule');
   const dated = appState.schedule.filter(s => s.date);
   if (dated.length === 0) { wrap.style.display = 'none'; return; }
@@ -784,7 +784,7 @@ function renderUpcomingSchedule(){
   wrap.style.display = 'flex';
 }
 
-function toggleTaskDone(id){
+function toggleTaskDone(id) {
   const item = appState.schedule.find(s => s.id === id);
   if (!item) return;
   item.done = !item.done;
@@ -808,7 +808,7 @@ const ANALYSIS_STORE_KEYS = ['status', 'headline', 'summary', 'checklist', 'phon
  *  기록에서 다시 열어볼 수 있고(openHistoryEntry), 문서라면 amount/dueDate도 통계에 쓰인다.
  *  ts(밀리초)는 정렬·그래프용이다 — time 은 "7/29 14:30" 같은 표시용 문자열이라 정렬에 쓸 수 없다.
  *  extra 없이 호출하던 기존 코드와 예전에 저장된 기록({title, result, time}만 있는 항목)도 그대로 동작한다. */
-function addHistory(title, result, extra){
+function addHistory(title, result, extra) {
   const exists = appState.history.some(h => h.title === title);
   if (exists) { saveState(); return; }
   const entry = { title, result, time: formatNow(), ts: Date.now() };
@@ -837,7 +837,7 @@ function addHistory(title, result, extra){
 /** 기록을 눌러 그때의 분석 결과를 다시 연다.
  *  예전에 저장된 기록(이 기능이 생기기 전이라 analysis가 없는 항목)은 원문을 저장해두지 않았으므로
  *  다시 볼 수 없다고 솔직하게 안내한다 - 없는 내용을 지어내 보여주지 않는다. */
-function openHistoryEntry(index){
+function openHistoryEntry(index) {
   const h = appState.history[index];
   if (!h) return;
   if (!h.analysis) { speak(t('history.noDetail')); return; }
@@ -859,7 +859,7 @@ function openHistoryEntry(index){
 
 /** 기록 하나의 시각을 밀리초로. 예전 기록에는 ts 가 없으므로 time 문자열에서 최대한 복원한다.
  *  복원도 안 되면 null 을 돌려주고, 통계는 그런 항목을 건너뛴다(날짜를 지어내지 않는다). */
-function historyTimestamp(h){
+function historyTimestamp(h) {
   if (h && Number.isFinite(h.ts)) return h.ts;
   const m = /^(\d{1,2})\/(\d{1,2})/.exec(String((h && h.time) || ''));
   if (!m) return null;
@@ -872,7 +872,7 @@ function historyTimestamp(h){
   return new Date(year, month, Number(m[2])).getTime();
 }
 
-function renderHistory(){
+function renderHistory() {
   const hList = document.getElementById('historyList');
   const sList = document.getElementById('scheduleList');
   if (appState.history.length === 0) {
@@ -905,7 +905,7 @@ function renderHistory(){
   }
 }
 
-function openHistory(){
+function openHistory() {
   renderHistory();
   goTo('screen-history');
 }
@@ -915,7 +915,7 @@ function openHistory(){
    --------------------------------------------------------- */
 
 /** 체크박스로 추가되는 일정 (날짜 없음, 항상 "오늘 할 일"에 노출). location을 주면 오늘 할 일 목록에 길찾기 지도가 함께 표시된다. */
-function addSchedule(text, source, location){
+function addSchedule(text, source, location) {
   if (appState.schedule.some(s => s.text === text)) { saveState(); return; }
   appState.schedule.push({ id: genId(), text, source, location: location || null, date: null, time: null, done: false, createdAt: formatNow() });
   saveState();
@@ -923,7 +923,7 @@ function addSchedule(text, source, location){
   renderUpcomingSchedule();
 }
 
-function syncScheduleFromCheckbox(input){
+function syncScheduleFromCheckbox(input) {
   const text = input.dataset.schedule;
   if (input.checked) {
     addSchedule(text, input.dataset.source, input.dataset.location);
@@ -936,14 +936,14 @@ function syncScheduleFromCheckbox(input){
 }
 
 /** 체크박스에 change 리스너를 한 번만 붙임 (정적/동적으로 그려지는 체크리스트 공용) */
-function bindScheduleCheckbox(input){
+function bindScheduleCheckbox(input) {
   if (input.dataset.bound) return;
   input.dataset.bound = '1';
   input.addEventListener('change', () => syncScheduleFromCheckbox(input));
 }
 
 /** 알림 설정(날짜/시간) 모달 열기 */
-function openReminderModal(text, source, location){
+function openReminderModal(text, source, location) {
   pendingReminder = { text, source, location: location || null };
   document.getElementById('reminderTargetText').textContent = text;
   const existing = appState.schedule.find(s => s.text === text);
@@ -954,12 +954,12 @@ function openReminderModal(text, source, location){
   speak('날짜와 시간을 선택하고 저장 버튼을 눌러주세요.');
 }
 
-function closeReminderModal(){
+function closeReminderModal() {
   document.getElementById('reminderBackdrop').style.display = 'none';
   document.getElementById('reminderSheet').style.display = 'none';
 }
 
-function saveReminder(){
+function saveReminder() {
   const date = document.getElementById('reminderDate').value;
   const time = document.getElementById('reminderTime').value;
   if (!date) { showGlobalToast('날짜를 선택해주세요.'); return; }
@@ -986,7 +986,7 @@ function saveReminder(){
 /* ---------------------------------------------------------
    7. 실사용 플로우 (실제 카메라/문자 복사·붙여넣기)
    --------------------------------------------------------- */
-function finishDocResult(){
+function finishDocResult() {
   const badge = lastDocAnalysis ? (statusBadgeMap[lastDocAnalysis.status] || statusBadgeMap.normal) : statusBadgeMap.normal;
   const headline = lastDocAnalysis ? (lastDocAnalysis.headline || '문서 분석') : '건강검진 안내';
   // 문서에서 읽어낸 값을 기록에 함께 남겨 기한 알림·통계에 쓴다(없으면 addHistory가 알아서 걸러낸다)
@@ -1007,7 +1007,7 @@ function finishDocResult(){
   goTo('screen-home');
 }
 
-function finishSmsResult(){
+function finishSmsResult() {
   if (lastSmsAnalysis) {
     const badge = statusBadgeMap[lastSmsAnalysis.status] || statusBadgeMap.normal;
     // lastSmsAnalysis를 함께 넘겨야 기록에서 다시 열어볼 수 있다(예전에는 제목만 남기고 버렸다)
@@ -1035,12 +1035,12 @@ let historyPreviewMode = false;
 let historyPreviewPhoto = '';
 
 /** 네이티브 앱(APK)에서만 Camera 플러그인이 존재. 웹/PWA에서는 null. */
-function getCameraPlugin(){
+function getCameraPlugin() {
   return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Camera) || null;
 }
 
 /** 네이티브 앱이 아닐 때(iOS Safari, PWA 등) 쓰는 웹 표준 사진 선택. capture를 주면 카메라를 바로 열고, 안 주면 갤러리(사진 보관함)를 연다. */
-function pickWebPhoto(captureMode){
+function pickWebPhoto(captureMode) {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -1064,7 +1064,7 @@ function pickWebPhoto(captureMode){
 /** 카메라/갤러리 공용: 네이티브 플러그인이 있으면 그걸로, 없으면 웹 표준 파일 선택으로 사진을 얻는다.
  *  @capacitor/camera의 실제 API는 getPhoto({ source }) 하나뿐이다 — 이전에 쓰던 takePhoto()/chooseFromGallery()는
  *  이 플러그인에 존재하지 않는 메서드라 네이티브 앱(APK)에서는 항상 실패했다(브라우저 폴백만 테스트돼 발견되지 않음). */
-async function pickPhoto(useCamera, webCaptureMode){
+async function pickPhoto(useCamera, webCaptureMode) {
   const Camera = getCameraPlugin();
   if (Camera) {
     try {
@@ -1090,14 +1090,14 @@ async function pickPhoto(useCamera, webCaptureMode){
 let pendingPhotos = [];
 const MAX_DOC_PHOTOS = 5;   // worker/src/index.js 의 같은 이름 상수와 맞춰야 한다
 
-function removePendingPhoto(index){
+function removePendingPhoto(index) {
   pendingPhotos.splice(index, 1);
   lastCapturedPhoto = pendingPhotos[0] || null;
   if (pendingPhotos.length === 0) { goTo('screen-doc-choice'); return; }
   renderPendingPhotos();
 }
 
-function renderPendingPhotos(){
+function renderPendingPhotos() {
   const list = document.getElementById('pendingPhotoList');
   if (!list) return;
   list.innerHTML = pendingPhotos.map((src, i) => `
@@ -1113,26 +1113,26 @@ function renderPendingPhotos(){
 }
 
 /** "분석하기": 모아둔 사진을 한 번에 보낸다 */
-function analyzePendingPhotos(){
+function analyzePendingPhotos() {
   if (pendingPhotos.length === 0) return;
   goTo('screen-loading-doc');
   if (AI_WORKER_URL) analyzeDocument(pendingPhotos);
 }
 
-function cancelPendingPhotos(){
+function cancelPendingPhotos() {
   pendingPhotos = [];
   lastCapturedPhoto = null;
   goTo('screen-home');
 }
-function capturePhoto(){ return pickPhoto(true, 'environment'); }
-function pickFromGallery(){ return pickPhoto(false, null); }
+function capturePhoto() { return pickPhoto(true, 'environment'); }
+function pickFromGallery() { return pickPhoto(false, null); }
 
 /* ---- 인앱 카메라: 외부 카메라 앱이나 파일 선택기로 나가지 않고 웹뷰 안에서 바로 촬영한다.
    getUserMedia를 지원하지 않거나 권한이 거부되면(구형 기기, 데스크톱에서 권한 거부 등) 조용히
    기존 capturePhoto()(네이티브 플러그인 또는 파일 선택) 경로로 폴백한다 — 화면은 안내 테두리만 보여준 채로 그대로 둔다. ---- */
 let inAppCameraStream = null;
 
-async function startInAppCamera(){
+async function startInAppCamera() {
   const video = document.getElementById('inAppCameraVideo');
   if (!video || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
   try {
@@ -1145,7 +1145,7 @@ async function startInAppCamera(){
   }
 }
 
-function stopInAppCamera(){
+function stopInAppCamera() {
   if (inAppCameraStream) {
     inAppCameraStream.getTracks().forEach(track => track.stop());
     inAppCameraStream = null;
@@ -1156,7 +1156,7 @@ function stopInAppCamera(){
 
 /** 촬영 버튼: 인앱 카메라 미리보기가 켜져 있으면 지금 보이는 화면을 그대로 캡처하고,
  *  아니면(폴백) 기존 capturePhoto()(네이티브 플러그인 또는 파일 선택)로 넘어간다. */
-function captureInAppPhoto(){
+function captureInAppPhoto() {
   if (!inAppCameraStream) { capturePhoto(); return; }
   const video = document.getElementById('inAppCameraVideo');
   const canvas = document.getElementById('inAppCameraCanvas');
@@ -1175,7 +1175,7 @@ function captureInAppPhoto(){
 const AVATAR_MAX_SIDE = 320;
 
 /** 원본 사진을 정사각형에 가깝게 줄여 작은 data URL로 만든다. 캔버스가 막히면(교차 출처 등) 원본을 그대로 돌려준다. */
-function prepareAvatarPhoto(src){
+function prepareAvatarPhoto(src) {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -1197,7 +1197,7 @@ function prepareAvatarPhoto(src){
   });
 }
 
-async function pickAvatarPhoto(){
+async function pickAvatarPhoto() {
   const Camera = getCameraPlugin();
   let raw = null;
   try {
@@ -1218,7 +1218,7 @@ async function pickAvatarPhoto(){
   renderAvatarPhoto();
 }
 
-function renderAvatarPhoto(){
+function renderAvatarPhoto() {
   document.querySelectorAll('.home-avatar').forEach(el => {
     el.classList.toggle('has-photo', !!appState.avatarPhoto);
     el.style.backgroundImage = appState.avatarPhoto ? `url("${appState.avatarPhoto}")` : '';
@@ -1228,7 +1228,7 @@ function renderAvatarPhoto(){
 /** 지금 보고 있는 문서(lastDocAnalysis)에 해당하는 사진을 pendingPhotos에서 찾는다.
  *  Worker가 돌려주는 pages(1부터 시작하는 사진 번호)로 매칭하고, 없으면 문서 순서(docAnalysisIndex)로 대신한다.
  *  사진이 여러 장이라 문서마다 다른 사진을 봐야 하는데, 예전에는 항상 첫 장(lastCapturedPhoto)만 보여줬다. */
-function docPreviewPhotoForCurrent(){
+function docPreviewPhotoForCurrent() {
   if (!pendingPhotos.length) return null;
   const pages = lastDocAnalysis && Array.isArray(lastDocAnalysis.pages) ? lastDocAnalysis.pages : null;
   if (pages && pages.length && pages[0] >= 1 && pages[0] <= pendingPhotos.length) {
@@ -1240,7 +1240,7 @@ function docPreviewPhotoForCurrent(){
 /** 실제로 찍거나 고른 사진이 있으면 결과 화면에 보여주고,
  *  기록을 다시 열어본 경우(사진을 저장해두지 않음)에는 안내 문구를,
  *  그 외(연습 등 사진이 아예 없는 경우)에는 기본 예시로 되돌린다. */
-function applyDocPreview(){
+function applyDocPreview() {
   const el = document.getElementById('docPreviewContent');
   const isHistoryPreview = historyPreviewMode;
   historyPreviewMode = false; // 다음 화면 진입에 영향이 남지 않도록 한 번 읽고 바로 끈다
@@ -1261,13 +1261,13 @@ function applyDocPreview(){
    --------------------------------------------------------- */
 const statusBadgeMap = {
   danger: { cls: 'badge-red', text: '🔴 위험', cardClass: 'danger', seal: 'ic-alert', eyebrow: '위험 · 응답하지 마세요' },
-  info:   { cls: 'badge-gray', text: '⚪ 정보', cardClass: 'info', seal: 'ic-info', eyebrow: '정보 · 참고만 하세요' },
+  info: { cls: 'badge-gray', text: '⚪ 정보', cardClass: 'info', seal: 'ic-info', eyebrow: '정보 · 참고만 하세요' },
   normal: { cls: 'badge-green', text: '🟢 정상', cardClass: 'success', seal: 'ic-check', eyebrow: '정상 · 조치가 필요해요' }
 };
 
 /** 체크리스트를 대표하는 일러스트 카드를 채우거나 숨긴다. Worker가 생성에 실패하면(키 없음 등) illustration이
  *  없으므로, 이때는 빈 칸을 보여주지 않고 카드를 통째로 숨긴다 - 지도 렌더링 실패와 같은 원칙. */
-function applyIllustration(cardId, imgId, dataUri){
+function applyIllustration(cardId, imgId, dataUri) {
   const card = document.getElementById(cardId);
   const img = document.getElementById(imgId);
   if (!card || !img) return;
@@ -1281,7 +1281,7 @@ function applyIllustration(cardId, imgId, dataUri){
 }
 
 /** 결과 화면(원형 배지 + 큰 타이틀 히어로)에 상태를 반영하는 공통 로직 */
-function applyResultHero(card, data){
+function applyResultHero(card, data) {
   const status = statusBadgeMap[data.status] ? data.status : 'normal';
   const info = statusBadgeMap[status];
   card.classList.remove('danger', 'info', 'success');
@@ -1295,7 +1295,7 @@ function applyResultHero(card, data){
   if (dangerPill) dangerPill.style.display = status === 'danger' ? 'inline-flex' : 'none';
 }
 
-function dataUrlToBase64(dataUrl){
+function dataUrlToBase64(dataUrl) {
   const match = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl || '');
   return match ? { mediaType: match[1], base64: match[2] } : null;
 }
@@ -1310,7 +1310,7 @@ const HISTORY_PHOTO_MAX_SIDE = 480;
 const HISTORY_PHOTO_QUALITY = 0.62;
 
 /** 분석 기록과 보호자 화면에서 볼 수 있도록 원본보다 작은 문서 미리보기를 만든다. */
-function prepareHistoryPhoto(src){
+function prepareHistoryPhoto(src) {
   return new Promise((resolve) => {
     if (!src) { resolve(null); return; }
     const img = new Image();
@@ -1332,7 +1332,7 @@ function prepareHistoryPhoto(src){
   });
 }
 
-function preparePhotoForUpload(src){
+function preparePhotoForUpload(src) {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -1357,7 +1357,7 @@ function preparePhotoForUpload(src){
 
 /** AI 분석 자체가 실패했을 때(서버 오류, API 크레딧 부족 등) 공통 화면으로 보내고, "다시 시도" 버튼이 원래 화면으로 돌아가도록 기억해둔다 */
 let aiErrorRetryScreen = 'screen-home';
-function goToAiError(retryScreen, isOffline){
+function goToAiError(retryScreen, isOffline) {
   aiErrorRetryScreen = retryScreen;
   finishAllProgress();
   document.getElementById('aiErrorTitle').textContent = isOffline
@@ -1370,7 +1370,7 @@ function goToAiError(retryScreen, isOffline){
 }
 
 /** 같은 사진/문자로 재시도 가능하면 처음부터 다시 고르게 하지 않고 바로 재분석한다 */
-function retryAiError(){
+function retryAiError() {
   if (aiErrorRetryScreen === 'screen-doc-choice' && lastCapturedPhoto) {
     goTo('screen-loading-doc');
     analyzeDocument(lastCapturedPhoto);
@@ -1385,7 +1385,7 @@ function retryAiError(){
 }
 
 /** 사진 한 장(문자열) 또는 여러 장(배열)을 받아 분석한다. */
-async function analyzeDocument(input){
+async function analyzeDocument(input) {
   const dataUrls = Array.isArray(input) ? input : [input];
   if (!navigator.onLine) { goToAiError('screen-doc-choice', true); return; }
   // 원본 그대로 보내면 본문이 수 MB가 되어 중계 서버가 거부한다. 보내기 전에 줄인다.
@@ -1426,7 +1426,7 @@ async function analyzeDocument(input){
 let docAnalyses = [];
 let docAnalysisIndex = 0;
 
-function showDocAnalysis(index){
+function showDocAnalysis(index) {
   if (index < 0 || index >= docAnalyses.length) return;
   docAnalysisIndex = index;
   lastDocAnalysis = docAnalyses[index];
@@ -1436,7 +1436,7 @@ function showDocAnalysis(index){
 }
 
 /** 문서가 여러 장일 때 이전/다음 화살표로 넘기는 페이지 표시. 숫자(1/2)를 크게 보여줘 몇 번째인지 한눈에 알 수 있게 한다. */
-function renderDocPager(){
+function renderDocPager() {
   const pager = document.getElementById('docPager');
   if (!pager) return;
   if (docAnalyses.length < 2) { pager.style.display = 'none'; return; }
@@ -1462,21 +1462,21 @@ function renderDocPager(){
    값이 없을 때 "0원"이나 임의의 날짜를 지어내지 않는다. */
 
 /** 금액을 천 단위 콤마와 함께. 값이 없거나 0이면 빈 문자열 */
-function formatDocAmount(amount){
+function formatDocAmount(amount) {
   const n = Number(amount);
   if (!Number.isFinite(n) || n <= 0) return '';
   return n.toLocaleString('ko-KR') + '원';
 }
 
 /** "2026-08-10" -> "8월 10일까지". 형식이 아니면 빈 문자열 */
-function formatDocDueDate(dueDate){
+function formatDocDueDate(dueDate) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dueDate || '').trim());
   if (!m) return '';
   return `${Number(m[2])}월 ${Number(m[3])}일까지`;
 }
 
 /** 기한까지 남은 날짜 안내. { text, urgent } 또는 null */
-function docDueDateLeft(dueDate){
+function docDueDateLeft(dueDate) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dueDate || '').trim());
   if (!m) return null;
   const due = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
@@ -1489,7 +1489,7 @@ function docDueDateLeft(dueDate){
   return { text: `${days}일 남았어요`, urgent: days <= 7 };
 }
 
-function renderDocKeyFacts(data){
+function renderDocKeyFacts(data) {
   const wrap = document.getElementById('docKeyFacts');
   if (!wrap) return;
   const amountText = formatDocAmount(data && data.amount);
@@ -1521,7 +1521,7 @@ function renderDocKeyFacts(data){
   wrap.style.display = (amountText || dueText || tags.length) ? 'flex' : 'none';
 }
 
-function renderDocResult(){
+function renderDocResult() {
   const data = lastDocAnalysis;
   if (!data) return;
 
@@ -1589,7 +1589,7 @@ function renderDocResult(){
 }
 
 /** 공유 버튼(문자/카카오톡/복사)이 사용할 현재 분석 결과 텍스트 */
-function currentDocShareText(){
+function currentDocShareText() {
   if (!lastDocAnalysis) return '';
   return `${lastDocAnalysis.headline}: ${lastDocAnalysis.summary}`;
 }
@@ -1600,13 +1600,13 @@ function currentDocShareText(){
 let pendingSmsText = '';
 let lastSmsAnalysis = null;
 
-function getSmsReaderPlugin(){
+function getSmsReaderPlugin() {
   return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SmsReader) || null;
 }
 
 /** 문자 확인 화면 진입점. 권한이 있으면 바로 목록을 보여주고, 없으면 요청하거나
  *  (플러그인 자체가 없는 웹/iOS라면) 권한 필요 화면으로 보낸다. 복사/붙여넣기로는 폴백하지 않는다. */
-async function openSmsCheck(){
+async function openSmsCheck() {
   const SmsReader = getSmsReaderPlugin();
   if (!SmsReader) { showSmsPermissionNeeded('unsupported'); return; }
   try {
@@ -1620,7 +1620,7 @@ async function openSmsCheck(){
   }
 }
 
-function showSmsPermissionNeeded(reason){
+function showSmsPermissionNeeded(reason) {
   const isUnsupported = reason === 'unsupported';
   document.getElementById('smsPermissionTitle').innerHTML = isUnsupported
     ? t('sms.permission.unsupportedTitle')
@@ -1632,12 +1632,12 @@ function showSmsPermissionNeeded(reason){
   goTo('screen-sms-permission-needed');
 }
 
-function openSmsAppSettings(){
+function openSmsAppSettings() {
   const SmsReader = getSmsReaderPlugin();
   if (SmsReader) SmsReader.openAppSettings();
 }
 
-async function loadAndShowRecentSms(SmsReader){
+async function loadAndShowRecentSms(SmsReader) {
   goTo('screen-sms-recent');
   document.getElementById('smsRecentCount').textContent = t('sms.recent.loading');
   try {
@@ -1650,7 +1650,7 @@ async function loadAndShowRecentSms(SmsReader){
 
 /** 문자 미리보기 한 줄(50자)만 보여주고, 발신번호·받은 시각은 그대로 표시한다.
  *  AI가 만든 텍스트가 아니라 기기 문자 원문이므로 XSS 방지를 위해 항상 textContent로만 채운다. */
-function renderSmsRecentList(messages){
+function renderSmsRecentList(messages) {
   const listEl = document.getElementById('smsRecentList');
   const emptyEl = document.getElementById('smsRecentEmpty');
   const countEl = document.getElementById('smsRecentCount');
@@ -1692,17 +1692,17 @@ function renderSmsRecentList(messages){
   });
 }
 
-function selectSmsMessage(body){
+function selectSmsMessage(body) {
   pendingSmsText = body;
   startSmsAnalysis();
 }
 
-function startSmsAnalysis(){
+function startSmsAnalysis() {
   goTo('screen-loading-text');
   analyzeSmsText(pendingSmsText);
 }
 
-async function analyzeSmsText(text){
+async function analyzeSmsText(text) {
   if (!navigator.onLine) { goToAiError('screen-sms-recent', true); return; }
 
   try {
@@ -1732,7 +1732,7 @@ const SMS_DEFAULT_TIPS = [
   '가족이나 가까운 지인에게 지금 상황을 꼭 알리세요.'
 ];
 
-function renderSmsResult(){
+function renderSmsResult() {
   const data = lastSmsAnalysis;
   if (!data) return;
 
@@ -1768,19 +1768,19 @@ function renderSmsResult(){
 /* ---------------------------------------------------------
    9. 자동 실행 버튼 (지도 열기)
    --------------------------------------------------------- */
-function openMap(query){
+function openMap(query) {
   window.open('https://map.kakao.com/?q=' + encodeURIComponent(query), '_blank');
 }
 
 /* ---------------------------------------------------------
    10. 긴급 도움 FAB + Bottom Sheet
    --------------------------------------------------------- */
-function openEmergencySheet(){
+function openEmergencySheet() {
   document.getElementById('emergencyBackdrop').style.display = 'block';
   document.getElementById('emergencySheet').style.display = 'block';
   speak('긴급 도움 메뉴입니다.');
 }
-function closeEmergencySheet(){
+function closeEmergencySheet() {
   document.getElementById('emergencyBackdrop').style.display = 'none';
   document.getElementById('emergencySheet').style.display = 'none';
   hideGuardianPhonePrompt();
@@ -1790,12 +1790,12 @@ function closeEmergencySheet(){
    예전에는 번호가 없으면 goTo('screen-settings')로 설정 화면으로 보냈는데,
    급한 상황에서 설정 화면을 헤매게 만드는 나쁜 흐름이었다.
    이제는 시트를 닫지 않고 그 자리에서 번호를 받아, 저장과 동시에 전화를 건다. */
-function guardianPhoneDigits(value){
+function guardianPhoneDigits(value) {
   return String(value || '').replace(/\D/g, '');
 }
 /** 번호를 저장한 뒤에 할 일: 'call'(전화 걸기) 또는 'sms'(보호자에게 알리는 문자 앱 열기) */
 let guardianPhonePromptMode = 'call';
-function showGuardianPhonePrompt(mode){
+function showGuardianPhonePrompt(mode) {
   const wrap = document.getElementById('guardianPhonePrompt');
   if (!wrap) return;
   guardianPhonePromptMode = (mode === 'sms') ? 'sms' : 'call';
@@ -1811,11 +1811,11 @@ function showGuardianPhonePrompt(mode){
   const input = document.getElementById('guardianPhoneQuick');
   if (input) {
     input.value = appState.guardian.phone || '';
-    setTimeout(() => { try { input.focus(); } catch (e) {} }, 60);
+    setTimeout(() => { try { input.focus(); } catch (e) { } }, 60);
   }
   speak(t('emergency.phoneAsk'));
 }
-function hideGuardianPhonePrompt(){
+function hideGuardianPhonePrompt() {
   guardianPhonePromptMode = 'call';   // 다음에 시트를 그냥 열었을 때는 기본값(전화 걸기)으로 돌아간다
   const wrap = document.getElementById('guardianPhonePrompt');
   if (wrap) wrap.style.display = 'none';
@@ -1823,13 +1823,13 @@ function hideGuardianPhonePrompt(){
   if (err) err.style.display = 'none';
 }
 /** 숫자와 하이픈만 남긴다(어르신이 다른 문자를 눌러도 번호가 망가지지 않도록) */
-function onGuardianPhoneInput(input){
+function onGuardianPhoneInput(input) {
   const cleaned = String(input.value || '').replace(/[^0-9-]/g, '');
   if (cleaned !== input.value) input.value = cleaned;
   const err = document.getElementById('guardianPhoneQuickError');
   if (err) err.style.display = 'none';
 }
-function saveGuardianPhoneAndCall(){
+function saveGuardianPhoneAndCall() {
   const input = document.getElementById('guardianPhoneQuick');
   const err = document.getElementById('guardianPhoneQuickError');
   const phone = String(input ? input.value : '').replace(/[^0-9-]/g, '').trim();
@@ -1849,7 +1849,7 @@ function saveGuardianPhoneAndCall(){
   window.location.href = 'tel:' + phone;
 }
 
-function callGuardianFromSheet(){
+function callGuardianFromSheet() {
   if (guardianPhoneDigits(appState.guardian.phone).length < 9) { showGuardianPhonePrompt(); return; }   // 시트를 닫지 않고 그 안에서 입력받는다
   closeEmergencySheet();
   callGuardian();
@@ -1858,20 +1858,20 @@ function callGuardianFromSheet(){
 /* ---------------------------------------------------------
    11. 보호자 공유 (문자 / 카카오톡 / 복사)
    --------------------------------------------------------- */
-function shareViaCopy(text){
+function shareViaCopy(text) {
   navigator.clipboard.writeText(text)
     .then(() => showGlobalToast('복사되었습니다.'))
     .catch(() => showGlobalToast('복사에 실패했어요.'));
 }
 
-function shareViaSms(text){
+function shareViaSms(text) {
   const phone = appState.guardian.phone || '';
   window.open(`sms:${phone}?body=${encodeURIComponent(text)}`);
 }
 
-function shareViaKakao(text){
+function shareViaKakao(text) {
   if (navigator.share) {
-    navigator.share({ title: 'AI 디지털 도우미', text }).catch(() => {});
+    navigator.share({ title: 'AI 디지털 도우미', text }).catch(() => { });
   } else {
     shareViaCopy(text);
     showGlobalToast('카카오톡 공유는 모바일 앱에서 지원돼요. 대신 내용을 복사했어요.');
@@ -1882,20 +1882,20 @@ function shareViaKakao(text){
    12. 설정 (글자 크기 / 음성 속도 / 보호자 정보)
    --------------------------------------------------------- */
 /** 설정 화면의 세그먼트 버튼 그룹(글자 크기/음성 속도)에서 현재 값에 맞는 버튼만 active로 표시 */
-function syncToggleGroup(groupId, datasetKey, currentValue){
+function syncToggleGroup(groupId, datasetKey, currentValue) {
   document.querySelectorAll('#' + groupId + ' button').forEach(btn => {
     btn.classList.toggle('active', parseFloat(btn.dataset[datasetKey]) === currentValue);
   });
 }
 
-function setFontScale(value){
+function setFontScale(value) {
   appState.settings.fontScale = value;
   document.documentElement.style.setProperty('--scale', value);
   syncToggleGroup('fontScaleGroup', 'scale', value);
   saveState();
 }
 
-function setVoiceRate(value){
+function setVoiceRate(value) {
   appState.settings.voiceRate = value;
   syncToggleGroup('voiceRateGroup', 'rate', value);
   saveState();
@@ -1903,7 +1903,7 @@ function setVoiceRate(value){
 }
 
 /** 보호자(자녀) 정보: 설정 화면과 온보딩의 "자녀 정보" 화면 두 곳에 같은 값을 반영한다(내 정보와 같은 방식). */
-function syncGuardianUI(){
+function syncGuardianUI() {
   setValueIfChanged(document.getElementById('guardianName'), appState.guardian.name);
   setValueIfChanged(document.getElementById('guardianNameOnboard'), appState.guardian.name);
   setValueIfChanged(document.getElementById('guardianPhone'), appState.guardian.phone);
@@ -1912,7 +1912,7 @@ function syncGuardianUI(){
   if (toggle) toggle.checked = appState.guardian.autoNotify;
 }
 
-function setGuardianField(field, value){
+function setGuardianField(field, value) {
   appState.guardian[field] = value;
   saveState();
   syncGuardianUI();
@@ -2739,7 +2739,7 @@ const I18N = {
    조용히 기존 정적 사전(I18N)으로 폴백한다 — 화면이 비거나 깨지는 대신 이전과 같은 번역을 계속 보여준다. ---- */
 const TRANSLATION_CACHE_KEY = 'ai_helper_translations_v1';
 let dynamicTranslations = {}; // { [lang]: { [i18nKey]: 번역된 문구 } }
-(function loadDynamicTranslations(){
+(function loadDynamicTranslations() {
   try {
     const raw = localStorage.getItem(TRANSLATION_CACHE_KEY);
     if (raw) dynamicTranslations = JSON.parse(raw) || {};
@@ -2751,7 +2751,7 @@ let translationInFlight = {}; // lang -> Promise. 같은 언어를 여러 번 �
 /** 이 언어를 API로 번역해둔 적이 없으면 Worker(/translate)를 한 번 호출해 I18N.ko 전체를 번역하고 캐시한다.
  *  실패해도 조용히 넘어간다 — t()/applyLanguage()가 정적 사전(I18N)으로 자동 폴백하기 때문에
  *  이 호출 자체가 실패해도 사용자 눈에는 아무 문제가 없다(그저 초벌 정적 번역이 계속 보일 뿐). */
-async function translateUiIfNeeded(lang){
+async function translateUiIfNeeded(lang) {
   if (lang === 'ko' || dynamicTranslations[lang] || !AI_WORKER_URL) return;
   if (translationInFlight[lang]) return translationInFlight[lang];
 
@@ -2770,7 +2770,7 @@ async function translateUiIfNeeded(lang){
       const dict = {};
       keys.forEach((k, i) => { dict[k] = data.translations[i] || I18N.ko[k]; });
       dynamicTranslations[lang] = dict;
-      try { localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(dynamicTranslations)); } catch (err) {}
+      try { localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(dynamicTranslations)); } catch (err) { }
       // 번역이 도착했을 때도 여전히 이 언어를 보고 있으면 화면에 바로 반영한다(먼저 정적 사전으로 보여주고 있었으므로)
       if (appState.settings.language === lang) applyLanguage();
     } catch (err) {
@@ -2782,14 +2782,14 @@ async function translateUiIfNeeded(lang){
   return translationInFlight[lang];
 }
 
-function t(key){
+function t(key) {
   const lang = I18N[appState.settings.language] ? appState.settings.language : 'ko';
   const dyn = dynamicTranslations[lang];
   if (dyn && dyn[key]) return dyn[key];
   return (I18N[lang] && I18N[lang][key]) || I18N.ko[key] || '';
 }
 
-function applyLanguage(){
+function applyLanguage() {
   const lang = I18N[appState.settings.language] ? appState.settings.language : 'ko';
   const dict = I18N[lang];
   const dyn = dynamicTranslations[lang];
@@ -2804,14 +2804,14 @@ function applyLanguage(){
   syncToggleGroupString('languageGroup', lang);
 }
 
-function setLanguage(lang){
+function setLanguage(lang) {
   appState.settings.language = lang;
   saveState();
   applyLanguage();
   translateUiIfNeeded(lang);
 }
 
-function syncSettingsUI(){
+function syncSettingsUI() {
   syncToggleGroup('fontScaleGroup', 'scale', appState.settings.fontScale);
   syncToggleGroup('voiceRateGroup', 'rate', appState.settings.voiceRate);
   syncGuardianUI();
@@ -2834,13 +2834,13 @@ function syncSettingsUI(){
   refreshGuardianLinkStatus();
 }
 
-function handleLogout(){
+function handleLogout() {
   clearAuth();
   goTo('screen-login');
 }
 
 /* ---- 내 정보(성별/연령대/지역, 선택 사항): 첫 화면 안내와 설정 화면 두 곳에 같은 값을 반영 ---- */
-function syncToggleGroupString(groupId, currentValue){
+function syncToggleGroupString(groupId, currentValue) {
   const group = document.getElementById(groupId);
   if (!group) return;
   group.querySelectorAll('button').forEach(btn => {
@@ -2848,7 +2848,7 @@ function syncToggleGroupString(groupId, currentValue){
   });
 }
 
-function setProfileField(field, value){
+function setProfileField(field, value) {
   appState.profile[field] = value;
   saveState();
   syncProfileUI();
@@ -2860,7 +2860,7 @@ function setProfileField(field, value){
 
 /** 나이 직접 입력: 만 나이를 그대로 저장한다(기초연금 65세처럼 혜택 기준이 한 살 단위라 반올림하지 않는다).
  *  빈 칸이면 "입력 안 함"으로 두고, 숫자가 아니거나 범위를 벗어나면 저장하지 않는다(입력 중인 값을 되돌리지 않기 위해 화면은 건드리지 않음). */
-function setProfileAge(raw){
+function setProfileAge(raw) {
   const text = String(raw == null ? '' : raw).trim();
   if (text === '') { setProfileField('age', ''); return; }
   const n = Number(text);
@@ -2870,14 +2870,14 @@ function setProfileAge(raw){
 
 /** 인사말 등 표시용으로 나이를 연령대(50/60/70/80)로 묶는다.
  *  저장값은 만 나이 그대로이고, 이 함수는 "70대 어르신"처럼 부드럽게 부를 때만 쓴다. */
-function toAgeBand(age){
+function toAgeBand(age) {
   const n = Number(age);
   if (!n) return 50;
   return Math.min(80, Math.max(50, Math.floor(n / 10) * 10));
 }
 
 let regionInfoTimer = null;
-function queueRegionInfoRefresh(){
+function queueRegionInfoRefresh() {
   clearTimeout(regionInfoTimer);
   regionInfoTimer = setTimeout(renderRegionInfoCard, 800);
 }
@@ -2886,25 +2886,25 @@ function queueRegionInfoRefresh(){
    토큰이 서버로 동기화되는 appState JSON 안에 섞여 들어가면 안 되기 때문이다. ---- */
 const AUTH_KEY = 'ai_helper_auth_v1';
 
-function getAuth(){
+function getAuth() {
   try {
     const raw = localStorage.getItem(AUTH_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch (err) { return null; }
 }
-function setAuth(auth){
-  try { localStorage.setItem(AUTH_KEY, JSON.stringify(auth)); } catch (err) {}
+function setAuth(auth) {
+  try { localStorage.setItem(AUTH_KEY, JSON.stringify(auth)); } catch (err) { }
 }
-function clearAuth(){
-  try { localStorage.removeItem(AUTH_KEY); } catch (err) {}
+function clearAuth() {
+  try { localStorage.removeItem(AUTH_KEY); } catch (err) { }
 }
-function authHeaders(){
+function authHeaders() {
   const auth = getAuth();
   if (!auth) return {};
   return { 'X-User-Id': String(auth.userId), 'X-Auth-Token': auth.token };
 }
 
-async function guardianLinkRequest(path, options){
+async function guardianLinkRequest(path, options) {
   const response = await fetch(AI_WORKER_URL + path, {
     ...(options || {}),
     headers: {
@@ -2922,7 +2922,7 @@ async function guardianLinkRequest(path, options){
   return data;
 }
 
-async function refreshGuardianLinkStatus(){
+async function refreshGuardianLinkStatus() {
   const statusEl = document.getElementById('guardianLinkStatus');
   const listEl = document.getElementById('guardianLinkList');
   if (!statusEl || !listEl) return;
@@ -2952,7 +2952,7 @@ async function refreshGuardianLinkStatus(){
   }
 }
 
-async function revokeGuardianLink(linkId){
+async function revokeGuardianLink(linkId) {
   if (!Number(linkId)) return;
   if (!window.confirm('이 보호자와의 연결을 해제할까요?')) return;
   try {
@@ -2967,7 +2967,7 @@ async function revokeGuardianLink(linkId){
   }
 }
 
-function selectSignupRole(role){
+function selectSignupRole(role) {
   const selected = role === 'guardian' ? 'guardian' : 'senior';
   const input = document.getElementById('signupRole');
   if (input) input.value = selected;
@@ -2977,7 +2977,7 @@ function selectSignupRole(role){
   });
 }
 
-function openHomeForRole(role){
+function openHomeForRole(role) {
   if (role === 'guardian') {
     window.location.replace('guardian.html');
     return true;
@@ -2985,7 +2985,7 @@ function openHomeForRole(role){
   return false;
 }
 
-async function signupRequest(phone, pin, name, role){
+async function signupRequest(phone, pin, name, role) {
   try {
     const res = await fetch(AI_WORKER_URL + '/signup', {
       method: 'POST',
@@ -3001,7 +3001,7 @@ async function signupRequest(phone, pin, name, role){
   }
 }
 
-async function loginRequest(phone, pin){
+async function loginRequest(phone, pin) {
   try {
     const res = await fetch(AI_WORKER_URL + '/login', {
       method: 'POST',
@@ -3017,7 +3017,7 @@ async function loginRequest(phone, pin){
   }
 }
 
-async function requestPinResetOtp(phone, name){
+async function requestPinResetOtp(phone, name) {
   try {
     const res = await fetch(AI_WORKER_URL + '/request-pin-reset-otp', {
       method: 'POST',
@@ -3032,7 +3032,7 @@ async function requestPinResetOtp(phone, name){
   }
 }
 
-async function verifyPinResetOtp(phone, otp, newPin){
+async function verifyPinResetOtp(phone, otp, newPin) {
   try {
     const res = await fetch(AI_WORKER_URL + '/verify-pin-reset-otp', {
       method: 'POST',
@@ -3047,14 +3047,14 @@ async function verifyPinResetOtp(phone, otp, newPin){
   }
 }
 
-function showFieldError(id, message){
+function showFieldError(id, message) {
   const el = document.getElementById(id);
   if (!el) return;
   el.textContent = message;
   el.style.display = message ? 'block' : 'none';
 }
 
-async function handleSignupSubmit(){
+async function handleSignupSubmit() {
   const name = document.getElementById('signupName').value.trim();
   const phone = document.getElementById('signupPhone').value.trim();
   const pin = document.getElementById('signupPin').value.trim();
@@ -3078,7 +3078,7 @@ async function handleSignupSubmit(){
   goTo('screen-profile');
 }
 
-async function handleLoginSubmit(){
+async function handleLoginSubmit() {
   const phone = document.getElementById('loginPhone').value.trim();
   const pin = document.getElementById('loginPin').value.trim();
 
@@ -3095,7 +3095,7 @@ async function handleLoginSubmit(){
   goTo('screen-home');
 }
 
-async function handleRequestResetOtp(){
+async function handleRequestResetOtp() {
   const name = document.getElementById('resetPinName').value.trim();
   const phone = document.getElementById('resetPinPhone').value.trim();
 
@@ -3109,7 +3109,7 @@ async function handleRequestResetOtp(){
   notice.style.display = 'block';
 }
 
-async function handleVerifyResetOtp(){
+async function handleVerifyResetOtp() {
   const phone = document.getElementById('resetPinPhone').value.trim();
   const otp = document.getElementById('resetPinOtp').value.trim();
   const newPin = document.getElementById('resetPinNewPin').value.trim();
@@ -3129,11 +3129,11 @@ async function handleVerifyResetOtp(){
 }
 
 /** 값이 다를 때만 반영해 입력 중인 커서 위치가 튀지 않게 한다 */
-function setValueIfChanged(el, value){
+function setValueIfChanged(el, value) {
   if (el && el.value !== value) el.value = value;
 }
 
-function syncProfileUI(){
+function syncProfileUI() {
   syncToggleGroupString('profileGenderGroup', appState.profile.gender);
   syncToggleGroupString('profileGenderGroupSettings', appState.profile.gender);
   const ageText = appState.profile.age ? String(appState.profile.age) : '';
@@ -3158,7 +3158,7 @@ const PUBLIC_INFO_ITEMS = [
    Worker 배포 전에는 이 값들이 없으므로 관련 카드가 전부 숨겨지고 기존과 동일하게 보인다. */
 
 /** 아직 지나지 않은 기한이 있는 기록을 가까운 순으로 */
-function upcomingDueEntries(){
+function upcomingDueEntries() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return appState.history
@@ -3172,7 +3172,7 @@ function upcomingDueEntries(){
 }
 
 const HOME_DUE_PREVIEW_COUNT = 2;
-function renderHomeDueCard(){
+function renderHomeDueCard() {
   const card = document.getElementById('homeDueCard');
   if (!card) return;
   const items = upcomingDueEntries();
@@ -3203,7 +3203,7 @@ let askHistory = [];        // [{q, a}] — Worker에 직전 몇 턴만 함께 �
 let askPending = false;
 
 /** 추천 질문: 분석 결과에 실제로 있는 값에 맞춰 고른다(금액이 없으면 납부 질문을 권하지 않는다) */
-function askSuggestions(data){
+function askSuggestions(data) {
   const list = [];
   if (askKind === 'sms') {
     if (data.status === 'danger') {
@@ -3222,11 +3222,11 @@ function askSuggestions(data){
   return list.slice(0, 4);
 }
 
-function currentAskAnalysis(){
+function currentAskAnalysis() {
   return askKind === 'sms' ? lastSmsAnalysis : lastDocAnalysis;
 }
 
-function openAsk(kind){
+function openAsk(kind) {
   askKind = kind === 'sms' ? 'sms' : 'doc';
   const data = currentAskAnalysis();
   if (!data) { speak(t('result.shareNothing')); return; }
@@ -3234,11 +3234,11 @@ function openAsk(kind){
   goTo('screen-ask');
 }
 
-function closeAsk(){
+function closeAsk() {
   goTo(askKind === 'sms' ? 'screen-result-text' : 'screen-result-doc');
 }
 
-function renderAskScreen(){
+function renderAskScreen() {
   const data = currentAskAnalysis();
   if (!data) return;
   const label = document.getElementById('askContextLabel');
@@ -3250,7 +3250,7 @@ function renderAskScreen(){
   renderAskLog();
 }
 
-function renderAskLog(){
+function renderAskLog() {
   const log = document.getElementById('askLog');
   if (!log) return;
   log.innerHTML = askHistory.map(item => `
@@ -3262,7 +3262,7 @@ function renderAskLog(){
   log.scrollTop = log.scrollHeight;
 }
 
-async function submitAsk(preset){
+async function submitAsk(preset) {
   if (askPending) return;
   const input = document.getElementById('askInput');
   const question = String(preset || (input && input.value) || '').trim();
@@ -3314,7 +3314,7 @@ async function submitAsk(preset){
    공유 시트를 지원하지 않는 브라우저에서는 문자 앱으로 대체한다. */
 
 /** 공유할 본문. AI 분석 결과는 사용자가 분석할 때 선택한 언어 그대로 공유한다. */
-function buildShareText(kind){
+function buildShareText(kind) {
   const data = kind === 'sms' ? lastSmsAnalysis : lastDocAnalysis;
   if (!data) return '';
   const lines = [`[온담] ${kind === 'sms' ? '문자' : '문서'} 확인 결과입니다.`];
@@ -3336,7 +3336,7 @@ function buildShareText(kind){
   return lines.join('\n');
 }
 
-async function shareResult(kind){
+async function shareResult(kind) {
   const text = buildShareText(kind);
   if (!text) { speak(t('result.shareNothing')); return; }
   await saveGuardianInboxMessage(kind, kind === 'doc' ? lastDocAnalysis : lastSmsAnalysis, text, '자녀에게 보내기');
@@ -3361,7 +3361,7 @@ async function shareResult(kind){
    빈 그래프나 "0원"을 그럴듯하게 보여주지 않기 위함이다. */
 
 /** 금액이 있는 기록을 달별로 묶어 [{key:'2026-07', label:'7월', sum, count}] 로. 오래된 달부터. */
-function monthlyAmountBuckets(){
+function monthlyAmountBuckets() {
   const map = new Map();
   for (const h of appState.history) {
     const amount = Number(h.amount);
@@ -3380,7 +3380,7 @@ function monthlyAmountBuckets(){
 
 /** 누적 선 그래프를 SVG로 직접 그린다(차트 라이브러리를 새로 들이지 않는다).
  *  점이 1개뿐이면 선이 그려지지 않으므로 점과 값만 보여준다. */
-function renderStatsChart(buckets){
+function renderStatsChart(buckets) {
   const svg = document.getElementById('statsChart');
   const desc = document.getElementById('statsChartDesc');
   if (!svg) return;
@@ -3423,7 +3423,7 @@ function renderStatsChart(buckets){
   }
 }
 
-function renderStats(){
+function renderStats() {
   const buckets = monthlyAmountBuckets();
   const dueItems = upcomingDueEntries();
   const hasAmount = buckets.length > 0;
@@ -3500,7 +3500,7 @@ function renderStats(){
 }
 
 /** 프로필이 있으면 "○○님을 위한 정보"처럼 인사말을 맞춰준다(지역별 실데이터가 아니라 호칭만 맞춤). */
-function publicInfoGreeting(){
+function publicInfoGreeting() {
   const { name, gender, age } = appState.profile;
   const who = name ? `${name}님` : (age ? `${toAgeBand(age)}대${gender ? ' ' + gender : ''} 어르신` : '');
   return who ? `${who}을 위한 정보` : t('home.publicInfoDefault');
@@ -3513,13 +3513,13 @@ const INFO_DETAIL_GREET_IDS = {
   'screen-info-checkup': 'infoCheckupGreet',
   'screen-info-voicephishing': 'infoVoicephishingGreet'
 };
-function renderInfoDetailGreet(screenId){
+function renderInfoDetailGreet(screenId) {
   const elId = INFO_DETAIL_GREET_IDS[screenId];
   const el = elId && document.getElementById(elId);
   if (el) el.textContent = publicInfoGreeting();
 }
 
-function publicInfoRowsHtml(items){
+function publicInfoRowsHtml(items) {
   return items.map(item => `
     <div class="row" onclick="goTo('screen-info-${item.id}')" role="button" tabindex="0">
       <div class="icon-chip accent"><svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg></div>
@@ -3530,7 +3530,7 @@ function publicInfoRowsHtml(items){
 }
 
 /** 정보 탭(screen-info)의 전체 목록 */
-function renderPublicInfoCard(){
+function renderPublicInfoCard() {
   const card = document.getElementById('publicInfoCard');
   if (!card) return;
   document.getElementById('publicInfoTitle').innerHTML =
@@ -3542,7 +3542,7 @@ function renderPublicInfoCard(){
 /** 홈의 정보 요약 카드: 앞의 2개만 보여주고 나머지는 "더보기"로 정보 탭에 넘긴다.
  *  홈이 다시 길어지는 것을 막기 위한 상한이므로 이 숫자를 늘리지 말 것. */
 const HOME_INFO_PREVIEW_COUNT = 2;
-function renderHomeInfoCard(){
+function renderHomeInfoCard() {
   const card = document.getElementById('homeInfoCard');
   if (!card) return;
   document.getElementById('homeInfoTitle').innerHTML =
@@ -3562,7 +3562,7 @@ const GUARDIAN_STATUS_LABEL = { danger: '위험', info: '정보', normal: '정�
 
 /** 보호자 웹의 받은 연락함에 분석 결과를 저장한다.
  *  같은 브라우저에서는 즉시 보이고, 추후 서버 동기화 시에도 그대로 전송할 수 있는 형태로 유지한다. */
-async function saveGuardianInboxMessage(kind, analysis, body, action){
+async function saveGuardianInboxMessage(kind, analysis, body, action) {
   if (!analysis || typeof analysis !== 'object') return;
   const message = {
     id: genId(),
@@ -3588,7 +3588,7 @@ async function saveGuardianInboxMessage(kind, analysis, body, action){
   await pushStateToServer();
 }
 
-function guardianSmsBody(){
+function guardianSmsBody() {
   const lines = ['[온담] 방금 확인한 문자를 전달드려요.'];
   if (lastSmsAnalysis) {
     lines.push('판정: ' + (GUARDIAN_STATUS_LABEL[lastSmsAnalysis.status] || '확인 필요'));
@@ -3606,14 +3606,14 @@ function guardianSmsBody(){
 
 /** sms: 링크를 만든다. 본문 구분자가 iOS는 '&', 그 외(Android 등)는 '?'라 플랫폼을 보고 고른다.
  *  본문은 줄바꿈·특수문자가 섞이므로 반드시 encodeURIComponent로 인코딩한다. */
-function buildGuardianSmsHref(phone, body){
+function buildGuardianSmsHref(phone, body) {
   const number = String(phone || '').replace(/[^0-9+*#]/g, '');
   const ua = navigator.userAgent || '';
   const isIOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
   return 'sms:' + number + (isIOS ? '&' : '?') + 'body=' + encodeURIComponent(body);
 }
 
-function notifyGuardian(){
+function notifyGuardian() {
   const note = document.getElementById('guardianNoteText');
   if (guardianPhoneDigits(appState.guardian.phone).length < 9) {
     // 설정 화면으로 튕기지 않고, 이미 있는 긴급 도움 시트의 번호 입력 흐름을 그대로 재사용한다.
@@ -3627,7 +3627,7 @@ function notifyGuardian(){
 }
 
 /** 보호자 번호가 확실히 있는 상태에서 문자 앱을 연다(기록도 여기서만 남긴다) */
-async function openGuardianSmsApp(){
+async function openGuardianSmsApp() {
   const note = document.getElementById('guardianNoteText');
   if (note) note.textContent = t('guardian.smsOpened');
   speak(t('guardian.smsOpened'));
@@ -3638,7 +3638,7 @@ async function openGuardianSmsApp(){
 
 /** 위험 판정 + '알릴지 물어보기' 설정이 켜져 있으면 보호자 알리기 버튼을 눈에 띄게 강조한다.
  *  브라우저·웹뷰는 사용자의 조작 없이 문자 앱을 열 수 없어 자동 발송은 불가능하므로, 안내까지만 한다. */
-function syncGuardianNotifyPrompt(){
+function syncGuardianNotifyPrompt() {
   const note = document.getElementById('guardianNoteText');
   const btn = document.querySelector('#screen-result-text .guardian-btn');
   const hasPhone = guardianPhoneDigits(appState.guardian.phone).length >= 9;
@@ -3649,7 +3649,7 @@ function syncGuardianNotifyPrompt(){
   note.textContent = ask ? t('guardian.askOnDanger') : '';
 }
 
-function callGuardian(){
+function callGuardian() {
   // 숫자가 9자리 미만이면(비어있거나 오타 등 잘못 입력된 번호) 실제로는 걸리지 않는 tel: 링크를 여는 대신
   // 번호부터 다시 받는다 — notifyGuardian()의 검증과 동일한 기준을 쓴다.
   if (guardianPhoneDigits(appState.guardian.phone).length < 9) {
@@ -3665,7 +3665,7 @@ function callGuardian(){
    14. 공통 유틸: 토스트 + 버튼 리플
    --------------------------------------------------------- */
 let toastTimer = null;
-function showGlobalToast(message){
+function showGlobalToast(message) {
   const toast = document.getElementById('globalToast');
   if (!toast) return;
   toast.textContent = message;
@@ -3675,12 +3675,12 @@ function showGlobalToast(message){
 }
 
 /** history/schedule에는 AI가 만든 텍스트(headline, checklist 항목 등)가 그대로 들어오므로, innerHTML 템플릿에 넣기 전에 항상 이스케이프한다 */
-function escapeHtml(str){
-  return String(str).replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 /** 버튼 클릭 시 리플 효과 (이벤트 위임으로 한 번만 등록 - 성능 최적화) */
-function attachRippleEffect(){
+function attachRippleEffect() {
   const rippleSelector = '.primary-btn, .secondary-btn, .guardian-btn, .auto-action-btn, .share-btn, .dashboard-more-btn, .reminder-btn, .practice-again-box, .sheet-btn';
   document.addEventListener('click', (e) => {
     const btn = e.target.closest(rippleSelector);

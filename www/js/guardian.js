@@ -13,7 +13,7 @@
 
   const $ = (id) => document.getElementById(id);
   const phoneDigits = (value) => String(value || '').replace(/\D/g, '');
-  const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
   function readGuardianSession() {
     try {
@@ -413,7 +413,7 @@
       method: 'POST',
       headers: guardianHeaders(session),
       body: JSON.stringify({ messageId: String(id) }),
-    }).catch(() => {});
+    }).catch(() => { });
     renderInbox();
     openAnalysisDetail(message.analysis, {
       type: message.kind === 'document' ? '부모님이 보낸 문서' : '부모님이 보낸 문자',
@@ -588,7 +588,7 @@
       method: 'POST',
       headers: guardianHeaders(session),
       body: '{}',
-    }).catch(() => {});
+    }).catch(() => { });
     disconnectLocal();
   });
   $('guardianLogoutButton').addEventListener('click', logoutGuardian);
