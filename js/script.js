@@ -142,13 +142,20 @@ function loadState(){
 function loadVoices(){ voices = window.speechSynthesis ? speechSynthesis.getVoices() : []; }
 if (window.speechSynthesis) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
 
+/** 안드로이드 시스템 WebView는 Web Speech API(window.speechSynthesis)를 안정적으로 지원하지 않아
+ *  APK에서 음성 안내가 무음이 되는 문제가 있었다 — 네이티브 TTS 플러그인이 있으면 그걸 쓰고,
+ *  없으면(웹 브라우저) 기존 speechSynthesis로 폴백한다. */
+function getTtsPlugin(){
+  return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Tts) || null;
+}
+
 /** 음성 지원 on/off 스위치는 홈 화면과 설정 화면 두 곳에 있다(voice-enabled-toggle 클래스로 묶임).
  *  el을 넘기면 그 스위치가 지금 누른 것이고, 나머지 스위치도 같은 상태로 맞춘다. */
 function toggleVoice(el){
   const checked = el ? el.checked : !appState.settings.voiceEnabled;
   appState.settings.voiceEnabled = checked;
   syncVoiceEnabledToggles();
-  if (!checked && window.speechSynthesis) speechSynthesis.cancel();
+  if (!checked) stopVoice();
   saveState();
 }
 
@@ -168,18 +175,24 @@ function currentTtsLang(){ return TTS_LANG_MAP[appState.settings.language] || 'k
  *  화면 진입 시 자동으로 읽어주는 것(force 없음)은 토글을 그대로 따른다. */
 function speak(text, lang, force){
   const liveRegion = document.getElementById('liveRegion');
-  if ((!force && !appState.settings.voiceEnabled) || !window.speechSynthesis || !text) {
+  if ((!force && !appState.settings.voiceEnabled) || !text) {
     if (text && liveRegion) liveRegion.textContent = text;
     return;
   }
-  speechSynthesis.cancel();
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = lang || 'ko-KR';
-  utter.rate = appState.settings.voiceRate;
-  const langPrefix = utter.lang.split('-')[0];
-  const matchVoice = voices.find(v => v.lang && v.lang.startsWith(langPrefix));
-  if (matchVoice) utter.voice = matchVoice;
-  speechSynthesis.speak(utter);
+  const ttsLang = lang || 'ko-KR';
+  const Tts = getTtsPlugin();
+  if (Tts) {
+    Tts.speak({ text, lang: ttsLang, rate: appState.settings.voiceRate });
+  } else if (window.speechSynthesis) {
+    speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = ttsLang;
+    utter.rate = appState.settings.voiceRate;
+    const langPrefix = utter.lang.split('-')[0];
+    const matchVoice = voices.find(v => v.lang && v.lang.startsWith(langPrefix));
+    if (matchVoice) utter.voice = matchVoice;
+    speechSynthesis.speak(utter);
+  }
   if (liveRegion) liveRegion.textContent = text;
 }
 
@@ -201,7 +214,9 @@ function replayCurrentVoice(){
 
 /** 음성 읽기 멈추기 */
 function stopVoice(){
-  if (window.speechSynthesis) speechSynthesis.cancel();
+  const Tts = getTtsPlugin();
+  if (Tts) Tts.stop();
+  else if (window.speechSynthesis) speechSynthesis.cancel();
 }
 
 /* ---------------------------------------------------------
@@ -1524,24 +1539,6 @@ function renderDocResult(){
       checklistRows.push({ state, checkbox, textNode });
     });
   }
-
-  // AI가 문서에서 실제로 찾은 전화번호/홈페이지/방문 장소가 있을 때만 해당 버튼을 보여준다(지어내지 않음)
-  const autoActions = document.getElementById('docAutoActions');
-  const phoneBtn = document.getElementById('docActionPhone');
-  const webBtn = document.getElementById('docActionWebsite');
-  const mapBtn = document.getElementById('docActionMap');
-  let anyAction = false;
-
-  if (data.phone) { phoneBtn.href = 'tel:' + data.phone; phoneBtn.style.display = 'flex'; anyAction = true; }
-  else phoneBtn.style.display = 'none';
-
-  if (data.website) { webBtn.onclick = () => window.open(data.website, '_blank'); webBtn.style.display = 'flex'; anyAction = true; }
-  else webBtn.style.display = 'none';
-
-  if (data.mapQuery) { mapBtn.onclick = () => openMap(data.mapQuery); mapBtn.style.display = 'flex'; anyAction = true; }
-  else mapBtn.style.display = 'none';
-
-  autoActions.style.display = anyAction ? 'grid' : 'none';
 
   // 표시 언어가 한국어가 아니면 위에서 그린 한국어 결과 위에 번역을 덧입힌다(비동기, 실패해도 한국어 그대로 유지).
   // analyzeDocument()가 goTo('screen-result-doc')를 부를 때 이미 appState.settings.language가 반영돼 있으므로
