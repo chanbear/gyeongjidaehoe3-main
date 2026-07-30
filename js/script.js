@@ -1612,6 +1612,18 @@ async function loadAndShowRecentSms(SmsReader){
   }
 }
 
+/** SmsReader가 넘겨주는 epoch ms를 "오늘 14:32" / "7월 30일 14:32" 형태로 보여준다.
+ *  재난안전문자처럼 문구가 거의 같은 문자가 반복 수신될 때, 시각이 없으면 화면에서 완전히
+ *  같은 문자가 중복된 것처럼 보인다 — 실제로는 서로 다른 시각에 온 별개 문자일 수 있으므로 구분해준다. */
+function formatSmsReceivedAt(epochMs){
+  const d = new Date(epochMs);
+  if (isNaN(d.getTime())) return '';
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return isToday ? `오늘 ${time}` : `${d.getMonth() + 1}월 ${d.getDate()}일 ${time}`;
+}
+
 /** 문자 미리보기 한 줄(50자)만 보여주고, 발신번호·받은 시각은 그대로 표시한다.
  *  AI가 만든 텍스트가 아니라 기기 문자 원문이므로 XSS 방지를 위해 항상 textContent로만 채운다. */
 function renderSmsRecentList(messages){
@@ -1649,6 +1661,14 @@ function renderSmsRecentList(messages){
     t2.textContent = preview.length > 50 ? preview.slice(0, 50) + '…' : preview;
     text.appendChild(t1);
     text.appendChild(t2);
+    // 받은 시각을 보여줘야 "완전히 같아 보이는" 반복 재난안전문자 등을 서로 다른 문자로 구분할 수 있다
+    // (미리보기만으로는 몇 시에 온 문자인지 알 수 없어 중복처럼 보이는 문제가 있었다).
+    if (msg.date) {
+      const t3 = document.createElement('div');
+      t3.style.cssText = 'font-size:12px;font-weight:500;color:var(--ink-faint);margin-top:2px;';
+      t3.textContent = formatSmsReceivedAt(msg.date);
+      text.appendChild(t3);
+    }
 
     row.appendChild(iconChip);
     row.appendChild(text);
