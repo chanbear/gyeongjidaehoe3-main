@@ -1577,34 +1577,6 @@
           ><span></span>
         </div>
 
-        <!-- 보호자용 안전 확인 현황: 지금까지 몇 건을 확인했고, 그중 위험으로 판정된 게 몇 건인지 요약.
-             appState.history에 이미 저장된 분석 결과(entry.analysis.status)만 집계하므로 새 데이터를 만들지 않는다. -->
-        <div class="section" id="statsSafetySection" style="display: none">
-          <div class="section-label" data-i18n="stats.safetyLabel">
-            보호자용 안전 확인 현황
-          </div>
-          <div
-            class="stat-hero"
-            id="statsSafetyHero"
-            style="background: var(--danger-soft)"
-          >
-            <div class="stat-hero-label" data-i18n="stats.safetyDangerCount">
-              위험으로 판정된 건수
-            </div>
-            <div
-              class="stat-hero-value"
-              id="statsSafetyDangerCount"
-              style="color: var(--danger-strong)"
-            ></div>
-            <div class="stat-hero-sub" id="statsSafetyTotalCount"></div>
-          </div>
-          <div
-            class="group"
-            id="statsSafetyList"
-            style="background: #fff; margin-top: 10px"
-          ></div>
-        </div>
-
         <div class="stat-hero" id="statsMonthCard" style="display: none">
           <div class="stat-hero-label" data-i18n="stats.thisMonth">
             이번 달 고지서
@@ -3529,119 +3501,6 @@
         <div class="settings-section">
           <h2>
             <svg class="inline-icon" viewBox="0 0 24 24">
-              <use href="#ic-question"></use></svg
-            ><span data-i18n="settings.myInfo"
-              >내 정보 (맞춤 안내용, 선택 사항)</span
-            >
-          </h2>
-          <div class="field-row">
-            <label for="profileNameSettings" data-i18n="settings.nameLabel"
-              >이름</label
-            >
-            <input
-              type="text"
-              id="profileNameSettings"
-              placeholder="예: 홍길동"
-              data-i18n-placeholder="settings.namePlaceholder"
-              oninput="setProfileField('name', this.value)"
-              style="
-                min-height: 56px;
-                border: 2px solid var(--line);
-                border-radius: var(--radius-md);
-                padding: 0 16px;
-                font-size: 18px;
-                color: var(--ink);
-                font-family: inherit;
-              "
-            />
-          </div>
-          <div
-            class="segmented"
-            id="profileGenderGroupSettings"
-            style="margin: 10px 0"
-          >
-            <button
-              data-value="남성"
-              onclick="setProfileField('gender', '남성')"
-              data-i18n="settings.male"
-            >
-              남성
-            </button>
-            <button
-              data-value="여성"
-              onclick="setProfileField('gender', '여성')"
-              data-i18n="settings.female"
-            >
-              여성
-            </button>
-          </div>
-          <div class="field-row">
-            <label for="profileAgeSettings" data-i18n="onboard.profile.ageLabel"
-              >나이</label
-            >
-            <input
-              type="number"
-              id="profileAgeSettings"
-              inputmode="numeric"
-              min="1"
-              max="120"
-              placeholder="예: 73"
-              data-i18n-placeholder="onboard.profile.agePlaceholder"
-              oninput="setProfileAge(this.value)"
-              onblur="syncProfileUI()"
-              style="
-                min-height: 56px;
-                border: 2px solid var(--line);
-                border-radius: var(--radius-md);
-                padding: 0 16px;
-                font-size: 18px;
-                color: var(--ink);
-                font-family: inherit;
-              "
-            />
-          </div>
-          <div class="field-row">
-            <label for="profileRegionSettings" data-i18n="settings.regionLabel"
-              >사시는 지역</label
-            >
-            <input
-              type="text"
-              id="profileRegionSettings"
-              placeholder="예: 경기도 안산시 상록구"
-              data-i18n-placeholder="settings.regionPlaceholder"
-              oninput="setProfileField('region', this.value)"
-              style="
-                min-height: 56px;
-                border: 2px solid var(--line);
-                border-radius: var(--radius-md);
-                padding: 0 16px;
-                font-size: 18px;
-                color: var(--ink);
-                font-family: inherit;
-              "
-            />
-            <button
-              type="button"
-              class="secondary-btn"
-              style="margin-top: 10px"
-              onclick="useCurrentLocationForRegion()"
-            >
-              <svg class="inline-icon" viewBox="0 0 24 24">
-                <use href="#ic-pin"></use></svg
-              ><span data-i18n="onboard.profile.useLocation"
-                >내 현재 위치 입력하기</span
-              >
-            </button>
-          </div>
-          <p class="settings-save-note" data-i18n="settings.myInfoNote">
-            문서·문자를 분석할 때 이 정보를 함께 참고해서 더 알맞게
-            설명해드려요. 다른 곳에 공유되지 않습니다.
-          </p>
-        </div>
-
-        <div class="settings-section">
-          <h2>
-            <svg class="inline-icon" viewBox="0 0 24 24">
               <use href="#ic-family"></use></svg
             ><span data-i18n="settings.guardian">보호자 정보</span>
           </h2>
@@ -3716,72 +3575,6 @@
             화면 핵심 문구만 번역되며, AI 분석 결과는 정확성을 위해 한국어로
             제공됩니다.
           </p>
-        </div>
-
-        <div class="settings-section">
-          <h2>
-            <svg class="inline-icon" viewBox="0 0 24 24">
-              <use href="#ic-question"></use></svg
-            ><span data-i18n="settings.support">고객 지원</span>
-          </h2>
-          <div
-            class="settings-link-row"
-            onclick="openMoreDrawer()"
-            role="button"
-            tabindex="0"
-          >
-            <span
-              ><svg class="inline-icon" viewBox="0 0 24 24">
-                <use href="#ic-calendar"></use></svg
-              ><span data-i18n="home.moreMenu">더보기</span></span
-            >
-            <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
-          </div>
-          <div
-            class="settings-link-row"
-            onclick="goTo('screen-help')"
-            role="button"
-            tabindex="0"
-          >
-            <span
-              ><svg class="inline-icon" viewBox="0 0 24 24">
-                <use href="#ic-question"></use></svg
-              ><span data-i18n="settings.supportHelp"
-                >사용 방법 안내</span
-              ></span
-            >
-            <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
-          </div>
-          <div
-            class="settings-link-row"
-            onclick="goTo('screen-greet')"
-            role="button"
-            tabindex="0"
-          >
-            <span
-              ><svg class="inline-icon" viewBox="0 0 24 24">
-                <use href="#ic-refresh"></use></svg
-              ><span data-i18n="settings.supportOnboarding"
-                >화면 안내(첫 실행 안내) 다시 보기</span
-              ></span
-            >
-            <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
-          </div>
-          <div
-            class="settings-link-row"
-            onclick="openEmergencySheet()"
-            role="button"
-            tabindex="0"
-          >
-            <span
-              ><svg class="inline-icon" viewBox="0 0 24 24">
-                <use href="#ic-phone"></use></svg
-              ><span data-i18n="settings.supportCenter"
-                >고객센터 연결</span
-              ></span
-            >
-            <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
-          </div>
         </div>
 
         <p class="settings-save-note" style="margin-top: 6px">
@@ -3912,6 +3705,71 @@
           </p>
         </div>
       </section>
+
+      <!-- 고객 지원: 더보기 드로어의 "고객 지원"에서 들어온다. 예전에는 설정 화면 안의 한 섹션이었으나
+           별도 화면으로 분리했다. -->
+      <section
+        class="screen"
+        id="screen-customer-support"
+        data-voice="사용 방법 안내, 화면 안내 다시 보기, 고객센터 연결을 확인할 수 있어요."
+      >
+        <div class="topbar">
+          <button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">
+            ← 홈으로</button
+          ><span class="header-title"
+            ><svg viewBox="0 0 24 24"><use href="#ic-question"></use></svg
+            ><span data-i18n="settings.support">고객 지원</span></span
+          ><span></span>
+        </div>
+
+        <div class="settings-section">
+          <div
+            class="settings-link-row"
+            onclick="goTo('screen-help')"
+            role="button"
+            tabindex="0"
+          >
+            <span
+              ><svg class="inline-icon" viewBox="0 0 24 24">
+                <use href="#ic-question"></use></svg
+              ><span data-i18n="settings.supportHelp"
+                >사용 방법 안내</span
+              ></span
+            >
+            <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+          </div>
+          <div
+            class="settings-link-row"
+            onclick="goTo('screen-greet')"
+            role="button"
+            tabindex="0"
+          >
+            <span
+              ><svg class="inline-icon" viewBox="0 0 24 24">
+                <use href="#ic-refresh"></use></svg
+              ><span data-i18n="settings.supportOnboarding"
+                >화면 안내(첫 실행 안내) 다시 보기</span
+              ></span
+            >
+            <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+          </div>
+          <div
+            class="settings-link-row"
+            onclick="openEmergencySheet()"
+            role="button"
+            tabindex="0"
+          >
+            <span
+              ><svg class="inline-icon" viewBox="0 0 24 24">
+                <use href="#ic-phone"></use></svg
+              ><span data-i18n="settings.supportCenter"
+                >고객센터 연결</span
+              ></span
+            >
+            <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+          </div>
+        </div>
+      </section>
     </div>
 
     <!-- 하단 네비게이션 바: 최상위 화면(홈·정보)에서만 보인다(body.has-bottom-nav).
@@ -3975,13 +3833,7 @@
           ← 홈으로</button
         ><span class="header-title"
           ><span data-i18n="home.moreMenu">더보기</span></span
-        ><button
-          class="gear-btn"
-          onclick="closeMoreDrawer(); goTo('screen-settings')"
-          aria-label="설정"
-        >
-          <svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg>
-        </button>
+        ><span></span>
       </div>
 
       <!-- 프로필 요약 카드: appState.profile(이름/나이/성별/지역)을 그대로 보여준다.
@@ -4051,6 +3903,28 @@
           ></span>
           <span class="more-menu-label" data-i18n="home.publicInfoDefault"
             >알아두면 좋은 정보</span
+          >
+          <svg class="more-menu-chevron" viewBox="0 0 24 24">
+            <use href="#ic-chevron"></use>
+          </svg>
+        </button>
+        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-settings')">
+          <span class="more-menu-icon"
+            ><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg
+          ></span>
+          <span class="more-menu-label" data-i18n="settings.title"
+            >설정</span
+          >
+          <svg class="more-menu-chevron" viewBox="0 0 24 24">
+            <use href="#ic-chevron"></use>
+          </svg>
+        </button>
+        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-customer-support')">
+          <span class="more-menu-icon"
+            ><svg viewBox="0 0 24 24"><use href="#ic-question"></use></svg
+          ></span>
+          <span class="more-menu-label" data-i18n="settings.support"
+            >고객 지원</span
           >
           <svg class="more-menu-chevron" viewBox="0 0 24 24">
             <use href="#ic-chevron"></use>

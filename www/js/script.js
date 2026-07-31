@@ -3573,26 +3573,6 @@ function renderStats(){
   const dueItems = upcomingDueEntries();
   const hasAmount = buckets.length > 0;
 
-  // 0) 보호자용 안전 확인 현황: 전체 확인 건수와 그중 위험 판정 건수, 최근 위험 판정 목록
-  const safetySection = document.getElementById('statsSafetySection');
-  const dangerEntries = appState.history.filter(h => h.analysis && h.analysis.status === 'danger');
-  const hasHistory = appState.history.length > 0;
-  safetySection.style.display = hasHistory ? 'block' : 'none';
-  if (hasHistory) {
-    document.getElementById('statsSafetyDangerCount').textContent = `${dangerEntries.length}건`;
-    document.getElementById('statsSafetyTotalCount').textContent = `전체 확인 ${appState.history.length}건 중`;
-    const listEl = document.getElementById('statsSafetyList');
-    if (dangerEntries.length === 0) {
-      listEl.innerHTML = `<div class="empty-state" style="padding:14px;" data-i18n="stats.safetyNone">위험으로 판정된 문서·문자가 없어요.</div>`;
-    } else {
-      listEl.innerHTML = dangerEntries.slice(0, 5).map(h => `
-        <div class="row">
-          <div class="icon-chip" style="background:var(--danger-strong);"><svg viewBox="0 0 24 24"><use href="#ic-alert"></use></svg></div>
-          <div class="text"><div class="t1">${escapeHtml(h.title)}</div><div class="t2">${escapeHtml(h.time || '')}</div></div>
-        </div>`).join('');
-    }
-  }
-
   // 1) 이번 달 합계
   const now = new Date();
   const thisKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -3641,7 +3621,7 @@ function renderStats(){
     }).join('');
   }
 
-  document.getElementById('statsEmpty').style.display = (hasAmount || dueItems.length || hasHistory) ? 'none' : 'block';
+  document.getElementById('statsEmpty').style.display = (hasAmount || dueItems.length) ? 'none' : 'block';
 }
 
 /** 프로필이 있으면 "○○님을 위한 정보"처럼 인사말을 맞춰준다(지역별 실데이터가 아니라 호칭만 맞춤). */
