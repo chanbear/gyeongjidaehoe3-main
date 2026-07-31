@@ -555,10 +555,14 @@
   box-shadow:var(--shadow-card);
 }
 
-/* ---- 해야 할 일을 대표하는 일러스트 카드 (AI 생성 이미지) ---- */
+/* ---- 해야 할 일을 대표하는 일러스트 카드 (AI 생성 이미지) ----
+   .screen이 flex-direction:column이라, overflow:hidden인 이 카드는 flex의 자동 최소 크기가
+   0으로 취급되어 내용(큰 이미지)이 넘칠 때 거의 0px로 짜부라진다(스크롤 대신 축소를 택함) —
+   flex-shrink:0으로 고정해 이미지가 항상 원래 크기로 보이게 한다. */
 .illustration-card{
   border-radius:var(--radius-lg); overflow:hidden; margin-bottom:16px;
   background:var(--bg-app); border:1px solid var(--line);
+  flex-shrink:0;
 }
 .illustration-card img{ width:100%; max-width:100%; display:block; }
 
