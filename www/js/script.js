@@ -289,35 +289,6 @@ function goTo(id){
   if (INFO_DETAIL_GREET_IDS[id]) renderInfoDetailGreet(id);
 }
 
-/** "튜토리얼을 건너뛸까요?" 확인 시트.
- *  브라우저 기본 confirm()은 앱과 생김새가 달라 어르신에게 낯설고, 진행 중이던 음성 안내도 끊긴다.
- *  그래서 다른 확인 창들과 같은 바텀시트로 통일했다. 건너뛰기를 눌렀을 때 할 일은 호출한 쪽이 넘겨준다. */
-let pendingSkipAction = null;
-
-function openSkipConfirm(onConfirm){
-  pendingSkipAction = onConfirm;
-  document.getElementById('skipConfirmBackdrop').style.display = 'block';
-  document.getElementById('skipConfirmSheet').style.display = 'block';
-  speak(t('skipConfirm.title'));
-}
-
-function closeSkipConfirm(){
-  pendingSkipAction = null;
-  document.getElementById('skipConfirmBackdrop').style.display = 'none';
-  document.getElementById('skipConfirmSheet').style.display = 'none';
-}
-
-function acceptSkipConfirm(){
-  const action = pendingSkipAction;
-  closeSkipConfirm(); // pendingSkipAction을 비운 뒤 실행해야 화면 전환 중 중복 실행되지 않는다
-  if (action) action();
-}
-
-/** 첫 화면의 "건너뛰기": 실수로 누르는 경우가 많아 같은 문구로 한 번 더 확인한다 */
-function confirmSkipTutorial(){
-  openSkipConfirm(() => goTo('screen-home'));
-}
-
 /** AI 분석 대기 화면의 진행바: 실제로 언제 끝날지 모르니 90%까지만 천천히 채워두고,
  *  analyzeDocument()/analyzeSmsText()가 실제로 응답을 받으면 finishAllProgress()가 100%로 마무리한다 */
 function startLoadingProgress(fillId){
@@ -364,7 +335,6 @@ function renderHomeDashboard(){
   renderHomeDueCard();
   renderHomeInfoCard();
   renderHomeGreet();
-  renderAvatarPhoto();
 }
 
 /** 프로필의 성별 값("남성"/"여성", 항상 한국어로 저장됨)을 현재 화면 언어로 번역한다 */
@@ -1166,62 +1136,6 @@ function captureInAppPhoto(){
   goTo('screen-doc-collect');
 }
 
-/* ---- 홈 화면 프로필 사진 ----
-   문서 사진과 달리 서버로 보내지 않고 이 기기에만 작은 크기로 저장한다(appState.avatarPhoto). */
-const AVATAR_MAX_SIDE = 320;
-
-/** 원본 사진을 정사각형에 가깝게 줄여 작은 data URL로 만든다. 캔버스가 막히면(교차 출처 등) 원본을 그대로 돌려준다. */
-function prepareAvatarPhoto(src){
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const scale = Math.min(1, AVATAR_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
-        const w = Math.max(1, Math.round(img.naturalWidth * scale));
-        const h = Math.max(1, Math.round(img.naturalHeight * scale));
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
-      } catch (err) {
-        resolve(src);
-      }
-    };
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
-}
-
-async function pickAvatarPhoto(){
-  const Camera = getCameraPlugin();
-  let raw = null;
-  try {
-    if (Camera) {
-      const { results } = await Camera.chooseFromGallery({ quality: 80 });
-      if (!results || !results.length) return;
-      raw = results[0].webPath;
-    } else {
-      raw = await pickWebPhoto(null);
-      if (!raw) return;
-    }
-  } catch (err) {
-    return; // 사용자가 선택을 취소한 경우 등: 그대로 둔다
-  }
-  const prepared = await prepareAvatarPhoto(raw);
-  if (!prepared) return;
-  appState.avatarPhoto = prepared;
-  saveState();
-  renderAvatarPhoto();
-}
-
-function renderAvatarPhoto(){
-  document.querySelectorAll('.home-avatar').forEach(el => {
-    el.classList.toggle('has-photo', !!appState.avatarPhoto);
-    el.style.backgroundImage = appState.avatarPhoto ? `url("${appState.avatarPhoto}")` : '';
-  });
-}
-
 /** 지금 보고 있는 문서(lastDocAnalysis)에 해당하는 사진을 pendingPhotos에서 찾는다.
  *  Worker가 돌려주는 pages(1부터 시작하는 사진 번호)로 매칭하고, 없으면 문서 순서(docAnalysisIndex)로 대신한다.
  *  사진이 여러 장이라 문서마다 다른 사진을 봐야 하는데, 예전에는 항상 첫 장(lastCapturedPhoto)만 보여줬다. */
@@ -1548,12 +1462,6 @@ function renderDocResult(){
   applyDocResultTranslation(data, checklistRows);
 }
 
-/** 공유 버튼(문자/카카오톡/복사)이 사용할 현재 분석 결과 텍스트 */
-function currentDocShareText(){
-  if (!lastDocAnalysis) return '';
-  return `${lastDocAnalysis.headline}: ${lastDocAnalysis.summary}`;
-}
-
 /* ---------------------------------------------------------
    7-3. 실제 문자(SMS) 분석 — 실제 문자 앱에서 복사해온 내용을 분석
    --------------------------------------------------------- */
@@ -1873,29 +1781,6 @@ function callGuardianFromSheet(){
   if (guardianPhoneDigits(appState.guardian.phone).length < 9) { showGuardianPhonePrompt(); return; }   // 시트를 닫지 않고 그 안에서 입력받는다
   closeEmergencySheet();
   callGuardian();
-}
-
-/* ---------------------------------------------------------
-   11. 보호자 공유 (문자 / 카카오톡 / 복사)
-   --------------------------------------------------------- */
-function shareViaCopy(text){
-  navigator.clipboard.writeText(text)
-    .then(() => showGlobalToast('복사되었습니다.'))
-    .catch(() => showGlobalToast('복사에 실패했어요.'));
-}
-
-function shareViaSms(text){
-  const phone = appState.guardian.phone || '';
-  window.open(`sms:${phone}?body=${encodeURIComponent(text)}`);
-}
-
-function shareViaKakao(text){
-  if (navigator.share) {
-    navigator.share({ title: 'AI 디지털 도우미', text }).catch(() => {});
-  } else {
-    shareViaCopy(text);
-    showGlobalToast('카카오톡 공유는 모바일 앱에서 지원돼요. 대신 내용을 복사했어요.');
-  }
 }
 
 /* ---------------------------------------------------------
@@ -3452,53 +3337,6 @@ async function submitAsk(preset){
   } catch (err) {
     finish(t('ask.failed'), undefined);
   }
-}
-
-/* ---- 분석 결과 공유하기 ----
-   특정 보호자 번호로 보내는 것(notifyGuardian)과 달리, 받는 사람을 정하지 않고
-   기기의 공유 시트를 열어 카카오톡·문자·메일 중에서 고르게 한다.
-   공유 시트를 지원하지 않는 브라우저에서는 문자 앱으로 대체한다. */
-
-/** 공유할 본문. AI가 만든 한국어 문장이 들어가므로 화면 UI와 달리 번역하지 않는다(CLAUDE.md 9번). */
-function buildShareText(kind){
-  const data = kind === 'sms' ? lastSmsAnalysis : lastDocAnalysis;
-  if (!data) return '';
-  const lines = [`[온담] ${kind === 'sms' ? '문자' : '문서'} 확인 결과입니다.`];
-  const label = GUARDIAN_STATUS_LABEL[data.status];
-  if (label) lines.push(`판정: ${label}`);
-  if (data.headline) lines.push(data.headline);
-  if (data.summary) lines.push(data.summary);
-
-  if (kind === 'doc') {
-    const amount = formatDocAmount(data.amount);
-    const due = formatDocDueDate(data.dueDate);
-    if (amount) lines.push(`납부할 금액: ${amount}`);
-    if (due) lines.push(`납부 기한: ${due}`);
-  }
-  if (Array.isArray(data.checklist) && data.checklist.length) {
-    lines.push('해야 할 일:');
-    data.checklist.forEach(item => lines.push(`- ${item}`));
-  }
-  return lines.join('\n');
-}
-
-async function shareResult(kind){
-  const text = buildShareText(kind);
-  if (!text) { speak(t('result.shareNothing')); return; }
-
-  // navigator.share 는 HTTPS + 사용자 조작이 있어야 뜬다. 없거나 취소되면 문자 앱으로 대체.
-  if (navigator.share) {
-    try {
-      await navigator.share({ title: '온담 확인 결과', text });
-      return;
-    } catch (err) {
-      // 사용자가 공유 시트를 닫은 경우(AbortError)는 실패가 아니므로 아무것도 하지 않는다
-      if (err && err.name === 'AbortError') return;
-    }
-  }
-  // 받는 사람을 비워 두면 문자 앱에서 직접 고르게 된다
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
-  window.location.href = 'sms:' + (isIOS ? '&' : '?') + 'body=' + encodeURIComponent(text);
 }
 
 /* ---- 통계 화면 ----

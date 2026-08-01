@@ -4082,35 +4082,6 @@
       </button>
     </div>
 
-    <!-- 튜토리얼 건너뛰기 확인: 브라우저 기본 confirm() 창은 앱과 생김새가 달라 낯설게 느껴지므로 앱 안의 시트로 대체 -->
-    <div
-      class="sheet-backdrop"
-      id="skipConfirmBackdrop"
-      style="display: none"
-      onclick="closeSkipConfirm()"
-    ></div>
-    <div class="bottom-sheet" id="skipConfirmSheet" style="display: none">
-      <div class="bottom-sheet-title">
-        <svg class="inline-icon" viewBox="0 0 24 24">
-          <use href="#ic-question"></use></svg
-        ><span data-i18n="skipConfirm.title">튜토리얼을 건너뛸까요?</span>
-      </div>
-      <button
-        class="sheet-btn"
-        onclick="acceptSkipConfirm()"
-        data-i18n="onboard.skip"
-      >
-        건너뛰기
-      </button>
-      <button
-        class="sheet-btn sheet-btn-cancel"
-        onclick="closeSkipConfirm()"
-        data-i18n="skipConfirm.keep"
-      >
-        계속 보기
-      </button>
-    </div>
-
     <div class="sr-only" role="status" aria-live="polite" id="liveRegion"></div>
     <div class="global-toast" id="globalToast"></div>
 
