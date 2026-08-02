@@ -81,7 +81,7 @@
 
   .icon-circle{ width:88px; height:88px; border-radius:50%; background:var(--accent-soft); display:flex; align-items:center; justify-content:center; margin:0 auto 18px; }
   .icon-circle.danger{ background:var(--danger-soft); }
-  .greet-illustration{ display:flex; align-items:center; justify-content:center; margin:0 auto 22px; }
+  .greet-illustration{ display:flex; align-items:center; justify-content:center; margin:22px auto 0; }
   .accent-ink{ color:var(--accent-strong); }
 
   .primary-btn{
