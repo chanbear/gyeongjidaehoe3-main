@@ -223,7 +223,7 @@ function stopVoice(){
    4. 화면 전환 + 진행바
    --------------------------------------------------------- */
 /* 안내(온보딩) 화면 동안에는 긴급 도움 FAB을 숨긴다 */
-const onboardScreens = new Set(['screen-greet', 'screen-signup', 'screen-login', 'screen-reset-pin', 'screen-onboard-access', 'screen-profile', 'screen-guardian-profile']);
+const onboardScreens = new Set(['screen-greet', 'screen-signup', 'screen-reset-pin', 'screen-onboard-access', 'screen-profile', 'screen-guardian-profile']);
 
 /* 하단 네비게이션 바를 노출할 최상위 화면. 여기 없는 화면(촬영·로딩·결과 등 흐름 중간)에서는 숨겨서
    "네비바가 보이면 출발점, 안 보이면 진행 중"이라는 규칙을 만든다.
@@ -1937,19 +1937,17 @@ const I18N = {
     'onboard.greet.desc': '복잡한 공문서와 납부 고지서를 대신 읽고<br>꼭 하셔야 할 일을 쉽게 정리해 드립니다.',
     'onboard.greet.start': '온담 시작하기',
     'onboard.greet.voice': '안녕하세요. AI 디지털 도우미입니다. 실제 화면을 보여드리며 사용 방법을 간단히 안내해드릴게요.',
-    'onboard.signup.title': '회원가입', 'onboard.signup.desc': '전화번호와 비밀번호로 계정을 만들어요.<br>이 계정으로 다른 기기에서도 내 정보를 이어서 쓸 수 있어요.',
+    'onboard.signup.title': '로그인 또는<br>회원가입하기', 'onboard.signup.backHome': '← 홈으로',
     'onboard.signup.phoneLabel': '전화번호',
     'onboard.signup.pinLabel': '비밀번호', 'onboard.signup.pinPlaceholder': '비밀번호 입력', 'onboard.signup.pinConfirmPlaceholder': '비밀번호 다시 입력',
-    'onboard.signup.submit': '가입하기', 'onboard.signup.toLogin': '이미 계정이 있으신가요? 로그인하기',
+    'onboard.signup.submit': '로그인',
     'onboard.signup.errorPhone': '전화번호를 다시 확인해주세요', 'onboard.signup.errorPinFormat': '비밀번호는 숫자 4자리로 입력해주세요',
-    'onboard.signup.errorPinMismatch': '입력하신 비밀번호가 서로 달라요', 'onboard.signup.errorPhoneExists': '이미 가입된 전화번호예요. 로그인해주세요',
-    'onboard.signup.errorGeneric': '가입에 실패했어요. 잠시 후 다시 시도해주세요',
-    'onboard.login.title': '로그인', 'onboard.login.desc': '가입할 때 쓴 전화번호와 비밀번호를 입력해주세요.',
-    'onboard.login.submit': '로그인', 'onboard.login.toSignup': '계정이 없으신가요? 회원가입',
+    'onboard.signup.errorPinMismatch': '입력하신 비밀번호가 서로 달라요',
+    'onboard.signup.errorGeneric': '처리에 실패했어요. 잠시 후 다시 시도해주세요',
+    'onboard.signup.or': '또는', 'onboard.signup.google': '구글 로그인', 'onboard.signup.naver': '네이버 로그인', 'onboard.signup.kakao': '카카오 로그인',
     'onboard.login.errorInvalid': '전화번호 또는 비밀번호가 올바르지 않습니다', 'onboard.login.errorLocked': '너무 여러 번 틀렸어요. 15분 후 다시 시도해주세요',
     'onboard.login.forgotPin': '비밀번호를 잊으셨나요?',
-    'onboard.signup.voice': '이름과 전화번호, 비밀번호를 입력해서 가입해주세요.',
-    'onboard.login.voice': '전화번호와 비밀번호를 입력해서 로그인해주세요.',
+    'onboard.signup.voice': '전화번호와 비밀번호를 입력해주세요. 계정이 없으면 자동으로 새로 만들어드려요.',
     'onboard.resetPin.title': '비밀번호 재설정', 'onboard.resetPin.desc': '가입할 때 쓴 이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요.',
     'onboard.resetPin.requestOtp': '인증번호 받기', 'onboard.resetPin.otpLabel': '인증번호 (6자리)', 'onboard.resetPin.submit': '재설정하기',
     'onboard.resetPin.otpSentNotice': '인증번호를 보냈습니다', 'onboard.resetPin.errorSmsFailed': '문자 발송에 실패했어요. 잠시 후 다시 시도해주세요',
@@ -2943,7 +2941,7 @@ function syncSettingsUI(){
 
 function handleLogout(){
   clearAuth();
-  goTo('screen-login');
+  goTo('screen-signup');
 }
 
 /* ---- 내 정보(성별/연령대/지역, 선택 사항): 첫 화면 안내와 설정 화면 두 곳에 같은 값을 반영 ---- */
@@ -3011,25 +3009,9 @@ function authHeaders(){
   return { 'X-User-Id': String(auth.userId), 'X-Auth-Token': auth.token };
 }
 
-async function signupRequest(phone, pin, name){
+async function authRequest(phone, pin){
   try {
-    const res = await fetch(AI_WORKER_URL + '/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, pin, name }),
-    });
-    const data = await res.json();
-    if (!res.ok) return { ok: false, error: data.error || 'unknown' };
-    setAuth({ userId: data.userId, token: data.token, name: data.name, phone: phone.replace(/\D/g, '') });
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: 'network' };
-  }
-}
-
-async function loginRequest(phone, pin){
-  try {
-    const res = await fetch(AI_WORKER_URL + '/login', {
+    const res = await fetch(AI_WORKER_URL + '/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, pin }),
@@ -3037,7 +3019,7 @@ async function loginRequest(phone, pin){
     const data = await res.json();
     if (!res.ok) return { ok: false, error: data.error || 'unknown' };
     setAuth({ userId: data.userId, token: data.token, name: data.name, phone: phone.replace(/\D/g, '') });
-    return { ok: true };
+    return { ok: true, isNewUser: !!data.isNewUser };
   } catch (err) {
     return { ok: false, error: 'network' };
   }
@@ -3080,42 +3062,34 @@ function showFieldError(id, message){
   el.style.display = message ? 'block' : 'none';
 }
 
-async function handleSignupSubmit(){
-  const name = document.getElementById('signupName').value.trim();
-  const phone = document.getElementById('signupPhone').value.trim();
-  const pin = document.getElementById('signupPin').value.trim();
-  const pinConfirm = document.getElementById('signupPinConfirm').value.trim();
+async function handleAuthSubmit(){
+  const phone = document.getElementById('authPhone').value.trim();
+  const pin = document.getElementById('authPin').value.trim();
 
-  if (!isValidKoreanMobilePhone(phone)) return showFieldError('signupError', t('onboard.signup.errorPhone'));
-  if (!/^\d{4}$/.test(pin)) return showFieldError('signupError', t('onboard.signup.errorPinFormat'));
-  if (pin !== pinConfirm) return showFieldError('signupError', t('onboard.signup.errorPinMismatch'));
+  if (!isValidKoreanMobilePhone(phone)) return showFieldError('authError', t('onboard.signup.errorPhone'));
+  if (!/^\d{4}$/.test(pin)) return showFieldError('authError', t('onboard.signup.errorPinFormat'));
 
-  showFieldError('signupError', '');
-  const result = await signupRequest(phone, pin, name);
+  showFieldError('authError', '');
+  const result = await authRequest(phone, pin);
   if (!result.ok) {
-    if (result.error === 'phone_exists') return showFieldError('signupError', t('onboard.signup.errorPhoneExists'));
-    if (result.error === 'invalid_pin') return showFieldError('signupError', t('onboard.signup.errorPinFormat'));
-    return showFieldError('signupError', t('onboard.signup.errorGeneric'));
+    if (result.error === 'locked') return showFieldError('authError', t('onboard.login.errorLocked'));
+    if (result.error === 'invalid_pin') return showFieldError('authError', t('onboard.signup.errorPinFormat'));
+    return showFieldError('authError', t('onboard.login.errorInvalid'));
   }
-  appState.profile.name = name;
-  saveState();
-  goTo('screen-onboard-access');
+
+  if (result.isNewUser) {
+    saveState();
+    goTo('screen-onboard-access');
+  } else {
+    await pullStateFromServer();
+    saveState();
+    syncSettingsUI();
+    goTo('screen-home');
+  }
 }
 
-async function handleLoginSubmit(){
-  const phone = document.getElementById('loginPhone').value.trim();
-  const pin = document.getElementById('loginPin').value.trim();
-
-  showFieldError('loginError', '');
-  const result = await loginRequest(phone, pin);
-  if (!result.ok) {
-    if (result.error === 'locked') return showFieldError('loginError', t('onboard.login.errorLocked'));
-    return showFieldError('loginError', t('onboard.login.errorInvalid'));
-  }
-  await pullStateFromServer();
-  saveState();
-  syncSettingsUI();
-  goTo('screen-home');
+function showSocialComingSoon(providerName){
+  showGlobalToast(providerName + ' 로그인은 곧 지원할 예정이에요.');
 }
 
 async function handleRequestResetOtp(){
@@ -3153,7 +3127,7 @@ async function handleVerifyResetOtp(){
 
   showFieldError('resetPinError', '');
   showGlobalToast(t('onboard.resetPin.successNotice'));
-  goTo('screen-login');
+  goTo('screen-signup');
 }
 
 /** 값이 다를 때만 반영해 입력 중인 커서 위치가 튀지 않게 한다 */
@@ -3652,7 +3626,7 @@ window.addEventListener('load', async () => {
   let firstScreenId = 'screen-greet';
   if (getAuth()) {
     const stillValid = await pullStateFromServer();
-    firstScreenId = stillValid ? 'screen-home' : 'screen-login';
+    firstScreenId = stillValid ? 'screen-home' : 'screen-signup';
     if (!stillValid) clearAuth();
   }
   const first = document.getElementById(firstScreenId);

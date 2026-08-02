@@ -100,6 +100,12 @@
   }
   .secondary-btn:focus-visible{ outline:3px solid var(--accent); outline-offset:3px; }
 
+  .auth-divider{ text-align:center; color:var(--ink-faint); font-size:calc(14px * var(--scale)); margin:6px 0; position:relative; }
+  .social-btn{ margin-top:10px; }
+  .social-btn img{ width:24px; height:24px; flex-shrink:0; }
+  .social-btn-naver{ background:#03a94d; border-color:#03a94d; color:#fff; }
+  .social-btn-kakao{ background:#fae100; border-color:#fae100; color:#371d1e; }
+
   /* ---- 결과 화면: 중앙 정렬 상태 히어로(원형 배지 + 큰 타이틀), 가장자리까지 꽉 채움 ---- */
   .result-card{
     background:var(--accent-soft); margin:0 -20px 20px; padding:30px 24px 26px;

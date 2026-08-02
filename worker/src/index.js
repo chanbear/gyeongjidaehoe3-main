@@ -497,6 +497,63 @@ export default {
       }
     }
 
+    /* ---- 통합 로그인/회원가입: 전화번호+비밀번호(PIN)만 받고, 계정이 없으면 그 자리에서 새로 만든다.
+       이름은 여기서 받지 않고(가입 시 빈 문자열로 저장) screen-profile 단계에서 채워진다. ---- */
+    if (url.pathname === '/auth' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      const { phone, pin } = body || {};
+      const phoneDigits = String(phone || '').replace(/\D/g, '');
+      if (!/^010\d{7,8}$/.test(phoneDigits)) return json({ error: 'invalid_phone' }, 400);
+      if (!/^\d{4}$/.test(String(pin || ''))) return json({ error: 'invalid_pin' }, 400);
+
+      try {
+        const user = await env.ansim_doumi_db.prepare(
+          `SELECT id, pin_hash, pin_salt, name, failed_attempts, locked_until FROM users WHERE phone = ?`
+        ).bind(phoneDigits).first();
+
+        if (!user) {
+          const pinSalt = randomHex(16);
+          const pinHash = await sha256Hex(pinSalt + pin);
+          const token = randomHex(32);
+          const inserted = await env.ansim_doumi_db.prepare(
+            `INSERT INTO users (phone, pin_hash, pin_salt, name, token)
+             VALUES (?, ?, ?, '', ?)`
+          ).bind(phoneDigits, pinHash, pinSalt, token).run();
+          return json({ userId: inserted.meta.last_row_id, token, name: '', isNewUser: true }, 200);
+        }
+
+        if (user.locked_until && new Date(user.locked_until).getTime() > Date.now()) {
+          return json({ error: 'locked' }, 423);
+        }
+
+        const pinHash = await sha256Hex(user.pin_salt + pin);
+        if (pinHash !== user.pin_hash) {
+          const attempts = (user.failed_attempts || 0) + 1;
+          const lockedUntil = attempts >= 5
+            ? new Date(Date.now() + 15 * 60 * 1000).toISOString()
+            : null;
+          await env.ansim_doumi_db.prepare(
+            `UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?`
+          ).bind(attempts, lockedUntil, user.id).run();
+          return json({ error: lockedUntil ? 'locked' : 'invalid' }, lockedUntil ? 423 : 401);
+        }
+
+        const token = randomHex(32);
+        await env.ansim_doumi_db.prepare(
+          `UPDATE users SET token = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?`
+        ).bind(token, user.id).run();
+
+        return json({ userId: user.id, token, name: user.name || '', isNewUser: false }, 200);
+      } catch (err) {
+        return json({ error: '처리에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
     if (url.pathname === '/request-pin-reset-otp' && request.method === 'POST') {
       let body;
       try {
