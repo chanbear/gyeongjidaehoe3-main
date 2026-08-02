@@ -21,11 +21,19 @@ export class AnthropicProxy {
   }
 }
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, X-Auth-Token, X-Guardian-Phone, X-Guardian-Token',
-};
+// 웹 배포본(Cloudflare Pages)과 안드로이드 APK(Capacitor 기본 WebView origin)만 허용한다.
+// capacitor.config.json에 별도 server 설정이 없으면 Capacitor Android는 https://localhost를 origin으로 보낸다.
+const ALLOWED_ORIGINS = new Set(['https://ondam-web.pages.dev', 'https://localhost']);
+
+function corsHeadersFor(request) {
+  const origin = request.headers.get('Origin');
+  return {
+    'Access-Control-Allow-Origin': origin && ALLOWED_ORIGINS.has(origin) ? origin : 'null',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, X-Auth-Token, X-Guardian-Phone, X-Guardian-Token',
+    'Vary': 'Origin',
+  };
+}
 
 const ANALYSIS_SCHEMA = {
   type: 'object',
@@ -145,13 +153,6 @@ const ASK_PROMPT = `당신은 고령자를 돕는 도우미입니다. 사용자�
 - 확실하지 않으면 "이 문서에는 그 내용이 없어요"라고 솔직히 말하고, 어디에 문의하면 되는지 안내하세요.
 - 기관명·전화번호·주소·금액·날짜는 [분석 결과]에 적힌 것만 쓰세요. 절대 지어내지 마세요.
 - 돈을 보내라거나 개인정보를 알려달라는 조언은 어떤 경우에도 하지 마세요.`;
-
-function json(data, status) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-  });
-}
 
 /** 토큰·salt용 랜덤 hex 문자열. bytes=16이면 32자 hex. */
 function randomHex(bytes) {
@@ -302,6 +303,14 @@ async function generateIllustration(env, prompt) {
 
 export default {
   async fetch(request, env) {
+    const CORS_HEADERS = corsHeadersFor(request);
+    function json(data, status) {
+      return new Response(JSON.stringify(data), {
+        status,
+        headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+      });
+    }
+
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: CORS_HEADERS });
     }
