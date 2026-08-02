@@ -24,7 +24,7 @@ export class AnthropicProxy {
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, X-Auth-Token',
+  'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, X-Auth-Token, X-Guardian-Phone, X-Guardian-Token',
 };
 
 const ANALYSIS_SCHEMA = {
