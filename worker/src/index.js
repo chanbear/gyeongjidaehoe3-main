@@ -702,20 +702,33 @@ export default {
         ).bind(link.senior_user_id).first();
         const state = row ? JSON.parse(row.state_json) : {};
         const history = Array.isArray(state.history) ? state.history : [];
+        const schedule = Array.isArray(state.schedule) ? state.schedule : [];
+        const profile = state.profile || {};
 
-        // 보호자에게는 appState 전체가 아니라 최근 기록 요약만 보여준다(설정·PIN 등은 제외).
+        // 보호자에게는 appState 전체가 아니라 최근 기록 요약·일정만 보여준다(설정·PIN 등은 제외).
         const summary = history.slice(0, 20).map((h) => ({
           messageId: String(h.ts || h.time || ''),
           title: h.title || '',
+          createdAt: h.ts ? new Date(h.ts).toISOString() : null,
           time: h.time || '',
-          status: (h.analysis && h.analysis.status) || null,
-          headline: (h.analysis && h.analysis.headline) || '',
-          summary: (h.analysis && h.analysis.summary) || '',
+          analysis: h.analysis ? {
+            status: h.analysis.status || null,
+            headline: h.analysis.headline || '',
+            summary: h.analysis.summary || '',
+            category: h.analysis.category || '',
+            issuer: h.analysis.issuer || '',
+            amount: h.analysis.amount || 0,
+            dueDate: h.analysis.dueDate || '',
+            phone: h.analysis.phone || '',
+            website: h.analysis.website || '',
+            checklist: Array.isArray(h.analysis.checklist) ? h.analysis.checklist : [],
+          } : null,
         }));
 
         return json({
-          seniorName: (state.profile && state.profile.name) || '',
+          profile: { name: profile.name || '', age: profile.age || '', gender: profile.gender || '', region: profile.region || '' },
           history: summary,
+          schedule: schedule.map((s) => ({ text: s.text || '', source: s.source || '', date: s.date || '', time: s.time || '', done: !!s.done })),
         }, 200);
       } catch (err) {
         return json({ error: '불러오기에 실패했습니다.', detail: String(err && err.message || err) }, 502);

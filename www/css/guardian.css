@@ -54,6 +54,11 @@ button{cursor:pointer}
 .guardian-match-card .field-help{margin:0 0 18px;font-size:13px}
 @keyframes matchSpin{to{transform:rotate(360deg)}}
 .elder-link{color:var(--sub);text-align:center;font-size:13px;margin-top:22px}
+.connect-step-links{display:flex;justify-content:space-between;margin-top:14px}
+.text-link{border:0;background:transparent;color:var(--green);font-size:13px;font-weight:700;text-decoration:underline;padding:6px 0}
+.senior-select-list{display:grid;gap:10px;margin-top:14px}
+.senior-option{width:100%;min-height:56px;border:2px solid var(--line);border-radius:15px;background:#fff;padding:0 16px;text-align:left;font-size:17px;font-weight:700;color:var(--ink)}
+.senior-option:hover{border-color:var(--green);background:var(--green-soft)}
 .app-screen{min-height:100vh;padding:28px 20px 104px;background:linear-gradient(180deg,#f8faf9 0,#f3f6f4 220px)}
 .app-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}.app-kicker{font-size:12px;color:var(--green);font-weight:800}.app-header h1{font-size:25px;letter-spacing:-.04em;margin:4px 0 0}
 .profile-button{width:44px;height:44px;border:0;border-radius:15px;background:var(--green);color:#fff;font-weight:800}
