@@ -269,7 +269,7 @@ function goTo(id){
   if (id === 'screen-home') renderHomeDashboard(); // 오늘 해야 할 일 카드(renderTodayTasks 포함)를 홈 진입 시 채운다
   if (id === 'screen-info') renderInfoTab();
   if (id === 'screen-stats') renderStats();
-  if (id === 'screen-settings') syncSettingsUI();
+  if (id === 'screen-settings' || id === 'screen-settings-account' || id === 'screen-settings-guardian' || id === 'screen-settings-language') syncSettingsUI();
   if (id === 'screen-onboard-access') syncAccessibilityOnboardUI();
   if (id === 'screen-profile') syncProfileUI();
   if (id === 'screen-my-info') syncProfileUI();
