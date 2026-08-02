@@ -208,6 +208,21 @@ async function authenticateRequest(env, request) {
   return row ? row.id : null;
 }
 
+/** X-Guardian-Phone/X-Guardian-Token 헤더로 요청한 seniorId에 대한 유효한(active) 연결인지 확인한다.
+ *  일치하는 guardian_links 행을 반환(없으면 null) — 호출부가 senior_user_id·id 등을 그대로 쓸 수 있게. */
+async function authenticateGuardianRequest(env, request, seniorId) {
+  const phoneDigits = String(request.headers.get('X-Guardian-Phone') || '').replace(/\D/g, '');
+  const token = request.headers.get('X-Guardian-Token');
+  const seniorUserId = Number(seniorId);
+  if (!phoneDigits || !token || !seniorUserId) return null;
+  const tokenHash = await sha256Hex(token);
+  const row = await env.ansim_doumi_db.prepare(
+    `SELECT id, senior_user_id FROM guardian_links
+     WHERE senior_user_id = ? AND guardian_phone = ? AND token_hash = ? AND active = 1`
+  ).bind(seniorUserId, phoneDigits, tokenHash).first();
+  return row || null;
+}
+
 const RELAY_URL = 'https://relay-jet-six.vercel.app';
 
 async function runAnalysis(env, content, schema = ANALYSIS_SCHEMA, maxTokens = 4096) {
@@ -292,7 +307,8 @@ export default {
     }
 
     const url = new URL(request.url);
-    const isAllowedGet = request.method === 'GET' && (url.pathname === '/state' || url.pathname === '/region-info');
+    const ALLOWED_GET_PATHS = new Set(['/state', '/region-info', '/guardian/seniors', '/guardian/state']);
+    const isAllowedGet = request.method === 'GET' && ALLOWED_GET_PATHS.has(url.pathname);
     if (request.method !== 'POST' && !isAllowedGet) {
       return json({ error: 'Not found' }, 404);
     }
@@ -560,6 +576,175 @@ export default {
       }
     }
 
+    /* ---- 보호자 연동: 어르신은 이미 설정에서 입력해둔 보호자 전화번호를 그대로 쓰고(새 UI 없음),
+       보호자 쪽에서 본인 전화번호를 OTP로 확인하면 그 번호를 등록해둔 어르신 계정을 자동으로 찾아 연결한다. ---- */
+
+    if (url.pathname === '/guardian/request-otp' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      const phoneDigits = String((body || {}).phone || '').replace(/\D/g, '');
+      if (!/^010\d{7,8}$/.test(phoneDigits)) return json({ error: 'invalid_phone' }, 400);
+
+      try {
+        const otp = generateOtp();
+        const otpHash = await sha256Hex(otp);
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+        await env.ansim_doumi_db.prepare(
+          `INSERT INTO guardian_otp_requests (phone, otp_hash, otp_expires_at, otp_attempts)
+           VALUES (?, ?, ?, 0)
+           ON CONFLICT(phone) DO UPDATE SET
+             otp_hash = excluded.otp_hash, otp_expires_at = excluded.otp_expires_at, otp_attempts = 0`
+        ).bind(phoneDigits, otpHash, expiresAt).run();
+
+        const sent = await sendAligoSms(env, phoneDigits, `[온담 보호자] 인증번호는 ${otp}입니다. 5분 이내에 입력해주세요.`);
+        if (!sent) return json({ error: 'sms_failed' }, 502);
+
+        return json({ ok: true }, 200);
+      } catch (err) {
+        return json({ error: '요청 처리에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
+    if (url.pathname === '/guardian/verify-otp' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      const { otp, guardianName } = body || {};
+      const phoneDigits = String((body || {}).phone || '').replace(/\D/g, '');
+
+      try {
+        const req = await env.ansim_doumi_db.prepare(
+          `SELECT otp_hash, otp_expires_at, otp_attempts FROM guardian_otp_requests WHERE phone = ?`
+        ).bind(phoneDigits).first();
+
+        if (!req) return json({ error: 'invalid' }, 401);
+        if (req.otp_attempts >= 5) return json({ error: 'otp_locked' }, 423);
+        if (!req.otp_expires_at || new Date(req.otp_expires_at).getTime() < Date.now()) {
+          return json({ error: 'otp_expired' }, 401);
+        }
+
+        const otpHash = await sha256Hex(String(otp || ''));
+        if (otpHash !== req.otp_hash) {
+          const attempts = (req.otp_attempts || 0) + 1;
+          await env.ansim_doumi_db.prepare(
+            `UPDATE guardian_otp_requests SET otp_attempts = ? WHERE phone = ?`
+          ).bind(attempts, phoneDigits).run();
+          return json({ error: 'invalid', attemptsLeft: Math.max(0, 5 - attempts) }, 401);
+        }
+
+        // 인증 성공: 이 번호를 보호자로 등록해둔 어르신 계정을 전부 찾아 연결한다.
+        const { results: seniors } = await env.ansim_doumi_db.prepare(
+          `SELECT id, name FROM users WHERE guardian_phone = ?`
+        ).bind(phoneDigits).all();
+
+        const token = randomHex(32);
+        const tokenHash = await sha256Hex(token);
+        const name = String(guardianName || '');
+        for (const senior of (seniors || [])) {
+          await env.ansim_doumi_db.prepare(
+            `INSERT INTO guardian_links (senior_user_id, guardian_phone, guardian_name, token_hash, active)
+             VALUES (?, ?, ?, ?, 1)
+             ON CONFLICT(senior_user_id, guardian_phone) DO UPDATE SET
+               token_hash = excluded.token_hash, guardian_name = excluded.guardian_name, active = 1`
+          ).bind(senior.id, phoneDigits, name, tokenHash).run();
+        }
+
+        // 재사용 방지: 검증에 성공한 OTP는 즉시 폐기한다.
+        await env.ansim_doumi_db.prepare(`DELETE FROM guardian_otp_requests WHERE phone = ?`).bind(phoneDigits).run();
+
+        return json({
+          ok: true,
+          token,
+          seniors: (seniors || []).map((s) => ({ id: s.id, name: s.name || '' })),
+        }, 200);
+      } catch (err) {
+        return json({ error: '요청 처리에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
+    if (url.pathname === '/guardian/seniors' && request.method === 'GET') {
+      const phoneDigits = String(request.headers.get('X-Guardian-Phone') || '').replace(/\D/g, '');
+      const token = request.headers.get('X-Guardian-Token');
+      if (!phoneDigits || !token) return json({ error: 'unauthorized' }, 401);
+
+      try {
+        const tokenHash = await sha256Hex(token);
+        const { results } = await env.ansim_doumi_db.prepare(
+          `SELECT u.id, u.name FROM guardian_links gl
+           JOIN users u ON u.id = gl.senior_user_id
+           WHERE gl.guardian_phone = ? AND gl.token_hash = ? AND gl.active = 1`
+        ).bind(phoneDigits, tokenHash).all();
+        return json({ seniors: (results || []).map((s) => ({ id: s.id, name: s.name || '' })) }, 200);
+      } catch (err) {
+        return json({ error: '조회에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
+    if (url.pathname === '/guardian/state' && request.method === 'GET') {
+      const seniorId = url.searchParams.get('seniorId');
+      const link = await authenticateGuardianRequest(env, request, seniorId);
+      if (!link) return json({ error: 'unauthorized' }, 401);
+
+      try {
+        await env.ansim_doumi_db.prepare(
+          `UPDATE guardian_links SET last_seen_at = datetime('now') WHERE id = ?`
+        ).bind(link.id).run();
+
+        const row = await env.ansim_doumi_db.prepare(
+          `SELECT state_json FROM user_state WHERE user_id = ?`
+        ).bind(link.senior_user_id).first();
+        const state = row ? JSON.parse(row.state_json) : {};
+        const history = Array.isArray(state.history) ? state.history : [];
+
+        // 보호자에게는 appState 전체가 아니라 최근 기록 요약만 보여준다(설정·PIN 등은 제외).
+        const summary = history.slice(0, 20).map((h) => ({
+          messageId: String(h.ts || h.time || ''),
+          title: h.title || '',
+          time: h.time || '',
+          status: (h.analysis && h.analysis.status) || null,
+          headline: (h.analysis && h.analysis.headline) || '',
+          summary: (h.analysis && h.analysis.summary) || '',
+        }));
+
+        return json({
+          seniorName: (state.profile && state.profile.name) || '',
+          history: summary,
+        }, 200);
+      } catch (err) {
+        return json({ error: '불러오기에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
+    if (url.pathname === '/guardian/mark-read' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      const { messageId } = body || {};
+      const link = await authenticateGuardianRequest(env, request, (body || {}).seniorId);
+      if (!link) return json({ error: 'unauthorized' }, 401);
+      if (!messageId) return json({ error: '메시지가 없습니다.' }, 400);
+
+      try {
+        await env.ansim_doumi_db.prepare(
+          `INSERT INTO guardian_message_reads (link_id, message_id) VALUES (?, ?)
+           ON CONFLICT(link_id, message_id) DO NOTHING`
+        ).bind(link.id, String(messageId)).run();
+        return json({ ok: true }, 200);
+      } catch (err) {
+        return json({ error: '처리에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
     if (url.pathname === '/state' && request.method === 'GET') {
       const userId = await authenticateRequest(env, request);
       if (!userId) return json({ error: 'unauthorized' }, 401);
@@ -583,12 +768,33 @@ export default {
         return json({ error: '잘못된 요청입니다.' }, 400);
       }
       try {
+        const state = body.state || {};
         await env.ansim_doumi_db.prepare(
           `INSERT INTO user_state (user_id, state_json, updated_at)
            VALUES (?, ?, datetime('now'))
            ON CONFLICT(user_id) DO UPDATE SET
              state_json = excluded.state_json, updated_at = excluded.updated_at`
-        ).bind(userId, JSON.stringify(body.state || {})).run();
+        ).bind(userId, JSON.stringify(state)).run();
+
+        // 보호자 앱이 전화번호로 어르신을 찾을 수 있도록 users.guardian_phone에도 동기화한다.
+        // 번호가 바뀌거나 지워지면(예전 보호자 정보가 더 이상 유효하지 않음), 그 번호로 이미
+        // 연결돼 있던 guardian_links는 비활성화해 예전 보호자가 계속 조회하지 못하게 막는다.
+        const newGuardianPhone = String((state.guardian && state.guardian.phone) || '').replace(/\D/g, '') || null;
+        const prevRow = await env.ansim_doumi_db.prepare(
+          `SELECT guardian_phone FROM users WHERE id = ?`
+        ).bind(userId).first();
+        const prevGuardianPhone = prevRow ? prevRow.guardian_phone : null;
+        if (prevGuardianPhone !== newGuardianPhone) {
+          await env.ansim_doumi_db.prepare(
+            `UPDATE users SET guardian_phone = ? WHERE id = ?`
+          ).bind(newGuardianPhone, userId).run();
+          if (prevGuardianPhone) {
+            await env.ansim_doumi_db.prepare(
+              `UPDATE guardian_links SET active = 0 WHERE senior_user_id = ? AND guardian_phone = ?`
+            ).bind(userId, prevGuardianPhone).run();
+          }
+        }
+
         return json({ ok: true }, 200);
       } catch (err) {
         return json({ error: '저장에 실패했습니다.', detail: String(err && err.message || err) }, 502);
