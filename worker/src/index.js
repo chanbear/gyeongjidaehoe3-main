@@ -108,7 +108,9 @@ documents 배열에 문서마다 결과를 하나씩 담고, 각 문서의 pages
 
 amount·dueDate·issuer는 문서에 실제로 적힌 것만 쓰세요. 추측하거나 계산해서 채우지 말고, 조금이라도 불확실하면 0 또는 빈 문자열로 두세요.
 
-사진이 문서가 아니거나 글자를 읽을 수 없으면 documents 에 결과를 하나만 담고 status는 "info", headline은 "사진을 다시 확인해주세요", summary에 그 이유를 설명하고 checklist는 빈 배열, phone/website/mapQuery/dueDate/issuer/illustrationPrompt도 빈 문자열, category는 "기타", amount는 0, pages 에는 문제가 된 사진 번호를 넣으세요.`;
+사진이 문서가 아니거나 글자를 읽을 수 없으면 documents 에 결과를 하나만 담고 status는 "info", headline은 "사진을 다시 확인해주세요", summary에 그 이유를 설명하고 checklist는 빈 배열, phone/website/mapQuery/dueDate/issuer/illustrationPrompt도 빈 문자열, category는 "기타", amount는 0, pages 에는 문제가 된 사진 번호를 넣으세요.
+
+말투: headline·summary는 "이것은 사기입니다"처럼 단정하지 말고, "~해 보여요", "~확인해보세요"처럼 안내하는 말투로 쓰세요. status가 "danger"여도 최종 판단은 참고용이며, 확실하지 않으면 가족이나 발급 기관에 직접 확인해보시라고 안내하세요.`;
 
 /** 사용자가 설정에서 선택 입력한 성별/연령대/지역(선택 사항). 있으면 설명 톤 참고용으로만 쓰고, 모르는 지역별 기관명·연락처·주소는 절대 지어내지 않도록 명시한다. */
 function buildProfileNote(profile) {
@@ -125,10 +127,12 @@ const SMS_PROMPT = `당신은 고령자를 위한 문자 메시지 분석 도우
 
 - status: 사기·피싱·개인정보나 금융정보 요구 등 위험한 문자면 "danger", 광고나 인증번호 등 참고만 하면 되는 문자면 "info", 확인·예약·참석 등 조치가 필요한 정상적인 안내 문자면 "normal"
 - headline: 문자의 핵심 내용을 한 문장으로, 노인이 이해하기 쉽게
-- summary: 2~3문장으로 쉬운 설명 (전문 용어 없이, 존댓말로). 위험한 문자라면 왜 위험한지, 무엇을 하면 안 되는지도 포함
+- summary: 2~3문장으로 쉬운 설명 (전문 용어 없이, 존댓말로). 위험한 문자라면 어떤 점 때문에 확인이 필요한지, 무엇을 하면 안 되는지도 포함
 - checklist: 사용자가 해야 할 구체적인 행동 목록 (없으면 빈 배열)
 - phone, website, mapQuery: 문자 분석에서는 사용하지 않으니 항상 빈 문자열로 답하세요
-- illustrationPrompt: checklist(해야 할 일)를 대표하는 장면을 그리기 위한 영어 한 문장. 실제 인물·기관을 특정하지 말고 일반적인 장면으로. 위험한 문자라면 상대에게 응답하지 않고 전화를 끊거나 가족에게 알리는 등 안전한 대처 장면으로, checklist가 비어 있으면 headline이 설명하는 상황으로 대신 묘사.`;
+- illustrationPrompt: checklist(해야 할 일)를 대표하는 장면을 그리기 위한 영어 한 문장. 실제 인물·기관을 특정하지 말고 일반적인 장면으로. 위험한 문자라면 상대에게 응답하지 않고 전화를 끊거나 가족에게 알리는 등 안전한 대처 장면으로, checklist가 비어 있으면 headline이 설명하는 상황으로 대신 묘사.
+
+말투: headline·summary는 "이것은 사기입니다"처럼 단정하지 말고, "~해 보여요", "~확인해보세요"처럼 안내하는 말투로 쓰세요. status가 "danger"여도 최종 판단은 참고용이며, 확실하지 않으면 가족이나 발신 기관에 직접 확인해보시라고 안내하세요.`;
 
 /* ---- 되묻기(질문하기) ----
    자유 대화가 아니라 "방금 분석한 문서·문자에 대해 되묻기"만 다룬다.

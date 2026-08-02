@@ -1170,9 +1170,9 @@ function applyDocPreview(){
    7-2. AI 문서 분석 (Cloudflare Worker /analyze-doc 연동)
    --------------------------------------------------------- */
 const statusBadgeMap = {
-  danger: { cls: 'badge-red', text: '🔴 위험', cardClass: 'danger', seal: 'ic-alert', eyebrow: '위험 · 응답하지 마세요' },
+  danger: { cls: 'badge-red', text: '🔴 위험', cardClass: 'danger', seal: 'ic-alert', eyebrow: '주의 · 응답하지 않는 게 안전해요' },
   info:   { cls: 'badge-gray', text: '⚪ 정보', cardClass: 'info', seal: 'ic-info', eyebrow: '정보 · 참고만 하세요' },
-  normal: { cls: 'badge-green', text: '🟢 정상', cardClass: 'success', seal: 'ic-check', eyebrow: '정상 · 조치가 필요해요' }
+  normal: { cls: 'badge-green', text: '🟢 정상', cardClass: 'success', seal: 'ic-check', eyebrow: '확인 완료 · 이렇게 해보세요' }
 };
 
 /** 체크리스트를 대표하는 일러스트 카드를 채우거나 숨긴다. Worker가 생성에 실패하면(키 없음 등) illustration이
@@ -2014,8 +2014,8 @@ const I18N = {
     'result.actionPhone': '전화하기', 'result.actionWebsite': '홈페이지', 'result.actionMap': '길찾기',
     'result.shareTitle': '공유하기', 'result.shareSms': '문자', 'result.shareKakao': '💛 카카오톡', 'result.shareCopy': '복사하기',
     'result.docConfirm': '확인 완료',
-    'result.textTitle': '진위 판별 결과', 'result.dangerPill': '⚠ 위험 감지', 'result.listenVoice': '음성으로 듣기',
-    'result.reasonLabel': '왜 위험한가요?',
+    'result.textTitle': '확인 결과', 'result.dangerPill': '⚠ 확인이 필요해요', 'result.listenVoice': '음성으로 듣기',
+    'result.reasonLabel': '이런 점을 확인해보세요',
     'result.notifyGuardian': '보호자에게 문자 전달하기',
     'result.checkAnotherSms': '다른 문자 확인하기',
     'result.riskFactorsTitle': '🔴 위험 문자 요소', 'result.report118': '118 신고(경찰청 신고)', 'result.askSms': '이 문자에 대해 물어보기',

@@ -2150,7 +2150,7 @@
           <ul>
             <li>계좌번호, 비밀번호, 인증번호를 요구하는 문자</li>
             <li>모르는 링크(주소)를 눌러보라는 문자</li>
-            <li>"위험 감지" 표시가 뜨면 절대 응답하지 말고 118로 신고하세요</li>
+            <li>"확인이 필요해요" 표시가 뜨면 절대 응답하지 말고 118로 신고하세요</li>
           </ul>
         </div>
         <button class="primary-btn" onclick="openSmsCheck()">
@@ -3096,7 +3096,7 @@
             ← 홈으로</button
           ><span class="header-title"
             ><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg
-            ><span data-i18n="result.textTitle">진위 판별 결과</span></span
+            ><span data-i18n="result.textTitle">확인 결과</span></span
           ><button
             class="gear-btn"
             onclick="goTo('screen-settings')"
@@ -3110,14 +3110,14 @@
             <svg viewBox="0 0 24 24"><use href="#ic-alert"></use></svg>
           </div>
           <span class="danger-pill" data-i18n="result.dangerPill"
-            >⚠ 위험 감지</span
+            >⚠ 확인이 필요해요</span
           >
-          <span class="badge">위험 · 응답하지 마세요</span>
+          <span class="badge">주의 · 응답하지 않는 게 안전해요</span>
           <div class="headline">이 문자는 위험할 수 있어요.</div>
           <!-- 위험(danger) 상태에서는 이 이유 문장을 아래 "위험 문자 요소" 카드로 대신 보여준다(renderSmsResult()가 토글) —
                같은 내용을 두 번 보여주지 않기 위함. 정상/정보 상태에서는 그대로 여기에 남는다. -->
           <div class="reason-label" data-i18n="result.reasonLabel">
-            왜 위험한가요?
+            이런 점을 확인해보세요
           </div>
           <div class="subtext">
             공공기관은 문자로 계좌번호나 링크 클릭을 요구하지 않습니다. 절대
