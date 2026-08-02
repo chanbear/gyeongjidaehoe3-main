@@ -292,6 +292,7 @@
   /* ---- 설정 화면 ---- */
   .settings-section{ margin-bottom:26px; }
   .settings-section h2{ font-size:calc(17px * var(--scale)); font-weight:700; color:var(--ink-soft); margin:0 0 12px; }
+  .settings-desc{ font-size:calc(16px * var(--scale)); line-height:1.6; color:var(--ink); margin:0; }
   .segmented, .view-toggle{ display:flex; gap:8px; }
   .segmented button, .view-toggle button{
     flex:1; border:2px solid var(--line); background:var(--bg-app); color:var(--ink-soft);

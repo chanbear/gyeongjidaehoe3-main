@@ -3651,6 +3651,62 @@
             >
             <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
           </div>
+          <div
+            class="settings-link-row"
+            onclick="goTo('screen-privacy-policy')"
+            role="button"
+            tabindex="0"
+          >
+            <span
+              ><svg class="inline-icon" viewBox="0 0 24 24">
+                <use href="#ic-shield"></use></svg
+              ><span data-i18n="settings.privacyPolicy"
+                >개인정보는 어떻게 보관되나요?</span
+              ></span
+            >
+            <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- 개인정보 처리 안내: 사실만 적는다 — 실제로 저장/보관하지 않는 것을 저장한다고 쓰지 않는다. -->
+      <section
+        class="screen"
+        id="screen-privacy-policy"
+        data-voice="온담이 개인정보를 어떻게 보관하고 보호하는지 안내해드릴게요."
+      >
+        <div class="topbar">
+          <button class="nav-btn" onclick="goTo('screen-customer-support')" data-i18n="common.back">
+            ← 뒤로</button
+          ><span class="header-title"
+            ><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg
+            ><span data-i18n="privacy.title">개인정보 보관 안내</span></span
+          ><span></span>
+        </div>
+
+        <div class="settings-section">
+          <h2 data-i18n="privacy.pinTitle">비밀번호(PIN)</h2>
+          <p class="settings-desc" data-i18n="privacy.pinDesc">
+            원래 비밀번호는 저장하지 않아요. 알아볼 수 없게 암호화된 값만 저장해서, 온담 직원도 회원님의 실제 비밀번호를 볼 수 없어요.
+          </p>
+        </div>
+        <div class="settings-section">
+          <h2 data-i18n="privacy.photoTitle">촬영한 문서 사진</h2>
+          <p class="settings-desc" data-i18n="privacy.photoDesc">
+            사진은 AI가 그 자리에서 분석하는 데만 사용되고, 분석이 끝나면 서버에 남기지 않아요. 서버에는 분석된 글자 내용(요약·확인할 일)만 저장돼요.
+          </p>
+        </div>
+        <div class="settings-section">
+          <h2 data-i18n="privacy.syncTitle">기기 간 동기화</h2>
+          <p class="settings-desc" data-i18n="privacy.syncDesc">
+            기록·일정·설정 정보는 다른 기기에서도 이어서 쓸 수 있도록 안전한 서버에 저장돼요. 이 정보는 온담 서비스 운영 목적으로만 사용돼요.
+          </p>
+        </div>
+        <div class="settings-section">
+          <h2 data-i18n="privacy.guardianTitle">보호자에게 보이는 정보</h2>
+          <p class="settings-desc" data-i18n="privacy.guardianDesc">
+            보호자 앱에는 위험 문자 확인이나 돌봄에 필요한 요약 정보만 전달돼요. 회원님의 비밀번호나 그 밖의 설정 정보는 보호자에게 전달되지 않아요.
+          </p>
         </div>
       </section>
     </div>
