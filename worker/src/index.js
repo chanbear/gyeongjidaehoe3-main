@@ -483,6 +483,42 @@ export default {
       }
     }
 
+    /* ---- 회원 탈퇴: 세션 토큰만으로는 부족하고, 되돌릴 수 없는 작업이라 PIN을 다시 확인한다.
+       계정과 함께 저장된 모든 데이터(appState, 보호자 연결)를 실제로 지운다. ---- */
+    if (url.pathname === '/account/delete' && request.method === 'POST') {
+      const userId = await authenticateRequest(env, request);
+      if (!userId) return json({ error: 'unauthorized' }, 401);
+
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      const { pin } = body || {};
+
+      try {
+        const user = await env.ansim_doumi_db.prepare(
+          `SELECT pin_hash, pin_salt FROM users WHERE id = ?`
+        ).bind(userId).first();
+        if (!user) return json({ error: 'unauthorized' }, 401);
+
+        const pinHash = await sha256Hex(user.pin_salt + String(pin || ''));
+        if (pinHash !== user.pin_hash) return json({ error: 'invalid_pin' }, 401);
+
+        await env.ansim_doumi_db.prepare(
+          `DELETE FROM guardian_message_reads WHERE link_id IN (SELECT id FROM guardian_links WHERE senior_user_id = ?)`
+        ).bind(userId).run();
+        await env.ansim_doumi_db.prepare(`DELETE FROM guardian_links WHERE senior_user_id = ?`).bind(userId).run();
+        await env.ansim_doumi_db.prepare(`DELETE FROM user_state WHERE user_id = ?`).bind(userId).run();
+        await env.ansim_doumi_db.prepare(`DELETE FROM users WHERE id = ?`).bind(userId).run();
+
+        return json({ ok: true }, 200);
+      } catch (err) {
+        return json({ error: '탈퇴 처리에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
     if (url.pathname === '/request-pin-reset-otp' && request.method === 'POST') {
       let body;
       try {

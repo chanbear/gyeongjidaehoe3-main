@@ -3379,6 +3379,14 @@
           >
             로그아웃
           </button>
+          <button
+            class="secondary-btn"
+            style="margin-top: 10px; border-color: var(--danger-soft); color: var(--danger-strong)"
+            onclick="openDeleteAccountSheet()"
+            data-i18n="settings.deleteAccount"
+          >
+            회원 탈퇴
+          </button>
         </div>
 
         <div class="settings-section">
@@ -3708,6 +3716,12 @@
             보호자 앱에는 위험 문자 확인이나 돌봄에 필요한 요약 정보만 전달돼요. 회원님의 비밀번호나 그 밖의 설정 정보는 보호자에게 전달되지 않아요.
           </p>
         </div>
+        <div class="settings-section">
+          <h2 data-i18n="privacy.deleteTitle">저장된 정보 삭제</h2>
+          <p class="settings-desc" data-i18n="privacy.deleteDesc">
+            설정 화면의 "회원 탈퇴"를 누르면 계정과 함께 저장된 모든 정보가 서버에서 즉시 삭제돼요.
+          </p>
+        </div>
       </section>
     </div>
 
@@ -3960,6 +3974,70 @@
       <button
         class="sheet-btn sheet-btn-cancel"
         onclick="closeEmergencySheet()"
+        data-i18n="emergency.close"
+      >
+        닫기
+      </button>
+    </div>
+
+    <!-- 회원 탈퇴 확인 Bottom Sheet: 되돌릴 수 없는 작업이라 PIN을 다시 입력받는다 -->
+    <div
+      class="sheet-backdrop"
+      id="deleteAccountBackdrop"
+      style="display: none"
+      onclick="closeDeleteAccountSheet()"
+    ></div>
+    <div class="bottom-sheet" id="deleteAccountSheet" style="display: none">
+      <div class="bottom-sheet-title">
+        <svg class="inline-icon" viewBox="0 0 24 24">
+          <use href="#ic-alert"></use></svg
+        ><span data-i18n="deleteAccount.title">정말 탈퇴하시겠어요?</span>
+      </div>
+      <p class="settings-desc" style="text-align: center; margin-bottom: 14px" data-i18n="deleteAccount.desc">
+        기록·일정·설정 등 저장된 모든 정보가 즉시 삭제되고, 되돌릴 수 없어요.
+      </p>
+      <div class="sheet-inline-form" style="display: block">
+        <div class="field-row">
+          <label for="deleteAccountPin" data-i18n="deleteAccount.pinLabel"
+            >본인 확인을 위해 비밀번호를 입력해주세요</label
+          >
+          <input
+            type="password"
+            inputmode="numeric"
+            maxlength="4"
+            id="deleteAccountPin"
+            placeholder="비밀번호 입력"
+            data-i18n-placeholder="onboard.signup.pinPlaceholder"
+            style="
+              width: 100%;
+              box-sizing: border-box;
+              min-height: 56px;
+              border: 2px solid var(--line);
+              border-radius: var(--radius-md);
+              padding: 0 16px;
+              font-size: 18px;
+              color: var(--ink);
+              font-family: inherit;
+            "
+          />
+        </div>
+        <p
+          class="sheet-inline-error"
+          id="deleteAccountError"
+          style="display: none"
+        ></p>
+      </div>
+      <button
+        class="sheet-btn"
+        style="color: var(--danger-strong); border-color: var(--danger-soft)"
+        onclick="handleDeleteAccount()"
+        data-i18n="deleteAccount.confirm"
+      >
+        탈퇴하기
+      </button>
+      <button
+        class="sheet-btn sheet-btn-cancel"
+        onclick="closeDeleteAccountSheet()"
         data-i18n="emergency.close"
       >
         닫기

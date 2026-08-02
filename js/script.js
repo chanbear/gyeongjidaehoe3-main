@@ -1903,6 +1903,13 @@ const I18N = {
     'settings.replay': '다시 읽기', 'settings.stop': '멈추기',
     'settings.voiceEnable': '음성 안내 사용하기',
     'settings.accountTitle': '계정', 'settings.logout': '로그아웃',
+    'settings.deleteAccount': '회원 탈퇴',
+    'deleteAccount.title': '정말 탈퇴하시겠어요?',
+    'deleteAccount.desc': '기록·일정·설정 등 저장된 모든 정보가 즉시 삭제되고, 되돌릴 수 없어요.',
+    'deleteAccount.pinLabel': '본인 확인을 위해 비밀번호를 입력해주세요',
+    'deleteAccount.confirm': '탈퇴하기',
+    'deleteAccount.errorPin': '비밀번호가 올바르지 않아요.',
+    'deleteAccount.errorGeneric': '탈퇴 처리에 실패했어요. 잠시 후 다시 시도해주세요.',
     'settings.myInfo': '내 정보 (맞춤 안내용, 선택 사항)',
     'settings.nameLabel': '이름', 'settings.namePlaceholder': '예: 홍길동',
     'settings.male': '남성', 'settings.female': '여성',
@@ -1942,6 +1949,8 @@ const I18N = {
     'privacy.syncDesc': '기록·일정·설정 정보는 다른 기기에서도 이어서 쓸 수 있도록 안전한 서버에 저장돼요. 이 정보는 온담 서비스 운영 목적으로만 사용돼요.',
     'privacy.guardianTitle': '보호자에게 보이는 정보',
     'privacy.guardianDesc': '보호자 앱에는 위험 문자 확인이나 돌봄에 필요한 요약 정보만 전달돼요. 회원님의 비밀번호나 그 밖의 설정 정보는 보호자에게 전달되지 않아요.',
+    'privacy.deleteTitle': '저장된 정보 삭제',
+    'privacy.deleteDesc': '설정 화면의 "회원 탈퇴"를 누르면 계정과 함께 저장된 모든 정보가 서버에서 즉시 삭제돼요.',
     'onboard.replay': '다시 듣기', 'onboard.skip': '건너뛰기',
     'onboard.greet.title': '안녕하세요!<br>AI 디지털 도우미 <span class="accent-ink">온담(OnDam)</span>입니다.',
     'onboard.greet.desc': '복잡한 공문서와 납부 고지서를 대신 읽고<br>꼭 하셔야 할 일을 쉽게 정리해 드립니다.',
@@ -2952,6 +2961,41 @@ function syncSettingsUI(){
 function handleLogout(){
   clearAuth();
   goTo('screen-signup');
+}
+
+function openDeleteAccountSheet(){
+  document.getElementById('deleteAccountPin').value = '';
+  showFieldError('deleteAccountError', '');
+  document.getElementById('deleteAccountBackdrop').style.display = 'block';
+  document.getElementById('deleteAccountSheet').style.display = 'block';
+}
+function closeDeleteAccountSheet(){
+  document.getElementById('deleteAccountBackdrop').style.display = 'none';
+  document.getElementById('deleteAccountSheet').style.display = 'none';
+}
+
+async function handleDeleteAccount(){
+  const pin = document.getElementById('deleteAccountPin').value.trim();
+  if (!/^\d{4}$/.test(pin)) return showFieldError('deleteAccountError', t('onboard.signup.errorPinFormat'));
+
+  try {
+    const res = await fetch(AI_WORKER_URL + '/account/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ pin }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.error === 'invalid_pin') return showFieldError('deleteAccountError', t('deleteAccount.errorPin'));
+      return showFieldError('deleteAccountError', t('deleteAccount.errorGeneric'));
+    }
+    closeDeleteAccountSheet();
+    clearAuth();
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  } catch (err) {
+    showFieldError('deleteAccountError', t('deleteAccount.errorGeneric'));
+  }
 }
 
 /* ---- 내 정보(성별/연령대/지역, 선택 사항): 첫 화면 안내와 설정 화면 두 곳에 같은 값을 반영 ---- */
