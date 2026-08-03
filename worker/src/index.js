@@ -82,6 +82,31 @@ const DOC_ANALYSIS_SCHEMA = {
 /** 한 번에 보낼 수 있는 사진 수. 너무 많으면 응답이 길어져 잘리고 비용도 커진다. */
 const MAX_DOC_PHOTOS = 5;
 
+const SENSITIVE_NUMBER_PLACEHOLDER = '(민감정보라 표시하지 않음)';
+
+/** AI가 프롬프트 지침을 놓치고 주민등록번호·계좌/카드번호를 headline·summary·checklist에
+ *  그대로 옮겨 적었을 경우를 코드로 강제 제거하는 안전망. 이 결과는 D1에 영구 저장되고
+ *  기기 간 동기화되며 보호자 앱에도 노출되므로, 즉시 폐기되는 사진 원본과 달리 계속 남는다.
+ *  전화번호(010-XXXX-XXXX=11자리)와 겹치지 않도록 계좌/카드번호 쪽은 12자리 이상만 대상으로 한다. */
+function redactSensitiveNumbers(text) {
+  if (typeof text !== 'string' || !text) return text;
+  // 주민등록번호: 생년월일 6자리 + (선택적 대시) + 성별 구분값(1~8) + 6자리
+  let out = text.replace(/\d{6}-?[1-8]\d{6}/g, SENSITIVE_NUMBER_PLACEHOLDER);
+  // 계좌번호·카드번호로 볼 수 있는 긴 숫자열(대시·공백으로 나뉘어 있어도 총 12자리 이상)
+  out = out.replace(/\d(?:[-\s]?\d){11,}/g, SENSITIVE_NUMBER_PLACEHOLDER);
+  return out;
+}
+
+/** 분석 결과의 headline·summary·checklist에 redactSensitiveNumbers()를 적용한다.
+ *  phone/website/mapQuery/category/amount/dueDate/issuer 등 구조화된 필드는 대상이 아니다. */
+function redactAnalysisResult(result) {
+  if (!result || typeof result !== 'object') return result;
+  if (typeof result.headline === 'string') result.headline = redactSensitiveNumbers(result.headline);
+  if (typeof result.summary === 'string') result.summary = redactSensitiveNumbers(result.summary);
+  if (Array.isArray(result.checklist)) result.checklist = result.checklist.map(redactSensitiveNumbers);
+  return result;
+}
+
 const DOC_PROMPT = `당신은 고령자를 위한 문서 분석 도우미입니다. 사진(한 장 이상)에 찍힌 문서(공공기관 안내문, 병원 서류, 고지서 등)를 분석하세요.
 
 먼저 사진들이 몇 개의 문서인지 판단하세요.
@@ -110,6 +135,8 @@ amount·dueDate·issuer는 문서에 실제로 적힌 것만 쓰세요. 추측�
 
 사진이 문서가 아니거나 글자를 읽을 수 없으면 documents 에 결과를 하나만 담고 status는 "info", headline은 "사진을 다시 확인해주세요", summary에 그 이유를 설명하고 checklist는 빈 배열, phone/website/mapQuery/dueDate/issuer/illustrationPrompt도 빈 문자열, category는 "기타", amount는 0, pages 에는 문제가 된 사진 번호를 넣으세요.
 
+개인정보 보호: 문서에 주민등록번호나 계좌번호·카드번호로 보이는 숫자가 있어도 headline·summary·checklist에는 그 번호를 그대로 옮겨 적지 마세요. 언급이 필요하면 "민감정보라 표시하지 않았어요"처럼만 안내하세요.
+
 말투: headline·summary는 "이것은 사기입니다"처럼 단정하지 말고, "~해 보여요", "~확인해보세요"처럼 안내하는 말투로 쓰세요. status가 "danger"여도 최종 판단은 참고용이며, 확실하지 않으면 가족이나 발급 기관에 직접 확인해보시라고 안내하세요.`;
 
 /** 사용자가 설정에서 선택 입력한 성별/연령대/지역(선택 사항). 있으면 설명 톤 참고용으로만 쓰고, 모르는 지역별 기관명·연락처·주소는 절대 지어내지 않도록 명시한다. */
@@ -131,6 +158,8 @@ const SMS_PROMPT = `당신은 고령자를 위한 문자 메시지 분석 도우
 - checklist: 사용자가 해야 할 구체적인 행동 목록 (없으면 빈 배열)
 - phone, website, mapQuery: 문자 분석에서는 사용하지 않으니 항상 빈 문자열로 답하세요
 - illustrationPrompt: checklist(해야 할 일)를 대표하는 장면을 그리기 위한 영어 한 문장. 실제 인물·기관을 특정하지 말고 일반적인 장면으로. 위험한 문자라면 상대에게 응답하지 않고 전화를 끊거나 가족에게 알리는 등 안전한 대처 장면으로, checklist가 비어 있으면 headline이 설명하는 상황으로 대신 묘사.
+
+개인정보 보호: 문자에 주민등록번호나 계좌번호·카드번호로 보이는 숫자가 있어도 headline·summary·checklist에는 그 번호를 그대로 옮겨 적지 마세요. 언급이 필요하면 "민감정보라 표시하지 않았어요"처럼만 안내하세요.
 
 말투: headline·summary는 "이것은 사기입니다"처럼 단정하지 말고, "~해 보여요", "~확인해보세요"처럼 안내하는 말투로 쓰세요. status가 "danger"여도 최종 판단은 참고용이며, 확실하지 않으면 가족이나 발신 기관에 직접 확인해보시라고 안내하세요.`;
 
@@ -357,6 +386,7 @@ export default {
         // 항상 documents 배열로 돌려준다. 앱은 예전 형식(단일 객체)도 읽을 수 있으므로
         // 첫 문서를 최상위에도 펼쳐 두어 배포 시점이 어긋나도 화면이 깨지지 않게 한다.
         const docs = Array.isArray(result.documents) && result.documents.length ? result.documents : [result];
+        docs.forEach(redactAnalysisResult);
         // 문서마다 체크리스트를 대표하는 일러스트를 함께 생성한다(실패해도 분석 결과는 그대로 반환).
         await Promise.all(docs.map(async (doc) => {
           doc.illustration = await generateIllustration(env, doc.illustrationPrompt);
@@ -382,6 +412,7 @@ export default {
         const result = await runAnalysis(env, [
           { type: 'text', text: `${SMS_PROMPT}${buildProfileNote(profile)}\n\n문자 내용:\n${text}` },
         ]);
+        redactAnalysisResult(result);
         result.illustration = await generateIllustration(env, result.illustrationPrompt);
         return json(result, 200);
       } catch (err) {
@@ -424,6 +455,7 @@ export default {
           `\n[질문]\n${question}`,
         ].join('\n');
         const result = await runAnalysis(env, [{ type: 'text', text: prompt }], ASK_SCHEMA);
+        if (typeof result.answer === 'string') result.answer = redactSensitiveNumbers(result.answer);
         return json(result, 200);
       } catch (err) {
         return json({ error: '답변을 만들지 못했습니다.', detail: String(err && err.message || err) }, 502);
