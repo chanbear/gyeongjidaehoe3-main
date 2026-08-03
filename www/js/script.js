@@ -118,6 +118,19 @@ async function pullStateFromServer(){
   }
 }
 
+/** 새 계정 가입 직후 호출: 이 기기에 남아있던 다른(이전) 계정의 로컬 데이터가 새 계정으로
+ *  새는 것을 막는다 — 초기화하지 않으면 이전 사용자의 이름·나이·지역·보호자 연락처·기록이
+ *  화면에 그대로 채워지고, 첫 저장 때 새 계정의 서버 데이터로 그대로 올라간다.
+ *  접근성 설정(settings)은 개인정보가 아니라 기기 단위 취향이라 초기화하지 않는다. */
+function resetLocalAccountData(){
+  appState.history = [];
+  appState.schedule = [];
+  appState.guardian = { name: '', phone: '', autoNotify: false };
+  appState.profile = { name: '', gender: '', age: '', region: '' };
+  appState.avatarPhoto = '';
+  appState.onboardingDone = false;
+}
+
 /** localStorage에서 상태 복원 */
 function loadState(){
   try {
@@ -3133,6 +3146,7 @@ async function handleAuthSubmit(){
   }
 
   if (result.isNewUser) {
+    resetLocalAccountData();
     saveState();
     goTo('screen-onboard-access');
   } else {
