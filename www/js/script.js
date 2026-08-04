@@ -3222,6 +3222,13 @@ async function handleAdminShortcutLogin(){
   loadAdminUsers();
 }
 
+async function goToAppFromAdmin(){
+  await pullStateFromServer();
+  saveState();
+  syncSettingsUI();
+  goTo('screen-home');
+}
+
 async function loadAdminUsers(){
   const rowsEl = document.getElementById('adminUserRows');
   const emptyEl = document.getElementById('adminEmptyState');
