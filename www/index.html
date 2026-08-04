@@ -3371,6 +3371,22 @@
           <img id="smsIllustrationImg" alt="" />
         </div>
 
+        <!-- 지금 바로 대처하세요: AI가 이 문자에 맞춰 알려준 체크리스트(비어있으면 일반 안전 수칙).
+             renderSmsResult()가 smsTodoList를 채운다(문서 분석 결과 화면의 "해야 할 일"과 같은 패턴). -->
+        <div class="section-label" data-i18n="result.todoLabel">해야 할 일</div>
+        <div class="checklist todo-list" id="smsTodoList">
+          <div class="checklist-row">
+            <label style="cursor: default">
+              모르는 링크는 절대 누르지 마세요
+            </label>
+          </div>
+          <div class="checklist-row">
+            <label style="cursor: default">
+              118(경찰청)로 신고하세요
+            </label>
+          </div>
+        </div>
+
         <button class="guardian-btn" onclick="notifyGuardian()">
           <svg class="inline-icon" viewBox="0 0 24 24">
             <use href="#ic-bell"></use></svg
