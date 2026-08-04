@@ -67,6 +67,16 @@
   }
 
   async function fetchGuardianState(phone) {
+    // 로컬에서 어르신 앱과 보호자 앱을 함께 시험할 때는 같은 브라우저의 가입 정보를 먼저 쓴다.
+    // 이렇게 하면 Cloudflare Worker의 localhost CORS 허용 여부와 관계없이 실제로 가입한 번호로 연결할 수 있다.
+    const entered = phoneDigits(phone);
+    const localAccount = readElderAccount();
+    const localPhone = phoneDigits(localAccount && localAccount.phone);
+    const localState = readElderState();
+    if (localAccount && localState && localPhone && localPhone === entered) {
+      return localState;
+    }
+
     const response = await fetch(`${AI_WORKER_URL}/guardian-connect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
