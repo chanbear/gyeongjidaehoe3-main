@@ -641,8 +641,83 @@ export default {
       }
     }
 
-    /* ---- 보호자 연동: 어르신은 이미 설정에서 입력해둔 보호자 전화번호를 그대로 쓰고(새 UI 없음),
-       보호자 쪽에서 본인 전화번호를 OTP로 확인하면 그 번호를 등록해둔 어르신 계정을 자동으로 찾아 연결한다. ---- */
+    /* ---- 보호자 연동(codex/guardian-app 버전): 어르신 전화번호만으로 그 계정의 state 전체를 반환한다.
+       주의: 본인 확인 절차가 없다 — 전화번호만 알면(또는 무작위로 시도하면) 그 어르신의 기록·일정 등
+       개인정보 전체가 노출된다. 경진대회 데모용으로 사용자가 위험을 인지하고 채택한 방식이며,
+       실제 서비스 배포 전에는 본인 확인(OTP 등)을 추가해야 한다 — 아래 /guardian/request-otp 계열의
+       기존(더 안전한) 인증 방식은 삭제하지 않고 그대로 남겨뒀다. ---- */
+    if (url.pathname === '/guardian-connect' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      const phoneDigits = String((body && body.phone) || '').replace(/\D/g, '');
+      if (phoneDigits.length < 9) return json({ error: 'invalid_phone' }, 400);
+
+      try {
+        const user = await env.ansim_doumi_db.prepare(
+          `SELECT id, name FROM users WHERE phone = ?`
+        ).bind(phoneDigits).first();
+        if (!user) return json({ error: 'not_found' }, 404);
+
+        const row = await env.ansim_doumi_db.prepare(
+          `SELECT state_json FROM user_state WHERE user_id = ?`
+        ).bind(user.id).first();
+        const state = row ? JSON.parse(row.state_json) : {
+          profile: { name: user.name || '' },
+          guardian: {},
+          history: [],
+          schedule: [],
+          guardianInbox: [],
+        };
+        return json({ state }, 200);
+      } catch (err) {
+        return json({ error: '연결에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
+    /* ---- 관리자 테스트 계정 빠른 로그인: 전화번호+PIN 없이 ADMIN_PASSWORD만으로 고정 테스트 계정에 로그인한다.
+       실제 서비스라면 위험한 우회 경로지만, 경진대회 데모 중 빠르게 홈 화면에 들어가 보여주기 위한 용도로
+       사용자가 필요성을 확인하고 추가함. ---- */
+    if (url.pathname === '/admin-quick-login' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      if (!env.ADMIN_PASSWORD || !body || body.password !== env.ADMIN_PASSWORD) {
+        return json({ error: 'invalid' }, 401);
+      }
+
+      const phoneDigits = '01000000000';
+      try {
+        const user = await env.ansim_doumi_db.prepare(
+          `SELECT id, name FROM users WHERE phone = ?`
+        ).bind(phoneDigits).first();
+
+        const token = randomHex(32);
+        if (!user) {
+          const pinSalt = randomHex(16);
+          const pinHash = await sha256Hex(pinSalt + '0000');
+          const inserted = await env.ansim_doumi_db.prepare(
+            `INSERT INTO users (phone, pin_hash, pin_salt, name, token) VALUES (?, ?, ?, '관리자(테스트)', ?)`
+          ).bind(phoneDigits, pinHash, pinSalt, token).run();
+          return json({ userId: inserted.meta.last_row_id, token, name: '관리자(테스트)', isNewUser: true }, 200);
+        }
+
+        await env.ansim_doumi_db.prepare(`UPDATE users SET token = ? WHERE id = ?`).bind(token, user.id).run();
+        return json({ userId: user.id, token, name: user.name || '관리자(테스트)', isNewUser: false }, 200);
+      } catch (err) {
+        return json({ error: '처리에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
+    /* ---- 보호자 연동(기존, main 방식): 어르신은 이미 설정에서 입력해둔 보호자 전화번호를 그대로 쓰고(새 UI 없음),
+       보호자 쪽에서 본인 전화번호를 OTP로 확인하면 그 번호를 등록해둔 어르신 계정을 자동으로 찾아 연결한다.
+       codex/guardian-app으로 프런트를 교체하면서 더 이상 호출되지 않지만, 더 안전한 방식이라 남겨둔다. ---- */
 
     if (url.pathname === '/guardian/request-otp' && request.method === 'POST') {
       let body;

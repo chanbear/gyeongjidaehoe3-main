@@ -692,6 +692,41 @@
           <img src="assets/social-kakao.png" alt="" width="24" height="24" />
           <span data-i18n="onboard.signup.kakao">카카오 로그인</span>
         </button>
+
+        <!-- 관리자 테스트 계정 빠른 로그인: 전화번호/PIN 없이 비밀번호 하나로 데모용 계정에 들어간다.
+             경진대회 데모 시연을 빠르게 하기 위한 용도 — 실제 서비스라면 위험한 우회 경로라 눈에 띄지 않게 작은 링크로만 둔다. -->
+        <button
+          class="nav-btn"
+          style="align-self: center; color: var(--ink-faint); font-size: 13px; margin-top: 12px"
+          onclick="toggleAdminQuickLoginField()"
+        >
+          관리자 테스트 로그인
+        </button>
+        <div id="adminQuickLoginRow" style="display: none; margin-top: 8px">
+          <input
+            type="password"
+            id="adminQuickLoginPw"
+            placeholder="비밀번호"
+            style="
+              width: 100%;
+              box-sizing: border-box;
+              min-height: 48px;
+              border: 2px solid var(--line);
+              border-radius: var(--radius-md);
+              padding: 0 16px;
+              font-size: 16px;
+              color: var(--ink);
+              font-family: inherit;
+            "
+          />
+          <button
+            class="secondary-btn"
+            style="margin-top: 8px"
+            onclick="handleAdminQuickLogin()"
+          >
+            로그인
+          </button>
+        </div>
       </section>
 
       <!-- 비밀번호 재설정 -->

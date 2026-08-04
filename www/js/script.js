@@ -3187,6 +3187,37 @@ function showSocialComingSoon(providerName){
   showGlobalToast(providerName + ' 로그인은 곧 지원할 예정이에요.');
 }
 
+/** 관리자 테스트 계정 빠른 로그인: 전화번호/PIN 없이 비밀번호(ADMIN_PASSWORD) 하나로 고정 데모 계정에 들어간다.
+ *  경진대회 시연을 빠르게 하기 위한 용도 — 실제 서비스라면 위험한 우회 경로임을 인지하고 추가함. */
+function toggleAdminQuickLoginField(){
+  const row = document.getElementById('adminQuickLoginRow');
+  if (row) row.style.display = row.style.display === 'none' ? 'block' : 'none';
+}
+
+async function handleAdminQuickLogin(){
+  const passwordEl = document.getElementById('adminQuickLoginPw');
+  const password = (passwordEl && passwordEl.value || '').trim();
+  if (!password) return;
+
+  try {
+    const res = await fetch(AI_WORKER_URL + '/admin-quick-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showFieldError('authError', '비밀번호가 올바르지 않습니다.'); return; }
+
+    setAuth({ userId: data.userId, token: data.token, name: data.name, phone: '01000000000' });
+    await pullStateFromServer();
+    saveState();
+    syncSettingsUI();
+    goTo('screen-home');
+  } catch (err) {
+    showFieldError('authError', '접속에 실패했습니다.');
+  }
+}
+
 async function handleRequestResetOtp(){
   const name = document.getElementById('resetPinName').value.trim();
   const phone = document.getElementById('resetPinPhone').value.trim();

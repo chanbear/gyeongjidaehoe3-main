@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#17695b">
   <title>온담 보호자</title>
-  <link rel="stylesheet" href="css/guardian.css?v=20260802-1">
+  <link rel="stylesheet" href="css/guardian.css?v=20260730-7">
 </head>
 <body>
   <main class="guardian-shell">
@@ -16,35 +16,19 @@
       </div>
       <div class="connect-hero">
         <span class="eyebrow">가족 안심 연결</span>
-        <h1>보호자 본인<br>번호로 연결해요</h1>
-        <p>부모님이 온담 앱 설정에 미리 등록해 둔 보호자 번호와 같으면 자동으로 연결됩니다. 별도 코드를 주고받을 필요가 없어요.</p>
+        <h1>부모님 곁에<br>한 걸음 더 가까이</h1>
+        <p>어르신이 온담에 가입할 때 사용한 전화번호로 안전하게 연결합니다.</p>
       </div>
-      <section class="connect-card" id="connectCard">
-        <div id="connectStep-phone">
-          <label for="guardianNameInput">보호자 이름 (선택)</label>
-          <input type="text" id="guardianNameInput" placeholder="예: 김보호" autocomplete="off">
-          <label for="guardianPhoneInput">보호자 본인 휴대폰 번호</label>
-          <input type="tel" id="guardianPhoneInput" placeholder="예: 010-1234-5678" autocomplete="off" inputmode="numeric">
-          <button class="primary-action" type="button" id="requestOtpButton">인증번호 받기</button>
-        </div>
-        <div id="connectStep-otp" hidden>
-          <p class="field-help"><strong id="otpTargetPhone"></strong>(으)로 보낸 인증번호 6자리를 입력해주세요.</p>
-          <label for="guardianOtpInput">인증번호 6자리</label>
-          <input type="text" id="guardianOtpInput" placeholder="숫자 6자리" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
-          <button class="primary-action" type="button" id="verifyOtpButton">확인</button>
-          <div class="connect-step-links">
-            <button class="text-link" type="button" id="backToPhoneButton">번호 다시 입력</button>
-            <button class="text-link" type="button" id="resendOtpButton">인증번호 다시 받기</button>
-          </div>
-        </div>
-        <div id="connectStep-select" hidden>
-          <strong>연결할 어르신을 선택해주세요</strong>
-          <p class="field-help">이 번호를 보호자로 등록해 둔 어르신이 여러 분이에요.</p>
-          <div class="senior-select-list" id="seniorSelectList"></div>
-        </div>
+      <form class="connect-card" id="connectForm">
+        <label for="guardianPhoneLogin">어르신 전화번호</label>
+        <input id="guardianPhoneLogin" type="tel" inputmode="numeric" autocomplete="tel"
+               placeholder="010-1234-5678" aria-describedby="connectHelp">
+        <p class="field-help" id="connectHelp">어르신이 온담 회원가입에 사용한 전화번호를 입력해주세요.</p>
         <p class="form-error" id="connectError" role="alert"></p>
-      </section>
-      <button class="secondary-action" type="button" id="demoButton">미리보기로 먼저 둘러보기</button>
+        <button class="primary-action" type="submit">부모님과 연결하기</button>
+        <button class="demo-action" type="button" id="demoButton">연결 전 화면 미리보기</button>
+      </form>
+      <a class="elder-link" href="index.html">어르신용 온담으로 돌아가기</a>
     </section>
 
     <section class="app-screen" id="guardianApp" hidden>
@@ -110,12 +94,12 @@
 
       <div class="view" id="viewInbox">
         <div class="page-title">
-          <span>확인이 필요한 내용만 모았어요</span>
-          <h2>위험 알림함</h2>
+          <span>부모님이 직접 보낸 내용</span>
+          <h2>받은 연락</h2>
         </div>
         <div class="inbox-summary" id="inboxSummary">
-          <div><strong id="unreadMessageCount">0</strong><span>확인 안 한 알림</span></div>
-          <p>부모님 앱에서 위험으로 확인된 문서·문자만 모아 보여드려요.</p>
+          <div><strong id="unreadMessageCount">0</strong><span>읽지 않은 연락</span></div>
+          <p>부모님이 ‘보호자에게 알리기’ 또는 ‘자녀에게 보내기’를 누른 결과가 도착합니다.</p>
         </div>
         <div class="activity-list full" id="inboxList"></div>
       </div>
@@ -146,6 +130,10 @@
           <span>연결과 도움말</span>
           <h2>더보기</h2>
         </div>
+        <section class="menu-card" id="testControls">
+          <button id="addTestMessageButton"><span class="menu-icon">＋</span><span><strong>새 위험 연락 테스트</strong><small>부모님에게 새 문자가 온 상황을 만듭니다</small></span><b>›</b></button>
+          <button id="resetTestDataButton"><span class="menu-icon">↺</span><span><strong>테스트 자료 다시 채우기</strong><small>문서·문자·일정 예시를 처음 상태로 되돌립니다</small></span><b>›</b></button>
+        </section>
         <section class="menu-card">
           <button id="refreshDataButton"><span class="menu-icon">↻</span><span><strong>최신 정보 불러오기</strong><small>부모님 앱의 새 기록을 확인합니다</small></span><b>›</b></button>
           <a href="index.html"><span class="menu-icon">온</span><span><strong>어르신용 앱 열기</strong><small>부모님 화면을 함께 확인합니다</small></span><b>›</b></a>
@@ -154,9 +142,6 @@
         <section class="menu-card">
           <button id="notificationToggle"><span class="menu-icon">♬</span><span><strong>위험 알림</strong><small id="notificationState">새 위험 문자가 있으면 알려드려요</small></span><i class="toggle on" aria-hidden="true"></i></button>
           <button id="disconnectButton"><span class="menu-icon danger">×</span><span><strong>연결 해제</strong><small>이 기기의 보호자 연결을 종료합니다</small></span><b>›</b></button>
-        </section>
-        <section class="menu-card" id="testControls" hidden>
-          <button id="exitDemoButton"><span class="menu-icon">↺</span><span><strong>미리보기 종료</strong><small>실제 연결 화면으로 돌아갑니다</small></span><b>›</b></button>
         </section>
         <p class="privacy-note">온담은 부모님의 분석 결과 중 보호자에게 필요한 내용만 보여줍니다.</p>
       </div>
@@ -177,11 +162,11 @@
       <span class="eyebrow">연결 안내</span>
       <h2 id="guideTitle">다른 휴대폰에서 연결하려면</h2>
       <ol>
-        <li>어르신이 온담 앱 설정에서 보호자 전화번호를 저장해둡니다.</li>
-        <li>보호자는 이 화면에서 본인 명의의 휴대폰 번호를 입력해 인증번호를 받습니다.</li>
-        <li>문자로 받은 인증번호 6자리를 입력하면 같은 번호로 등록된 어르신과 자동으로 연결됩니다.</li>
+        <li>어르신이 온담에 가입할 때 사용한 전화번호를 확인합니다.</li>
+        <li>보호자 화면에서 어르신 전화번호를 입력합니다.</li>
+        <li>‘부모님과 연결하기’를 누르면 어르신 계정과 연결됩니다.</li>
       </ol>
-      <p>연결 후에는 어르신이 확인한 문서·문자 기록과 일정 중 보호자에게 필요한 내용만 화면에 표시됩니다.</p>
+      <p>현재 시제품은 같은 브라우저에 저장된 어르신 계정을 찾습니다. 실제 서비스에서는 서버에서 어르신 번호를 확인한 뒤 문자 인증 또는 어르신 승인을 추가할 수 있습니다.</p>
       <button class="primary-action" id="confirmGuideButton">확인했어요</button>
     </div>
   </div>
@@ -216,6 +201,6 @@
     </div>
   </div>
   <div class="toast" id="guardianToast" role="status"></div>
-  <script src="js/guardian.js?v=20260802-1"></script>
+  <script src="js/guardian.js?v=20260804-1"></script>
 </body>
 </html>
