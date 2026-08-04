@@ -24,11 +24,15 @@ export class AnthropicProxy {
 // 웹 배포본(Cloudflare Pages)과 안드로이드 APK(Capacitor 기본 WebView origin)만 허용한다.
 // capacitor.config.json에 별도 server 설정이 없으면 Capacitor Android는 https://localhost를 origin으로 보낸다.
 const ALLOWED_ORIGINS = new Set(['https://ondam-web.pages.dev', 'https://localhost']);
+// 로컬 테스트 서버(예: http://localhost:8792, http://127.0.0.1:5500 등 아무 포트)도 허용한다 —
+// 인증은 쿠키가 아니라 X-User-Id/X-Auth-Token 헤더로 하므로 CORS를 넓혀도 세션 탈취 위험이 없다.
+const LOCAL_ORIGIN_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 function corsHeadersFor(request) {
   const origin = request.headers.get('Origin');
+  const isAllowed = !!origin && (ALLOWED_ORIGINS.has(origin) || LOCAL_ORIGIN_RE.test(origin));
   return {
-    'Access-Control-Allow-Origin': origin && ALLOWED_ORIGINS.has(origin) ? origin : 'null',
+    'Access-Control-Allow-Origin': isAllowed ? origin : 'null',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, X-Auth-Token, X-Guardian-Phone, X-Guardian-Token',
     'Vary': 'Origin',
@@ -497,11 +501,15 @@ export default {
           const pinSalt = randomHex(16);
           const pinHash = await sha256Hex(pinSalt + pin);
           const token = randomHex(32);
+          // 경진대회 데모용 고정 관리자 번호(ADMIN_SHORTCUT_PHONE, 프런트엔드 js/script.js 참고)로 가입하면
+          // 자동으로 관리자 권한을 준다 — 이 계정은 "회원 탈퇴"로 지워졌다 재가입되는 일이 잦아서,
+          // 매번 D1에서 수동으로 is_admin을 다시 켜줘야 하는 문제를 근본적으로 막기 위함.
+          const isAdmin = phoneDigits === '01000000000' ? 1 : 0;
           const inserted = await env.ansim_doumi_db.prepare(
-            `INSERT INTO users (phone, pin_hash, pin_salt, name, token)
-             VALUES (?, ?, ?, '', ?)`
-          ).bind(phoneDigits, pinHash, pinSalt, token).run();
-          return json({ userId: inserted.meta.last_row_id, token, name: '', isNewUser: true, isAdmin: false }, 200);
+            `INSERT INTO users (phone, pin_hash, pin_salt, name, token, is_admin)
+             VALUES (?, ?, ?, '', ?, ?)`
+          ).bind(phoneDigits, pinHash, pinSalt, token, isAdmin).run();
+          return json({ userId: inserted.meta.last_row_id, token, name: '', isNewUser: true, isAdmin: !!isAdmin }, 200);
         }
 
         if (user.locked_until && new Date(user.locked_until).getTime() > Date.now()) {
