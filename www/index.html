@@ -536,20 +536,30 @@
         data-voice="안녕하세요. AI 디지털 도우미입니다. 실제 화면을 보여드리며 사용 방법을 간단히 안내해드릴게요."
         data-voice-i18n="onboard.greet.voice"
       >
-        <div class="topbar">
-          <span class="spacer"></span>
-          <button
-            class="nav-btn"
-            id="greetVoiceToggleBtn"
-            onclick="toggleVoice()"
-            aria-label="음성 안내 켜기/끄기"
+        <div class="topbar"></div>
+        <button
+          class="nav-btn"
+          id="greetVoiceToggleBtn"
+          onclick="toggleVoice()"
+          aria-label="음성 안내 켜기/끄기"
+          style="
+            position: fixed;
+            top: calc(14px + var(--safe-area-inset-top, env(safe-area-inset-top)));
+            right: 20px;
+            z-index: 20;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 6px 14px;
+          "
+        >
+          <span id="greetVoiceToggleLabel"
+            ><span id="greetVoiceEmoji">🔊</span>
+            <span data-i18n="settings.voiceEnable">음성 안내 사용하기</span></span
           >
-            <span id="greetVoiceToggleLabel"
-              ><span id="greetVoiceEmoji">🔊</span>
-              <span data-i18n="settings.voiceEnable">음성 안내 사용하기</span></span
-            >
-          </button>
-        </div>
+        </button>
         <div class="center-col">
           <h1 data-i18n="onboard.greet.title">
             안녕하세요!<br />AI 디지털 도우미 <span class="accent-ink">온담(OnDam)</span>입니다.
