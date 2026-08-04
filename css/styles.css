@@ -705,7 +705,7 @@ body.easy-mode .secondary-btn:hover,
 body.easy-mode .guardian-btn:hover,
 body.easy-mode .auto-action-btn:hover,
 body.easy-mode .share-btn:hover{ transform:none; box-shadow:none; }
-/* 홈은 현금자동입출금기처럼 한눈에 선택하는 큰 판으로 만든다. */body.easy-mode #screen-home{ background:#f7f8f7; }
+/* 홈은 현금자동입출금기처럼 한눈에 선택하는 큰 판으로 만든다. */body.easy-mode #screen-home{ background:#f7f8f7; justify-content:center; }
 body.easy-mode #screen-home > .section{
   display:grid; grid-template-columns:1fr 1fr; gap:12px;
   margin-bottom:18px;
