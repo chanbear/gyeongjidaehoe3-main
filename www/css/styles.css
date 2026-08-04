@@ -884,3 +884,427 @@ body.has-bottom-nav .screen.active{
 }
 .coach-tip-skip{ width:100%; font-size:calc(16px * var(--scale)); color:var(--ink-soft); padding:8px; min-height:44px; }
 
+/* =========================================================
+   초고령 사용자용 쉬운 화면 (2026-08)
+   기능과 DOM 흐름은 유지하고, 크기·대비·배치·조작 피드백만 재구성한다.
+   ========================================================= */
+:root{
+  --bg-page:#f2f5f3;
+  --bg-app:#ffffff;
+  --ink:#111a16;
+  --ink-soft:#39443f;
+  --ink-faint:#5d6863;
+  --accent:#176b3a;
+  --accent-strong:#0d4f2a;
+  --accent-soft:#e1f1e7;
+  --success:#176b3a;
+  --success-strong:#0d572e;
+  --success-soft:#e2f3e8;
+  --danger:#c62828;
+  --danger-strong:#941b1b;
+  --danger-soft:#ffebea;
+  --line:#b9c3be;
+  --sms-bg:#edf1ef;
+  --radius-lg:18px;
+  --radius-md:14px;
+  --radius-sm:10px;
+  --shadow-card:0 2px 0 rgba(17,26,22,.08);
+  --scale:1.12;
+  --bottom-nav-h:86px;
+}
+
+html,body{ background:#dfe5e1; }
+body{ font-size:20px; line-height:1.55; }
+.screen-stack{ width:min(100%,520px); margin:0 auto; background:var(--bg-page); }
+.screen{ padding:0 18px 30px; }
+.screen.active{ animation:none; }
+
+button,a,[role="button"],input,textarea{ touch-action:manipulation; }
+button:focus-visible,a:focus-visible,[role="button"]:focus-visible,input:focus-visible,textarea:focus-visible{
+  outline:4px solid #f2b705 !important;
+  outline-offset:3px !important;
+}
+button:active,[role="button"]:active{ transform:scale(.98); filter:brightness(.92); }
+
+.topbar{
+  margin:0 -18px 18px;
+  padding:calc(12px + env(safe-area-inset-top)) 18px 12px;
+  min-height:68px;
+  background:#fff;
+  border-bottom:2px solid var(--line);
+  backdrop-filter:none;
+}
+.gear-btn{ width:50px; height:50px; border:2px solid var(--accent); background:#fff !important; color:var(--accent-strong) !important; }
+.gear-btn svg{ width:27px; height:27px; }
+.wordmark span,.header-title{ font-size:20px; }
+.wordmark .mark{ width:30px; height:30px; }
+.nav-btn{
+  min-height:52px; padding:8px 14px; border:2px solid var(--accent);
+  border-radius:12px; background:#fff; color:var(--accent-strong);
+  font-size:20px; font-weight:900;
+}
+
+h1,.page-title{ font-size:32px; line-height:1.3; color:var(--ink); }
+.large-title{ font-size:34px; line-height:1.25; margin:8px 0 18px; }
+p.desc{ font-size:22px; line-height:1.6; color:var(--ink-soft); }
+.step-label,.section-label{ font-size:18px; font-weight:900; color:var(--ink-soft); }
+
+.primary-btn,.secondary-btn,.guardian-btn,.practice-again-box,.sms-detail-toggle,.more-back-button{
+  min-height:72px; border-radius:14px; font-size:23px; font-weight:900;
+}
+.primary-btn{ background:var(--accent); border:3px solid var(--accent-strong); }
+.secondary-btn,.guardian-btn{ background:#fff; border:3px solid var(--accent); color:var(--accent-strong); }
+.primary-btn:hover,.secondary-btn:hover,.guardian-btn:hover,.auto-action-btn:hover,.share-btn:hover{ transform:none; box-shadow:none; }
+
+/* 홈은 현금자동입출금기처럼 한눈에 선택하는 큰 판으로 만든다. */
+#screen-home{ background:#f7f8f7; }
+#screen-home > .section{
+  display:grid; grid-template-columns:1fr 1fr; gap:12px;
+  margin-bottom:18px;
+}
+#screen-home .home-feature-item{ min-width:0; display:flex; flex-direction:column; }
+#screen-home .home-feature-item:nth-child(3){ grid-column:1 / -1; }
+#screen-home .home-big-card{
+  min-height:168px; margin:0; padding:18px 12px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
+  text-align:center; border:3px solid #0d4f2a; border-radius:14px;
+  background:linear-gradient(180deg,#218548 0%,#176b3a 100%); color:#fff;
+  box-shadow:0 4px 0 #0b4725;
+}
+#screen-home .home-feature-item:nth-child(3) .home-big-card{
+  min-height:126px; flex-direction:row; padding:18px 22px; text-align:left;
+}
+#screen-home .home-big-card .fc-icon,
+#screen-home .home-big-card .fc-icon[style]{
+  width:62px; height:62px; flex:0 0 62px; border-radius:50%;
+  display:grid; place-items:center; background:#fff !important; color:var(--accent-strong);
+}
+#screen-home .home-big-card .fc-icon svg{ width:34px; height:34px; }
+#screen-home .home-big-card .fc-text{ flex:0 1 auto; }
+#screen-home .home-big-card .fc-title{ font-size:25px; line-height:1.35; font-weight:900; color:#fff; }
+#screen-home .home-big-card .chev{ display:none; }
+#screen-home .home-tutorial-btn{
+  min-height:58px; margin-top:9px; padding:8px 6px;
+  border:2px solid var(--accent); border-radius:12px; background:#fff;
+  color:var(--accent-strong); font-size:17px; line-height:1.25; font-weight:900;
+}
+#screen-home .home-tutorial-btn svg{ width:22px; height:22px; }
+.disclaimer-banner{
+  margin-top:4px; padding:16px; border:2px solid var(--line); border-radius:12px;
+  background:#fff; color:var(--ink-soft); font-size:16px; font-weight:700;
+}
+
+/* 목록·카드·설정은 한 항목씩 큰 조작 영역으로 통일한다. */
+.group,.doc-summary,.doc-info-card,.dashboard-card,.tip-card,.hero-card,.illustration-card,
+.history-item,.toggle-row,.settings-link-row,.more-menu button{
+  border:2px solid var(--line); border-radius:14px; background:#fff; box-shadow:none;
+}
+.row,.history-item,.settings-link-row{ min-height:76px; padding:16px; }
+.row .text .t1,.history-item .hi-title{ font-size:21px; font-weight:900; }
+.row .text .t2,.history-item .hi-meta{ font-size:17px; color:var(--ink-soft); }
+.row .icon-chip{ width:48px; height:48px; border-radius:12px; }
+.row .icon-chip svg{ width:26px; height:26px; }
+.dashboard-card{ padding:18px; }
+.dashboard-card-title{ font-size:22px; color:var(--ink); }
+.dashboard-item{ min-height:64px; padding:12px 14px; border:1px solid var(--line); font-size:20px; }
+.dashboard-more-btn{ min-height:58px; border:2px solid var(--accent); border-radius:12px; background:#fff; font-size:19px; }
+.settings-section h2{ font-size:22px; color:var(--ink); margin-bottom:12px; }
+.field-row label{ font-size:20px; color:var(--ink); }
+.field-row input[type="text"],.field-row input[type="tel"],.field-row input[type="number"],select{
+  min-height:68px !important; padding:0 16px !important; border:3px solid var(--line) !important;
+  border-radius:12px !important; background:#fff; color:var(--ink); font-size:22px !important;
+}
+.segmented,.view-toggle{ gap:10px; }
+.segmented button,.view-toggle button{ min-height:68px; border:3px solid var(--line); border-radius:12px; font-size:20px; color:var(--ink); }
+.toggle-row{ min-height:76px; }
+.toggle-row span{ font-size:21px; font-weight:800; }
+.settings-save-note,.guardian-note,.empty-state{ font-size:18px; color:var(--ink-soft); }
+.more-menu{ gap:10px; }
+.more-menu button{ min-height:92px; grid-template-columns:58px 1fr 28px; }
+.more-menu-icon{ width:58px; height:58px; }
+.more-menu strong{ font-size:22px; }
+
+/* 결과 화면은 색뿐 아니라 문구와 경계로 상태를 구분한다. */
+.result-card{ margin:0 -18px 20px; padding:28px 20px; border-bottom:3px solid var(--accent); }
+.result-card.danger{ border-bottom-color:var(--danger); }
+.result-card .seal{ width:76px; height:76px; }
+.result-card .headline{ font-size:34px; }
+.result-card .subtext{ font-size:21px; color:var(--ink-soft); }
+.result-card .badge,.danger-pill{ font-size:18px; }
+.doc-summary,.doc-info-card,.tip-card{ padding:20px; }
+.doc-summary h3,.tip-card .tip-title{ font-size:21px; color:var(--ink); }
+.doc-summary p,.tip-card li{ font-size:20px; color:var(--ink); }
+.checklist label,.todo-list .checklist-row{ min-height:70px; font-size:21px; border:2px solid var(--line); }
+.auto-actions,.share-buttons,.action-row{ grid-template-columns:1fr; flex-direction:column; }
+.auto-action-btn,.share-btn,.reminder-btn{ min-height:68px; border:3px solid var(--accent); border-radius:14px; font-size:20px; }
+.sms-paste-input{ min-height:220px; border:3px solid var(--accent); font-size:21px; }
+
+.bottom-sheet{ width:min(520px,100vw); padding:24px 18px calc(24px + env(safe-area-inset-bottom)); border-radius:20px 20px 0 0; }
+.bottom-sheet-title{ font-size:27px; }
+.sheet-btn{ min-height:70px; line-height:70px; border:3px solid var(--line); border-radius:12px; font-size:22px; }
+
+/* 모든 핵심 탭을 같은 위치에 고정한다. 긴급 도움은 빨간 칸으로 구분한다. */
+.bottom-nav{
+  left:50%; right:auto; transform:translateX(-50%); width:min(100%,520px);
+  background:#fff; border-top:3px solid var(--line); backdrop-filter:none;
+}
+.bottom-nav button{
+  height:var(--bottom-nav-h); padding:5px 2px; gap:3px;
+  border-right:1px solid var(--line); color:#303a35; font-size:16px; font-weight:900;
+}
+.bottom-nav button:last-child{ border-right:0; }
+.bottom-nav button svg{ width:29px; height:29px; }
+.bottom-nav button.is-active{ background:var(--accent-soft); color:var(--accent-strong); }
+.bottom-nav button.nav-help{
+  position:static; width:auto; height:var(--bottom-nav-h); min-width:0;
+  border-radius:0; background:var(--danger); color:#fff; box-shadow:none;
+}
+.bottom-nav .nav-help-badge{ width:30px; height:30px; }
+body.has-bottom-nav .screen.active{ padding-bottom:calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 28px); }
+
+@media(max-width:360px){
+  #screen-home > .section{ grid-template-columns:1fr; }
+  #screen-home .home-feature-item:nth-child(3){ grid-column:auto; }
+  #screen-home .home-feature-item:nth-child(3) .home-big-card{ min-height:150px; flex-direction:column; text-align:center; }
+  #screen-home .home-big-card .fc-title{ font-size:23px; }
+  .bottom-nav button{ font-size:14px; }
+}
+
+/* hidden 속성은 어떤 레이아웃 규칙보다 항상 우선한다. */
+[hidden]{ display:none !important; }
+
+/* 선택 버튼은 제목만 보여준다. 부가 설명은 상세 화면에서 확인한다. */
+.feature-card .fc-desc,
+#screen-info .row .t2,
+.info-category-button small,
+#screen-settings .more-menu small{
+  display:none !important;
+}
+.info-category-button{ min-height:100px; }
+.info-category-back{ width:100%; min-height:68px; font-size:24px; }
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{ animation:none !important; transition:none !important; scroll-behavior:auto !important; }
+}
+
+/* =========================================================
+   전체 화면 쉬운 선택판 보강 (2026-08-04)
+   홈뿐 아니라 문서·문자·정보·기록·더보기·도움 안쪽까지 같은 규칙을 쓴다.
+   ========================================================= */
+
+/* 공통 선택 카드: 흰 카드+작은 화살표 대신 큰 녹색 업무 버튼 */
+.screen:not(#screen-home) .feature-card{
+  min-height:126px; margin-bottom:14px; padding:18px;
+  display:grid; grid-template-columns:64px 1fr; align-items:center; gap:16px;
+  border:3px solid var(--accent-strong); border-radius:14px;
+  background:linear-gradient(180deg,#218548,#176b3a); color:#fff;
+  box-shadow:0 4px 0 #0b4725; cursor:pointer;
+}
+.screen:not(#screen-home) .feature-card .fc-icon,
+.screen:not(#screen-home) .feature-card .fc-icon.soft{
+  width:64px; height:64px; border-radius:50%;
+  display:grid; place-items:center; background:#fff; color:var(--accent-strong);
+}
+.screen:not(#screen-home) .feature-card .fc-icon svg{ width:35px; height:35px; }
+.screen:not(#screen-home) .feature-card .fc-title{ color:#fff; font-size:26px; line-height:1.28; font-weight:900; }
+.screen:not(#screen-home) .feature-card .fc-desc{ display:block; margin-top:5px; color:#fff; font-size:18px; line-height:1.4; font-weight:700; }
+.screen:not(#screen-home) .feature-card .chev{ display:none; }
+
+/* 촬영 방식은 은행 업무 선택처럼 화면을 크게 둘로 나눈다. */
+#screen-doc-choice .hero-card{ padding:18px; margin-bottom:12px; }
+#screen-doc-choice .hero-icon{ width:62px; height:62px; margin-bottom:8px; }
+#screen-doc-choice .feature-card{ min-height:154px; grid-template-columns:74px 1fr; }
+#screen-doc-choice .feature-card .fc-icon{ width:74px; height:74px; }
+#screen-doc-choice .feature-card .fc-title{ font-size:29px; }
+#screen-doc-choice .feature-card .fc-desc{ display:none; }
+#screen-doc-choice .voice-pill{ min-height:64px; margin-bottom:14px; border:3px solid var(--accent); border-radius:12px; font-size:20px; }
+
+/* 문자 선택·붙여넣기와 카메라 조작도 손가락 하나로 누를 수 있게 한다. */
+.camera-view{ min-height:430px; border-radius:14px; }
+.camera-view .camera-guide{ width:88%; min-height:260px; border-width:5px; }
+.camera-view .camera-guide span{ font-size:21px; font-weight:900; }
+.camera-shutter{ width:94px; height:94px; border-width:7px; }
+.compose-box{ min-height:190px; border:3px dashed var(--accent); font-size:22px; font-weight:800; }
+#screen-sms-recent .row,#screen-sms-paste .row{ min-height:92px; }
+
+/* 정보 탭: 정보 한 건이 하나의 큰 업무 버튼으로 보이도록 한다. */
+#screen-info .dashboard-card{ padding:16px; border:3px solid var(--accent); background:#fff; }
+#screen-info .dashboard-card-title{ margin-bottom:14px; font-size:25px; font-weight:900; }
+#screen-info .group{ display:grid; gap:12px; overflow:visible; border:0; }
+#screen-info .row{
+  min-height:104px; padding:16px; border:3px solid var(--accent-strong); border-radius:14px;
+  background:linear-gradient(180deg,#218548,#176b3a); color:#fff; box-shadow:0 4px 0 #0b4725;
+}
+#screen-info .row::after{ display:none; }
+#screen-info .row .text .t1,#screen-info .row .text .t2{ color:#fff; }
+#screen-info .row .icon-chip{ background:#fff; color:var(--accent-strong); }
+#screen-info .row .chev{ width:28px; height:28px; color:#fff; }
+
+/* 정보 상세·사용법 상세는 문장을 짧은 큰 덩어리로 보여준다. */
+[id^="screen-info-"] .hero-card,[id^="screen-help-"] .hero-card{ padding:20px; }
+[id^="screen-info-"] .hero-card h1,[id^="screen-help-"] .page-title{ font-size:31px; }
+[id^="screen-info-"] .doc-info-card,[id^="screen-info-"] .tip-card,
+[id^="screen-help-"] .tip-card,[id^="screen-help-"] .todo-list .checklist-row{
+  border:3px solid var(--line); background:#fff;
+}
+[id^="screen-help-"] .todo-list .checklist-row{ min-height:82px; padding:16px 16px 16px 58px; }
+[id^="screen-help-"] .todo-list .checklist-row::before{ width:34px; height:34px; font-size:19px; }
+[id^="screen-help-"] .todo-list label{ font-size:21px; line-height:1.55; }
+
+/* 도움 항목은 두 열 대신 한 항목씩 크게 표시한다. */
+#screen-help h1{ font-size:38px; }
+#screen-help .feature-card{ min-height:118px; }
+
+/* 기록은 분석 기록과 일정을 큰 구역 두 개로 명확히 나눈다. */
+#screen-history .history-section{
+  margin-bottom:18px; padding:16px; border:3px solid var(--accent); border-radius:14px; background:#fff;
+}
+#screen-history .history-section h2{ margin:0 0 14px; font-size:27px; color:var(--ink); }
+#screen-history .history-item{
+  min-height:104px; margin-bottom:12px; padding:17px; border:3px solid var(--line); border-radius:12px;
+}
+#screen-history .history-item .hi-title{ font-size:23px; line-height:1.4; }
+#screen-history .history-item .hi-meta{ margin-top:7px; font-size:18px; }
+#screen-history .schedule-item{ min-height:88px; padding:16px; border:3px solid var(--accent); font-size:21px; }
+
+/* 더보기 첫 화면도 ATM 업무판처럼 모두 큰 색상 버튼으로 통일한다. */
+#screen-settings .more-menu{ display:grid; grid-template-columns:1fr; gap:14px; }
+#screen-settings #moreMenu[hidden]{ display:none !important; }
+#screen-settings .more-menu button{
+  min-height:112px; padding:16px; grid-template-columns:68px 1fr;
+  border:3px solid var(--accent-strong); border-radius:14px;
+  background:linear-gradient(180deg,#218548,#176b3a); color:#fff; box-shadow:0 4px 0 #0b4725;
+}
+#screen-settings .more-menu-icon{ width:68px; height:68px; border-radius:50%; background:#fff; color:var(--accent-strong); }
+#screen-settings .more-menu-icon svg{ width:35px; height:35px; }
+#screen-settings .more-menu strong{ color:#fff; font-size:26px; }
+#screen-settings .more-menu small{ display:none; }
+#screen-settings .more-menu b{ display:none; }
+#screen-settings .more-menu .more-menu-danger{ background:var(--danger); border-color:var(--danger-strong); box-shadow:0 4px 0 var(--danger-strong); }
+
+/* 더보기 안쪽의 각 설정을 하나의 큰 흰 판으로 묶는다. */
+#screen-settings [data-more-panel]:not([hidden]){
+  display:block; margin-bottom:16px; padding:18px;
+  border:3px solid var(--accent); border-radius:14px; background:#fff;
+}
+#screen-settings [data-more-panel] h2{ padding-bottom:13px; border-bottom:3px solid var(--accent-soft); font-size:27px; }
+#screen-settings .segmented{ display:grid; grid-template-columns:1fr; gap:12px; }
+#screen-settings .segmented button{
+  width:100%; min-height:76px; padding:10px 14px; border:3px solid var(--accent);
+  border-radius:12px; background:#fff; color:var(--ink); font-size:23px; font-weight:900;
+}
+#screen-settings .segmented button.active{
+  background:var(--accent); border-color:var(--accent-strong); color:#fff; box-shadow:inset 0 0 0 2px #fff;
+}
+#screen-settings .field-row{ gap:10px; margin-bottom:20px; }
+#screen-settings .field-row label{ font-size:22px; font-weight:900; }
+#screen-settings .toggle-row{ min-height:98px; padding:17px; border:3px solid var(--line); }
+#screen-settings .switch{ width:68px; height:40px; }
+#screen-settings .switch .track::before{ width:34px; height:34px; }
+#screen-settings .switch input:checked + .track::before{ transform:translateX(28px); }
+#screen-settings .voice-control-row{ display:grid; grid-template-columns:1fr; gap:12px; }
+#screen-settings .more-back-button{ position:static; background:#fff; }
+
+/* 긴급 도움은 화면 대부분을 쓰고 전화 대상을 매우 크게 표시한다. */
+#emergencySheet{ max-height:94vh; overflow-y:auto; padding:26px 18px calc(24px + env(safe-area-inset-bottom)); }
+#emergencySheet .bottom-sheet-title{ margin-bottom:20px; font-size:34px; color:var(--danger-strong); }
+#emergencySheet .sheet-btn{ min-height:84px; line-height:1.25; padding:14px; font-size:29px; font-weight:900; }
+#emergencySheet a.sheet-btn{ display:flex; align-items:center; justify-content:center; }
+#emergencySheet a[href="tel:119"],#emergencySheet a[href="tel:112"]{ background:var(--danger); border-color:var(--danger-strong); color:#fff; }
+#emergencySheet .sheet-btn-cancel{ min-height:68px; background:#fff; border-color:var(--ink); color:var(--ink); }
+#emergencySheet .field-row label,#emergencySheet .sheet-inline-error{ font-size:21px; }
+
+@media(min-width:460px){
+  #screen-doc-choice .feature-card{ min-height:168px; }
+}
+
+/* 반복 설명은 HTML에서 제거하고, 꼭 남겨야 하는 안전 안내만 회색 소문자 대신 선명한 상자로 표시한다. */
+.settings-save-note.safety-note{
+  display:block; margin:16px 0 0; padding:16px;
+  border:3px solid #d28a00; border-radius:12px;
+  background:#fff4cf; color:#3b2a00;
+  text-align:left; font-size:19px; line-height:1.55; font-weight:900;
+}
+
+/* =========================================================
+   초기 Codex 파란색 테마 복원
+   큰 버튼과 단순한 구조는 유지하고 색상만 최초 디자인 계열로 되돌린다.
+   ========================================================= */
+:root{
+  --bg-page:#f5f7fb;
+  --bg-app:#ffffff;
+  --ink:#171b2b;
+  --ink-soft:#4e5869;
+  --ink-faint:#6f7887;
+  --accent:#3d6bf5;
+  --accent-strong:#2648c4;
+  --accent-soft:#eaf0fe;
+  --success:#1fa851;
+  --success-strong:#187a3c;
+  --success-soft:#e8f7ed;
+  --line:#cbd3e2;
+  --sms-bg:#f1f4fa;
+}
+html,body{ background:#e8edf7; }
+.screen-stack,.screen{ background:var(--bg-page); }
+
+#screen-home .home-big-card,
+.screen:not(#screen-home) .feature-card,
+#screen-info .row,
+#screen-settings .more-menu button,
+.info-category-button{
+  border-color:#2648c4;
+  background:linear-gradient(180deg,#557ef7 0%,#3d6bf5 100%);
+  box-shadow:0 4px 0 #1d3b9c;
+}
+#screen-home .home-big-card .fc-icon,
+#screen-home .home-big-card .fc-icon[style],
+.screen:not(#screen-home) .feature-card .fc-icon,
+.screen:not(#screen-home) .feature-card .fc-icon.soft,
+#screen-info .row .icon-chip,
+#screen-settings .more-menu-icon{
+  color:var(--accent-strong);
+}
+#screen-settings .more-menu .more-menu-danger{
+  background:var(--danger); border-color:var(--danger-strong); box-shadow:0 4px 0 var(--danger-strong);
+}
+
+/* 정보 카테고리는 설명을 읽지 않아도 모양과 제목으로 바로 고를 수 있는 큰 버튼이다. */
+.info-category-list{ display:grid; grid-template-columns:1fr; gap:14px; }
+.info-category-button{
+  width:100%; min-height:116px; padding:16px;
+  display:grid; grid-template-columns:68px 1fr; align-items:center; gap:16px;
+  border-width:3px; border-style:solid; border-radius:14px;
+  color:#fff; text-align:left; cursor:pointer;
+}
+.info-category-icon{
+  width:68px; height:68px; display:grid; place-items:center;
+  border-radius:50%; background:#fff; color:var(--accent-strong);
+  font-size:20px; font-weight:900;
+}
+.info-category-button strong{ display:block; color:#fff; font-size:27px; line-height:1.25; }
+.info-category-button small{ display:block; margin-top:6px; color:#fff; font-size:17px; line-height:1.35; font-weight:700; }
+.info-category-title{ margin:4px 0 14px; font-size:29px; }
+.info-category-back{ margin-bottom:16px; }
+#infoCategoryItems[hidden],#infoCategoryList[hidden]{ display:none !important; }
+#screen-info .info-item-icon{ font-size:15px; font-weight:900; text-align:center; }
+
+/* 생활정보 상세는 한 문단과 세 단계만 크게 보여준다. */
+.info-detail-heading{ display:flex; align-items:center; gap:16px; margin:4px 0 18px; }
+.info-detail-heading h1{ margin:0; font-size:34px; }
+.info-detail-icon{
+  width:72px; height:72px; flex:0 0 72px; display:grid; place-items:center;
+  border-radius:50%; background:var(--accent); color:#fff; font-size:18px; font-weight:900;
+}
+.info-easy-summary h2{ margin:0 0 12px; font-size:24px; }
+.info-easy-summary p{ margin:0; font-size:22px; line-height:1.65; font-weight:700; }
+.info-easy-steps ol{ margin:0; padding-left:30px; }
+.info-easy-steps li{ margin-bottom:14px; padding-left:4px; color:var(--ink); font-size:21px; line-height:1.55; font-weight:700; }
+.info-contact-button{ margin-top:12px; text-decoration:none; display:flex; align-items:center; justify-content:center; }
+
+@media(max-width:360px){
+  .info-category-button{ grid-template-columns:58px 1fr; min-height:106px; }
+  .info-category-icon{ width:58px; height:58px; }
+  .info-category-button strong{ font-size:24px; }
+}
+

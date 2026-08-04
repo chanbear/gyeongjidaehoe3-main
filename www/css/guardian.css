@@ -160,3 +160,60 @@ button.activity-item{font:inherit;color:inherit}
   .connect-screen{padding-left:20px;padding-right:20px}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* 초고령 사용자까지 고려한 보호자 화면 가독성 보강 (기능 변경 없음) */
+:root{
+  --green:#176b3a;--green-dark:#0d4f2a;--green-soft:#e1f1e7;--mint:#cfe9d8;
+  --ink:#111a16;--sub:#3f4a45;--line:#b9c3be;--bg:#f2f5f3;
+  --danger:#c62828;--danger-soft:#ffebea;--shadow:0 2px 0 rgba(17,26,22,.08);--radius:14px;
+}
+html,body{background:#dfe5e1}
+body{font-size:20px;line-height:1.55}
+.guardian-shell{width:min(100%,520px);background:var(--bg)}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:4px solid #f2b705!important;outline-offset:3px!important}
+button:active,a:active{transform:scale(.98);filter:brightness(.92)}
+.connect-screen{padding:24px 20px 36px;background:var(--bg)}
+.brand-mark{width:58px;height:58px;border-radius:14px;background:var(--green);font-size:27px;box-shadow:none}
+.brand-lockup strong{font-size:22px}.brand-lockup span{font-size:16px;color:var(--sub)}
+.connect-hero{padding:42px 0 26px}.eyebrow{padding:8px 12px;border-radius:10px;font-size:16px;color:var(--green-dark)}
+.connect-hero h1{font-size:38px;line-height:1.25;margin:16px 0}.connect-hero p{font-size:21px;line-height:1.6;color:var(--sub)}
+.connect-card{padding:20px;border:2px solid var(--line);border-radius:14px;box-shadow:none}
+.connect-card label{font-size:22px}.connect-card input{height:72px;border:3px solid var(--line);border-radius:12px;font-size:23px}
+.field-help{font-size:17px;color:var(--sub)}.form-error{font-size:18px;min-height:28px}
+.primary-action,.demo-action{min-height:72px;border-radius:12px;font-size:22px;font-weight:900}
+.primary-action{background:var(--green);border:3px solid var(--green-dark);box-shadow:none}
+.demo-action{border:3px solid var(--green);background:#fff;color:var(--green-dark)}
+.elder-link{min-height:58px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:var(--green-dark)}
+
+.app-screen{padding:0 18px 112px;background:var(--bg)}
+.app-header{margin:0 -18px 16px;padding:calc(12px + env(safe-area-inset-top)) 18px 12px;min-height:78px;border-bottom:2px solid var(--line)}
+.app-kicker{font-size:15px}.app-header h1{font-size:27px}.profile-button{width:54px;height:54px;font-size:20px;border-radius:50%}
+.connection-banner{min-height:62px;padding:12px 14px;border:2px solid var(--line);border-radius:12px;font-size:15px;color:var(--sub)}
+.connection-banner strong{font-size:17px}.live-dot{width:12px;height:12px}
+.senior-card{padding:18px;border:2px solid var(--line);border-radius:14px;box-shadow:none}
+.senior-avatar{width:62px;height:62px;border-radius:14px;font-size:26px}.senior-info span,.senior-info small{font-size:15px}.senior-info strong{font-size:22px}
+.round-call{width:58px;height:58px;font-size:25px;background:var(--green)}
+.status-card{padding:18px;border:3px solid var(--green);border-radius:14px;margin:14px 0 28px}.status-card.danger{border-color:var(--danger)}
+.status-icon{width:52px;height:52px;flex-basis:52px;font-size:23px}.status-label{font-size:16px}.status-card h2{font-size:24px}.status-card p{font-size:17px;color:var(--sub)}
+.section-heading{margin:26px 2px 14px}.section-heading span,.page-title span{font-size:16px}.section-heading h2,.page-title h2{font-size:29px}.section-heading button{min-height:50px;padding:8px 12px;border:2px solid var(--green);border-radius:10px;font-size:17px;color:var(--green-dark)}
+.activity-list,.schedule-list{gap:12px}.activity-item,.schedule-item{min-height:82px;padding:16px;border:2px solid var(--line);border-radius:14px;box-shadow:none}
+.activity-badge{width:54px;height:54px;flex-basis:54px;font-size:22px}.activity-content strong{font-size:19px}.activity-content p{font-size:16px}.activity-meta{font-size:14px}
+.empty-card{padding:26px;border:2px dashed var(--line);font-size:18px}.schedule-check{width:32px;height:32px}
+.page-title{padding:12px 2px 20px}.filter-row{gap:9px}.filter-row button{min-height:56px;padding:10px 18px;border:2px solid var(--line);border-radius:12px;font-size:18px}
+.metric-grid{gap:12px}.metric-grid article{padding:18px;border:2px solid var(--line);border-radius:14px;box-shadow:none}.metric-grid span{font-size:17px}.metric-grid strong{font-size:38px}.metric-grid small{font-size:16px}
+.chart-card,.summary-card{padding:20px;border:2px solid var(--line);border-radius:14px;box-shadow:none}.chart-heading h3,.summary-card h3{font-size:21px}.chart-heading span{font-size:16px}.summary-card li{font-size:18px}
+.menu-card{border:2px solid var(--line);border-radius:14px;box-shadow:none}.menu-card button,.menu-card a{min-height:88px;padding:14px 16px}.menu-icon{width:50px;height:50px;border-radius:12px;font-size:21px}.menu-card strong{font-size:20px}.menu-card small{font-size:16px;color:var(--sub)}
+.inbox-summary{padding:18px;border:2px solid var(--green);border-radius:14px}.inbox-summary strong{font-size:38px}.inbox-summary span,.inbox-summary p{font-size:16px}
+.privacy-note{font-size:16px;color:var(--sub)}
+.guardian-nav{width:min(100%,520px);height:92px;padding:2px 0 env(safe-area-inset-bottom);border-top:3px solid var(--line)}
+.guardian-nav button{border-right:1px solid var(--line);font-size:15px;font-weight:900;color:#303a35}.guardian-nav button:last-child{border-right:0}.guardian-nav button span{font-size:29px;height:34px}.guardian-nav button.active{background:var(--green-soft);color:var(--green-dark)}
+.modal{width:min(100%,480px);border:3px solid var(--line);border-radius:16px;padding:24px}.modal-close{width:52px;height:52px;font-size:34px;color:var(--ink)}.modal h2{font-size:29px}.modal ol,.modal p{font-size:18px}.detail-type,.detail-status{font-size:17px}.detail-section h3{font-size:20px}.detail-section p,.detail-section ul,.original-message blockquote{font-size:18px}.detail-facts{font-size:17px}
+.toast{bottom:112px;border-radius:12px;padding:15px 18px;font-size:17px}
+@media(max-width:360px){.connect-hero h1{font-size:34px}.guardian-nav button{font-size:13px}.guardian-nav button span{font-size:25px}}
+
+/* 초기 Codex 파란색 테마 복원 */
+:root{
+  --green:#3d6bf5;--green-dark:#2648c4;--green-soft:#eaf0fe;--mint:#dce6ff;
+  --ink:#1b2440;--sub:#535e70;--line:#cbd3e2;--bg:#f5f7fb;
+}
+html,body{background:#e8edf7}

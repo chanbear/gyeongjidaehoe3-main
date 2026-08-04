@@ -142,13 +142,17 @@ function loadState(){
 function loadVoices(){ voices = window.speechSynthesis ? speechSynthesis.getVoices() : []; }
 if (window.speechSynthesis) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
 
+function nativeTextToSpeech(){
+  return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.TextToSpeech) || null;
+}
+
 /** 음성 지원 on/off 스위치는 홈 화면과 설정 화면 두 곳에 있다(voice-enabled-toggle 클래스로 묶임).
  *  el을 넘기면 그 스위치가 지금 누른 것이고, 나머지 스위치도 같은 상태로 맞춘다. */
 function toggleVoice(el){
   const checked = el ? el.checked : !appState.settings.voiceEnabled;
   appState.settings.voiceEnabled = checked;
   syncVoiceEnabledToggles();
-  if (!checked && window.speechSynthesis) speechSynthesis.cancel();
+  if (!checked) stopVoice();
   saveState();
 }
 
@@ -156,36 +160,111 @@ function syncVoiceEnabledToggles(){
   document.querySelectorAll('.voice-enabled-toggle').forEach(t => { t.checked = appState.settings.voiceEnabled; });
 }
 
-/** 번역된 문구(온보딩/튜토리얼)를 읽어줄 때만 언어별 TTS lang을 쓰고, 그 외(AI 분석 결과 등 항상 한국어인 문구)는 기본값(한국어)을 유지한다 */
+/** 화면 언어와 음성 언어가 어긋나지 않도록 모든 기본 안내에 현재 선택 언어를 사용한다. */
 const TTS_LANG_MAP = { ko: 'ko-KR', zh: 'zh-CN', vi: 'vi-VN', th: 'th-TH', uz: 'uz-UZ' };
 function currentTtsLang(){ return TTS_LANG_MAP[appState.settings.language] || 'ko-KR'; }
 
-function speak(text, lang){
+/* data-voice-i18n 키가 아직 없는 기존 화면도 한국어로 읽히지 않도록 주요 화면별 안내와
+ * 언어별 공통 안내를 둔다. 기기에 해당 언어 음성이 설치되어 있으면 같은 언어 음성을 우선 선택한다. */
+const SCREEN_VOICE_GUIDES = {
+  zh: {
+    'screen-home':'需要什么帮助？请选择文件、短信或附近设施。',
+    'screen-info':'这里汇集了对您有用的生活信息。请选择要查看的项目。',
+    'screen-history':'这里可以查看以前分析的记录和日程。',
+    'screen-settings':'这是更多设置。请选择要更改的项目。',
+    'screen-help':'您想了解什么？请选择一个项目。',
+    default:'请查看屏幕上的大按钮，并选择需要的项目。'
+  },
+  vi: {
+    'screen-home':'Bạn cần giúp gì? Hãy chọn tài liệu, tin nhắn hoặc cơ sở gần đây.',
+    'screen-info':'Đây là những thông tin sinh hoạt hữu ích. Hãy chọn mục muốn xem.',
+    'screen-history':'Bạn có thể xem lại kết quả phân tích và lịch đã lưu.',
+    'screen-settings':'Đây là phần cài đặt thêm. Hãy chọn mục muốn thay đổi.',
+    'screen-help':'Bạn muốn biết điều gì? Hãy chọn một mục.',
+    default:'Hãy xem các nút lớn trên màn hình và chọn mục bạn cần.'
+  },
+  th: {
+    'screen-home':'ต้องการความช่วยเหลือเรื่องใด กรุณาเลือกเอกสาร ข้อความ หรือสถานที่ใกล้เคียง',
+    'screen-info':'หน้านี้รวมข้อมูลที่เป็นประโยชน์ กรุณาเลือกหัวข้อที่ต้องการดู',
+    'screen-history':'คุณสามารถดูผลการวิเคราะห์และกำหนดการที่ผ่านมาได้',
+    'screen-settings':'นี่คือการตั้งค่าเพิ่มเติม กรุณาเลือกรายการที่ต้องการเปลี่ยน',
+    'screen-help':'อยากทราบเรื่องใด กรุณาเลือกหนึ่งหัวข้อ',
+    default:'กรุณาดูปุ่มขนาดใหญ่บนหน้าจอและเลือกรายการที่ต้องการ'
+  },
+  uz: {
+    'screen-home':"Qanday yordam kerak? Hujjat, xabar yoki yaqin joylarni tanlang.",
+    'screen-info':"Bu yerda foydali ma'lumotlar jamlangan. Kerakli bo'limni tanlang.",
+    'screen-history':"Oldingi tahlil natijalari va rejalarni ko'rishingiz mumkin.",
+    'screen-settings':"Bu qo'shimcha sozlamalar. O'zgartirmoqchi bo'lgan bo'limni tanlang.",
+    'screen-help':"Nimani bilmoqchisiz? Kerakli bo'limni tanlang.",
+    default:"Ekrandagi katta tugmalarni ko'rib, kerakli bo'limni tanlang."
+  }
+};
+
+const LANGUAGE_CHANGE_CONFIRMATION = {
+  ko:'한국어 음성으로 안내해드릴게요.',
+  zh:'现在开始使用中文语音为您提供提示。',
+  vi:'Từ bây giờ, hướng dẫn bằng giọng nói sẽ dùng tiếng Việt.',
+  th:'ต่อจากนี้จะใช้เสียงแนะนำภาษาไทย',
+  uz:"Endi ovozli ko'rsatmalar o'zbek tilida bo'ladi."
+};
+
+async function speak(text, lang){
   const liveRegion = document.getElementById('liveRegion');
-  if (!appState.settings.voiceEnabled || !window.speechSynthesis || !text) {
+  if (!appState.settings.voiceEnabled || !text) {
     if (text && liveRegion) liveRegion.textContent = text;
     return;
   }
+  if (liveRegion) liveRegion.textContent = text;
+
+  const voiceLang = lang || currentTtsLang();
+  const nativeTts = nativeTextToSpeech();
+  if (nativeTts) {
+    try {
+      await nativeTts.stop();
+      const support = await nativeTts.isLanguageSupported({ lang: voiceLang });
+      if (support && support.supported === false) {
+        showGlobalToast('선택한 언어 음성을 휴대폰 설정에서 설치해주세요.');
+        return;
+      }
+      await nativeTts.speak({
+        text,
+        lang: voiceLang,
+        rate: appState.settings.voiceRate,
+        pitch: 1,
+        volume: 1,
+        queueStrategy: 0
+      });
+      return;
+    } catch (err) {
+      console.warn('네이티브 음성 재생 실패:', err);
+    }
+  }
+
+  if (!window.speechSynthesis) return;
   speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = lang || 'ko-KR';
+  utter.lang = voiceLang;
   utter.rate = appState.settings.voiceRate;
   const langPrefix = utter.lang.split('-')[0];
   const matchVoice = voices.find(v => v.lang && v.lang.startsWith(langPrefix));
   if (matchVoice) utter.voice = matchVoice;
   speechSynthesis.speak(utter);
-  if (liveRegion) liveRegion.textContent = text;
 }
 
 /** 현재 화면의 안내 음성을 다시 읽기 */
 /** data-voice-i18n이 있는 화면(온보딩)은 현재 언어로 번역된 안내 문구를, 없으면 data-voice의 한국어 원문을 읽어준다 */
 function screenVoiceText(screenEl){
   const key = screenEl.getAttribute('data-voice-i18n');
-  return key ? t(key) : screenEl.getAttribute('data-voice');
+  if (key) return t(key);
+  const lang = appState.settings.language;
+  if (lang !== 'ko' && SCREEN_VOICE_GUIDES[lang]) {
+    return SCREEN_VOICE_GUIDES[lang][screenEl.id] || SCREEN_VOICE_GUIDES[lang].default;
+  }
+  return screenEl.getAttribute('data-voice');
 }
-/** data-voice-i18n이 있는 화면만 번역된 언어로 읽고, 나머지 화면은 항상 한국어로 읽는다(대부분의 data-voice가 여전히 한국어 원문이므로) */
 function screenVoiceLang(screenEl){
-  return screenEl.hasAttribute('data-voice-i18n') ? currentTtsLang() : 'ko-KR';
+  return currentTtsLang();
 }
 
 function replayCurrentVoice(){
@@ -194,7 +273,11 @@ function replayCurrentVoice(){
 }
 
 /** 음성 읽기 멈추기 */
-function stopVoice(){
+async function stopVoice(){
+  const nativeTts = nativeTextToSpeech();
+  if (nativeTts) {
+    try { await nativeTts.stop(); } catch (err) {}
+  }
   if (window.speechSynthesis) speechSynthesis.cancel();
 }
 
@@ -2287,8 +2370,8 @@ const I18N = {
     'docChoice.title': 'AI 분석하기',
     'docChoice.desc': '분석하고 싶은 문서를 촬영하거나 사진첩에서 불러오세요.',
     'docChoice.voicePill': '음성 안내 다시 듣기',
-    'docChoice.cameraTitle': '사진 촬영하기', 'docChoice.cameraDesc': '카메라로 문서를 찍습니다',
-    'docChoice.galleryTitle': '사진 불러오기', 'docChoice.galleryDesc': '저장된 사진을 불러옵니다',
+    'docChoice.cameraTitle': '사진 촬영하기',
+    'docChoice.galleryTitle': '사진 불러오기',
     'docChoice.tipTitle': '꼭 확인해 주세요!',
     'docChoice.tip1': '문서의 글자가 선명하게 보이도록 촬영해 주세요.',
     'docChoice.tip2': '빛 반사가 적은 밝은 곳에서 촬영하면 더 정확합니다.',
@@ -2478,8 +2561,8 @@ const I18N = {
     'docChoice.title': 'AI分析',
     'docChoice.desc': '请拍摄想要分析的文件，或从相册中选择。',
     'docChoice.voicePill': '重新收听语音讲解',
-    'docChoice.cameraTitle': '拍摄照片', 'docChoice.cameraDesc': '用相机拍摄文件',
-    'docChoice.galleryTitle': '导入照片', 'docChoice.galleryDesc': '载入已保存的照片',
+    'docChoice.cameraTitle': '拍摄照片',
+    'docChoice.galleryTitle': '导入照片',
     'docChoice.tipTitle': '请务必确认！',
     'docChoice.tip1': '请拍摄时让文件上的字清晰可见。',
     'docChoice.tip2': '在反光少的明亮处拍摄会更准确。',
@@ -2669,8 +2752,8 @@ const I18N = {
     'docChoice.title': 'Phân tích AI',
     'docChoice.desc': 'Hãy chụp tài liệu bạn muốn phân tích hoặc chọn từ thư viện ảnh.',
     'docChoice.voicePill': 'Nghe lại hướng dẫn bằng giọng nói',
-    'docChoice.cameraTitle': 'Chụp ảnh', 'docChoice.cameraDesc': 'Chụp tài liệu bằng máy ảnh',
-    'docChoice.galleryTitle': 'Tải ảnh lên', 'docChoice.galleryDesc': 'Mở ảnh đã lưu',
+    'docChoice.cameraTitle': 'Chụp ảnh',
+    'docChoice.galleryTitle': 'Tải ảnh lên',
     'docChoice.tipTitle': 'Hãy kiểm tra nhé!',
     'docChoice.tip1': 'Hãy chụp sao cho chữ trên tài liệu hiện rõ.',
     'docChoice.tip2': 'Chụp ở nơi sáng và ít bị phản chiếu ánh sáng sẽ chính xác hơn.',
@@ -2860,8 +2943,8 @@ const I18N = {
     'docChoice.title': 'วิเคราะห์ด้วย AI',
     'docChoice.desc': 'กรุณาถ่ายภาพเอกสารที่ต้องการวิเคราะห์หรือเลือกจากคลังภาพ',
     'docChoice.voicePill': 'ฟังคำแนะนำเสียงอีกครั้ง',
-    'docChoice.cameraTitle': 'ถ่ายภาพ', 'docChoice.cameraDesc': 'ถ่ายเอกสารด้วยกล้อง',
-    'docChoice.galleryTitle': 'นำเข้ารูปภาพ', 'docChoice.galleryDesc': 'เปิดรูปภาพที่บันทึกไว้',
+    'docChoice.cameraTitle': 'ถ่ายภาพ',
+    'docChoice.galleryTitle': 'นำเข้ารูปภาพ',
     'docChoice.tipTitle': 'กรุณาตรวจสอบด้วยนะคะ!',
     'docChoice.tip1': 'กรุณาถ่ายให้ตัวอักษรในเอกสารชัดเจน',
     'docChoice.tip2': 'ถ่ายในที่สว่างและมีแสงสะท้อนน้อยจะแม่นยำกว่า',
@@ -3051,8 +3134,8 @@ const I18N = {
     'docChoice.title': "AI bilan tahlil qilish",
     'docChoice.desc': "Tahlil qilmoqchi bo'lgan hujjatni suratga oling yoki galereyadan tanlang.",
     'docChoice.voicePill': "Ovozli yo'riqnomani qayta eshitish",
-    'docChoice.cameraTitle': "Surat olish", 'docChoice.cameraDesc': 'Kamera bilan hujjatni suratga olish',
-    'docChoice.galleryTitle': "Rasm yuklash", 'docChoice.galleryDesc': 'Saqlangan rasmni ochish',
+    'docChoice.cameraTitle': "Surat olish",
+    'docChoice.galleryTitle': "Rasm yuklash",
     'docChoice.tipTitle': 'Albatta tekshiring!',
     'docChoice.tip1': 'Hujjatdagi harflar aniq ko\'rinadigan qilib suratga oling.',
     'docChoice.tip2': "Yorug' va yorug'lik aks etmaydigan joyda suratga olsangiz aniqroq bo'ladi.",
@@ -3178,6 +3261,7 @@ function setLanguage(lang){
   appState.settings.language = lang;
   saveState();
   applyLanguage();
+  speak(LANGUAGE_CHANGE_CONFIRMATION[lang] || LANGUAGE_CHANGE_CONFIRMATION.ko, currentTtsLang());
   translateUiIfNeeded(lang);
 }
 
@@ -3550,10 +3634,41 @@ function syncProfileUI(){
 
 /** 홈 화면 "알아두면 좋은 정보" 카드: 전국 공통으로 실제 확인된 노인 복지·안전 정보만 안내(지역별 실제 데이터는 없어 인사말만 맞춤화).
  *  각 항목을 누르면 외부 사이트로 바로 나가는 대신, 앱 안의 설명 화면(screen-info-*)으로 이동한다. */
+const INFO_CATEGORIES = [
+  { id:'money', icon:'₩', title:'돈·일자리', desc:'연금, 일자리, 받을 수 있는 복지' },
+  { id:'health', icon:'+', title:'건강', desc:'검진, 치매, 장기요양, 치과' },
+  { id:'care', icon:'집', title:'돌봄·주거', desc:'혼자 지내실 때 받을 수 있는 도움' },
+  { id:'safety', icon:'!', title:'안전', desc:'사기 문자와 응급상황 대비' },
+  { id:'life', icon:'민원', title:'생활·민원', desc:'예방접종, 의료비, 민원, 법률상담' }
+];
+
+/* 금액·소득기준·신청기간은 자주 바뀌므로 고정하지 않는다.
+ * 상세 화면의 공식 사이트와 대표전화에서 현재 기준을 확인하도록 안내한다. */
 const PUBLIC_INFO_ITEMS = [
-  { id: 'pension', title: '기초연금 신청 안내', desc: '만 65세 이상, 소득 기준을 충족하면 매달 받을 수 있어요' },
-  { id: 'checkup', title: '무료 건강검진', desc: '만 40세 이상은 국민건강보험공단에서 정기 검진을 받을 수 있어요' },
-  { id: 'voicephishing', title: '보이스피싱 예방', desc: '의심스러운 전화나 문자는 118로 바로 신고할 수 있어요' }
+  { id:'basic-pension', category:'money', icon:'연금', title:'기초연금', desc:'받을 수 있는지 확인하고 신청하는 방법', summary:'만 65세 이상 어르신 중 소득과 재산 기준에 맞으면 매달 기초연금을 받을 수 있어요.', steps:['가까운 주민센터에 신분증을 가지고 방문하세요.','또는 국민연금공단에 전화해 대상 여부를 물어보세요.','정확한 금액과 기준은 신청할 때 확인하세요.'], phone:'129', phoneLabel:'보건복지상담센터 129', source:'https://basicpension.mohw.go.kr/' },
+  { id:'national-pension', category:'money', icon:'연금', title:'국민연금 상담', desc:'내 연금액과 받는 시기 확인', summary:'국민연금에 가입한 기간이 있다면 언제부터 얼마를 받을 수 있는지 확인할 수 있어요.', steps:['국민연금공단 1355에 전화하세요.','본인 확인 후 예상 연금액과 받는 시기를 물어보세요.','신분증과 본인 명의 통장을 미리 준비하면 좋아요.'], phone:'1355', phoneLabel:'국민연금공단 1355', source:'https://www.nps.or.kr/' },
+  { id:'senior-job', category:'money', icon:'일', title:'노인 일자리', desc:'가까운 일자리 검색과 신청', summary:'지역에서 모집하는 어르신 일자리와 사회활동을 찾아 신청할 수 있어요.', steps:['노인일자리여기에서 사는 지역을 검색하세요.','인터넷이 어려우면 주민센터나 노인복지관에 문의하세요.','모집 시기와 조건은 일자리마다 다르니 확인하세요.'], phone:'1544-3388', phoneLabel:'노인일자리 상담 1544-3388', source:'https://www.seniorro.or.kr/' },
+  { id:'welfare-membership', category:'money', icon:'복지', title:'복지멤버십', desc:'내가 받을 수 있는 복지를 안내받기', summary:'한 번 신청하면 받을 가능성이 있는 복지서비스를 찾아서 알려주는 제도예요.', steps:['복지로에서 맞춤형급여안내를 신청하세요.','인터넷이 어려우면 주민센터에서 신청할 수 있어요.','안내를 받으면 실제 신청이 필요한지 확인하세요.'], phone:'129', phoneLabel:'보건복지상담센터 129', source:'https://www.bokjiro.go.kr/ssis-tbu/twatza/wmAplyMng/selectWmGdnc.do' },
+
+  { id:'health-screening', category:'health', icon:'검진', title:'국가건강검진', desc:'올해 검진 대상인지 확인', summary:'건강보험공단에서 정해진 시기에 국가건강검진을 받을 수 있어요.', steps:['건강보험공단 1577-1000에 대상 여부를 물어보세요.','검진 가능한 병원을 확인하고 예약하세요.','검사 전 금식 여부를 병원에 꼭 확인하세요.'], phone:'1577-1000', phoneLabel:'건강보험공단 1577-1000', source:'https://www.nhis.or.kr/' },
+  { id:'dementia-center', category:'health', icon:'기억', title:'치매안심센터', desc:'무료 상담과 기억력 검사', summary:'기억력이 걱정되면 지역 치매안심센터에서 상담과 검사를 받을 수 있어요.', steps:['치매상담콜센터 1899-9988로 전화하세요.','가까운 치매안심센터 위치를 물어보세요.','신분증을 가지고 예약한 날짜에 방문하세요.'], phone:'1899-9988', phoneLabel:'치매상담 1899-9988', source:'https://www.nid.or.kr/' },
+  { id:'long-term-care', category:'health', icon:'요양', title:'노인장기요양보험', desc:'혼자 일상생활이 어려울 때 받는 도움', summary:'고령이나 노인성 질병으로 혼자 생활하기 어려우면 방문요양이나 시설 이용 도움을 받을 수 있어요.', steps:['건강보험공단에 장기요양 인정 신청을 문의하세요.','공단 직원의 방문조사를 받으세요.','등급 결과에 따라 이용 가능한 서비스를 안내받으세요.'], phone:'1577-1000', phoneLabel:'장기요양 상담 1577-1000', source:'https://www.longtermcare.or.kr/' },
+  { id:'dental-benefit', category:'health', icon:'치아', title:'틀니·임플란트 건강보험', desc:'만 65세 이상 치과 비용 지원 확인', summary:'만 65세 이상이면 조건에 따라 틀니와 임플란트에 건강보험을 적용받을 수 있어요.', steps:['치과에서 건강보험 대상인지 먼저 확인하세요.','치료를 시작하기 전에 예상 본인부담금을 물어보세요.','진행 중 병원을 옮기기 어려울 수 있으니 충분히 설명을 들으세요.'], phone:'1577-1000', phoneLabel:'건강보험공단 1577-1000', source:'https://www.nhis.or.kr/static/html/wbma/c/wbmac0217.html' },
+
+  { id:'custom-care', category:'care', icon:'돌봄', title:'노인맞춤돌봄서비스', desc:'안부 확인과 일상생활 도움', summary:'혼자 지내거나 돌봄이 필요한 어르신에게 안부 확인, 생활교육, 외출 도움 등을 제공해요.', steps:['주민센터에 노인맞춤돌봄서비스를 문의하세요.','담당자가 생활 상황과 필요한 도움을 확인해요.','선정되면 필요한 서비스를 계획해 제공합니다.'], phone:'129', phoneLabel:'보건복지상담센터 129', source:'https://www.mohw.go.kr/menu.es?mid=a10712010400' },
+  { id:'emergency-care', category:'care', icon:'안심', title:'응급안전안심서비스', desc:'화재나 응급상황을 감지하는 장비', summary:'혼자 사는 어르신 등의 집에 응급호출기와 감지기를 설치해 위급할 때 빠르게 도움을 요청할 수 있어요.', steps:['주민센터나 지역 수행기관에 신청 가능 여부를 물어보세요.','집의 생활환경과 돌봄 필요 여부를 확인받으세요.','설치 후 응급호출기 사용법을 가족과 함께 익히세요.'], phone:'129', phoneLabel:'보건복지상담센터 129', source:'https://www.mohw.go.kr/integratedcare/' },
+  { id:'energy-voucher', category:'care', icon:'전기', title:'에너지바우처', desc:'전기·가스 등 에너지 비용 지원', summary:'소득 기준과 세대 조건에 맞으면 냉난방에 필요한 에너지 비용을 지원받을 수 있어요.', steps:['주민센터에서 올해 대상과 신청기간을 확인하세요.','최근 에너지 요금 고지서를 준비하세요.','복지로에서도 신청할 수 있는지 확인하세요.'], phone:'1600-3190', phoneLabel:'에너지바우처 1600-3190', source:'https://www.bokjiro.go.kr/ssis-tbu/cms/pc/main/popup/1309903_1245.html' },
+  { id:'housing-benefit', category:'care', icon:'집', title:'주거급여', desc:'월세와 집수리 비용 지원 확인', summary:'소득과 주거 형태에 따라 월세나 집수리 비용을 지원받을 수 있는 제도예요.', steps:['주민센터에 주거급여 대상 여부를 물어보세요.','임대차계약서 등 거주를 확인할 자료를 준비하세요.','마이홈 콜센터에서 필요한 서류를 확인하세요.'], phone:'1600-1004', phoneLabel:'마이홈 상담 1600-1004', source:'https://www.myhome.go.kr/' },
+
+  { id:'voice-phishing', category:'safety', icon:'전화', title:'보이스피싱 대처', desc:'돈이나 개인정보를 요구하는 전화', summary:'검찰, 경찰, 은행을 사칭하며 돈이나 비밀번호를 요구하면 전화를 끊고 공식 번호로 다시 확인하세요.', steps:['계좌번호, 비밀번호, 인증번호를 말하지 마세요.','상대가 알려준 번호가 아닌 112나 해당 기관 공식 번호로 전화하세요.','돈을 보냈다면 즉시 은행과 112에 신고하세요.'], phone:'112', phoneLabel:'경찰 신고 112', source:'https://www.kisa.or.kr/118/' },
+  { id:'smishing', category:'safety', icon:'문자', title:'스미싱 문자 대처', desc:'모르는 인터넷 주소가 들어 있는 문자', summary:'택배, 과태료, 청첩장 등을 가장한 문자 속 인터넷 주소는 누르지 않는 것이 안전해요.', steps:['모르는 인터넷 주소를 누르지 마세요.','앱 설치나 개인정보 입력을 요구하면 중단하세요.','이미 눌렀다면 118에 전화해 조치 방법을 안내받으세요.'], phone:'118', phoneLabel:'사이버 상담 118', source:'https://www.kisa.or.kr/118/' },
+  { id:'safe-call-119', category:'safety', icon:'119', title:'119 안심콜', desc:'질병과 보호자 정보를 미리 등록', summary:'내 질병, 복용약, 보호자 연락처를 미리 등록하면 119 신고 때 구급대가 정보를 확인할 수 있어요.', steps:['119안전신고센터에서 안심콜을 등록하세요.','질병, 복용약, 보호자 연락처를 정확히 입력하세요.','정보가 바뀌면 꼭 다시 수정하세요.'], phone:'119', phoneLabel:'응급신고 119', source:'https://www.119.go.kr/' },
+  { id:'wandering-safety', category:'safety', icon:'위치', title:'치매 배회 예방 도움', desc:'실종 위험에 대비하는 방법', summary:'치매 어르신의 실종을 예방하기 위해 인식표, 지문 사전등록, 배회감지기 등을 상담할 수 있어요.', steps:['가까운 치매안심센터에 예방 서비스를 문의하세요.','경찰 지문 사전등록 방법도 함께 물어보세요.','최근 사진과 보호자 연락처를 준비해두세요.'], phone:'1899-9988', phoneLabel:'치매상담 1899-9988', source:'https://www.nid.or.kr/' },
+
+  { id:'pneumococcal', category:'life', icon:'접종', title:'폐렴구균 예방접종', desc:'만 65세 이상 국가예방접종 확인', summary:'만 65세 이상 어르신은 폐렴구균 국가예방접종 대상인지 확인할 수 있어요.', steps:['보건소나 가까운 지정 의료기관에 전화하세요.','예전에 접종했는지 기억나지 않으면 먼저 기록을 확인하세요.','신분증을 가지고 안내받은 기관에 방문하세요.'], phone:'1339', phoneLabel:'질병관리청 1339', source:'https://nip.kdca.go.kr/' },
+  { id:'medical-cost', category:'life', icon:'병원비', title:'재난적의료비 지원', desc:'병원비 부담이 너무 클 때 상담', summary:'소득에 비해 병원비 부담이 큰 가구는 의료비 지원 대상인지 확인할 수 있어요.', steps:['퇴원 전 병원 원무과나 사회사업실에 먼저 문의하세요.','건강보험공단에 대상과 신청기한을 확인하세요.','진료비 영수증과 필요한 서류를 안내받으세요.'], phone:'1577-1000', phoneLabel:'건강보험공단 1577-1000', source:'https://www.nhis.or.kr/' },
+  { id:'government-service', category:'life', icon:'민원', title:'정부24와 주민센터', desc:'증명서 발급과 민원 처리', summary:'주민등록등본 같은 증명서는 정부24 또는 가까운 주민센터에서 발급받을 수 있어요.', steps:['인터넷이 익숙하지 않으면 주민센터를 방문하세요.','어떤 서류가 필요한지 먼저 담당 기관에 물어보세요.','방문할 때 신분증을 챙기세요.'], phone:'110', phoneLabel:'정부민원안내 110', source:'https://www.gov.kr/' },
+  { id:'legal-help', category:'life', icon:'법률', title:'무료 법률상담', desc:'임대차·상속·빚 문제 상담', summary:'임대차, 상속, 빚, 개인회생 같은 법률문제를 대한법률구조공단에 상담할 수 있어요.', steps:['국번 없이 132로 전화해 상담 방법을 물어보세요.','계약서나 관련 문서를 날짜순으로 준비하세요.','소송 지원은 별도 조건이 있으므로 상담 때 확인하세요.'], phone:'132', phoneLabel:'법률상담 132', source:'https://www.klac.or.kr/' }
 ];
 
 /* ---- 납부 기한 통계 ----
@@ -3923,21 +4038,87 @@ function renderInfoDetailGreet(screenId){
 
 function publicInfoRowsHtml(items){
   return items.map(item => `
-    <div class="row" onclick="goTo('screen-info-${item.id}')" role="button" tabindex="0">
-      <div class="icon-chip accent"><svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg></div>
-      <div class="text"><div class="t1">${escapeHtml(item.title)}</div><div class="t2">${escapeHtml(item.desc)}</div></div>
+    <div class="row" onclick="openSeniorInfo('${item.id}')" role="button" tabindex="0">
+      <div class="icon-chip accent info-item-icon">${escapeHtml(item.icon)}</div>
+      <div class="text"><div class="t1">${escapeHtml(item.title)}</div></div>
       <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
     </div>
   `).join('');
+}
+
+let activeInfoCategory = 'money';
+let activeSeniorInfoId = '';
+
+function infoCategoryButtonsHtml(){
+  return INFO_CATEGORIES.map(category => `
+    <button type="button" class="info-category-button" onclick="openInfoCategory('${category.id}')">
+      <span class="info-category-icon">${escapeHtml(category.icon)}</span>
+      <span><strong>${escapeHtml(category.title)}</strong></span>
+    </button>
+  `).join('');
+}
+
+function showInfoCategories(){
+  const categories = document.getElementById('infoCategoryList');
+  const items = document.getElementById('infoCategoryItems');
+  if (categories) categories.hidden = false;
+  if (items) items.hidden = true;
+  const title = document.getElementById('publicInfoTitle');
+  if (title) title.innerHTML = '<svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-info"></use></svg>어떤 정보가 필요하세요?';
+  const screen = document.getElementById('screen-info');
+  if (screen) screen.scrollTop = 0;
+}
+
+function openInfoCategory(categoryId){
+  const category = INFO_CATEGORIES.find(item => item.id === categoryId);
+  if (!category) return;
+  activeInfoCategory = categoryId;
+  const categories = document.getElementById('infoCategoryList');
+  const items = document.getElementById('infoCategoryItems');
+  if (categories) categories.hidden = true;
+  if (items) items.hidden = false;
+  const categoryTitle = document.getElementById('infoCategoryTitle');
+  if (categoryTitle) categoryTitle.textContent = `${category.icon} ${category.title}`;
+  const list = document.getElementById('publicInfoList');
+  if (list) list.innerHTML = publicInfoRowsHtml(PUBLIC_INFO_ITEMS.filter(item => item.category === categoryId));
+  const heading = document.getElementById('publicInfoTitle');
+  if (heading) heading.textContent = '필요한 정보를 눌러주세요';
+  const screen = document.getElementById('screen-info');
+  if (screen) screen.scrollTop = 0;
+}
+
+function openSeniorInfo(infoId){
+  const item = PUBLIC_INFO_ITEMS.find(entry => entry.id === infoId);
+  if (!item) return;
+  activeSeniorInfoId = infoId;
+  activeInfoCategory = item.category;
+  document.getElementById('seniorInfoIcon').textContent = item.icon;
+  document.getElementById('seniorInfoTitle').textContent = item.title;
+  document.getElementById('seniorInfoSummary').textContent = item.summary;
+  document.getElementById('seniorInfoSteps').innerHTML = item.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('');
+  const phone = document.getElementById('seniorInfoPhone');
+  phone.href = `tel:${item.phone}`;
+  phone.hidden = !item.phone;
+  document.getElementById('seniorInfoPhoneLabel').textContent = item.phoneLabel || '전화로 물어보기';
+  const source = document.getElementById('seniorInfoSource');
+  source.href = item.source;
+  goTo('screen-info-detail');
+  const detailScreen = document.getElementById('screen-info-detail');
+  detailScreen.setAttribute('data-voice', `${item.title}. ${item.summary}`);
+  speak(screenVoiceText(detailScreen), screenVoiceLang(detailScreen));
+}
+
+function backFromInfoDetail(){
+  goTo('screen-info');
+  openInfoCategory(activeInfoCategory);
 }
 
 /** 정보 탭(screen-info)의 전체 목록 */
 function renderPublicInfoCard(){
   const card = document.getElementById('publicInfoCard');
   if (!card) return;
-  document.getElementById('publicInfoTitle').innerHTML =
-    `<svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-info"></use></svg>${escapeHtml(publicInfoGreeting())}`;
-  document.getElementById('publicInfoList').innerHTML = publicInfoRowsHtml(PUBLIC_INFO_ITEMS);
+  document.getElementById('infoCategoryList').innerHTML = infoCategoryButtonsHtml();
+  showInfoCategories();
   card.style.display = 'block';
 }
 
