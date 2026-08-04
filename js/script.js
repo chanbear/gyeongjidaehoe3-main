@@ -3127,8 +3127,8 @@ async function authRequest(phone, pin){
     });
     const data = await res.json();
     if (!res.ok) return { ok: false, error: data.error || 'unknown' };
-    setAuth({ userId: data.userId, token: data.token, name: data.name, phone: phone.replace(/\D/g, '') });
-    return { ok: true, isNewUser: !!data.isNewUser };
+    setAuth({ userId: data.userId, token: data.token, name: data.name, phone: phone.replace(/\D/g, ''), isAdmin: !!data.isAdmin });
+    return { ok: true, isNewUser: !!data.isNewUser, isAdmin: !!data.isAdmin };
   } catch (err) {
     return { ok: false, error: 'network' };
   }
@@ -3190,11 +3190,64 @@ async function handleAuthSubmit(){
     resetLocalAccountData();
     saveState();
     goTo('screen-onboard-access');
+  } else if (result.isAdmin) {
+    goTo('screen-admin');
+    loadAdminUsers();
   } else {
     await pullStateFromServer();
     saveState();
     syncSettingsUI();
     goTo('screen-home');
+  }
+}
+
+/* 경진대회 데모용 관리자 지름길: 전화번호/PIN을 외울 필요 없이 "admin"만 입력하면 고정된 관리자
+   계정(실제로는 일반 계정과 동일한 /auth 흐름을 그대로 탄다)으로 로그인한다. */
+const ADMIN_SHORTCUT_PHONE = '01000000000';
+const ADMIN_SHORTCUT_PIN = '0000';
+
+function toggleAdminLoginBox(){
+  const box = document.getElementById('adminLoginBox');
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+async function handleAdminShortcutLogin(){
+  const code = document.getElementById('adminLoginCode').value.trim().toLowerCase();
+  if (code !== 'admin') return showFieldError('authError', '관리자 코드가 올바르지 않아요.');
+
+  showFieldError('authError', '');
+  const result = await authRequest(ADMIN_SHORTCUT_PHONE, ADMIN_SHORTCUT_PIN);
+  if (!result.ok || !result.isAdmin) return showFieldError('authError', '관리자 계정 연결에 실패했어요.');
+  goTo('screen-admin');
+  loadAdminUsers();
+}
+
+async function loadAdminUsers(){
+  const rowsEl = document.getElementById('adminUserRows');
+  const emptyEl = document.getElementById('adminEmptyState');
+  try {
+    const res = await fetch(AI_WORKER_URL + '/admin/users', { headers: authHeaders() });
+    if (!res.ok) { handleLogout(); return; }
+    const data = await res.json();
+    const users = data.users || [];
+    document.getElementById('adminTotalCount').textContent = data.totalCount != null ? data.totalCount : users.length;
+    if (users.length === 0) {
+      rowsEl.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    rowsEl.innerHTML = users.map((u) => `
+      <div class="row" style="cursor:default">
+        <div class="text">
+          <div class="t1">${escapeHtml(u.name) || '(이름 없음)'}</div>
+          <div class="t2">${escapeHtml(u.phone)} · 가입일 ${escapeHtml((u.createdAt || '').slice(0, 10))} · 분석 ${escapeHtml(u.historyCount)}건</div>
+        </div>
+      </div>`).join('');
+  } catch (err) {
+    rowsEl.innerHTML = '';
+    emptyEl.textContent = '불러오지 못했어요. 잠시 후 다시 시도해주세요.';
+    emptyEl.style.display = 'block';
   }
 }
 

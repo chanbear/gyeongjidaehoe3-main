@@ -30,7 +30,7 @@ function corsHeadersFor(request) {
   return {
     'Access-Control-Allow-Origin': origin && ALLOWED_ORIGINS.has(origin) ? origin : 'null',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, X-Auth-Token, X-Guardian-Phone, X-Guardian-Token, X-Admin-Password',
+    'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, X-Auth-Token, X-Guardian-Phone, X-Guardian-Token',
     'Vary': 'Origin',
   };
 }
@@ -242,11 +242,16 @@ async function authenticateRequest(env, request) {
   return row ? row.id : null;
 }
 
-/** X-Admin-Password 헤더가 ADMIN_PASSWORD 시크릿과 일치하는지 확인한다. 어르신/보호자 인증 체계와는
- *  완전히 분리된, 내부 테스트용 대시보드 전용 인증 — 세션·토큰 없이 매 요청마다 비밀번호 자체를 비교한다. */
-function authenticateAdmin(env, request) {
-  const password = request.headers.get('X-Admin-Password');
-  return !!password && !!env.ADMIN_PASSWORD && password === env.ADMIN_PASSWORD;
+/** X-User-Id/X-Auth-Token 헤더가 is_admin=1인 유저와 일치하는지 확인한다. authenticateRequest와 같은
+ *  토큰 체계를 그대로 쓰되 관리자 권한도 함께 확인한다 — 일치하면 유저 id를, 아니면 null을 반환한다. */
+async function authenticateAdminRequest(env, request) {
+  const userId = Number(request.headers.get('X-User-Id'));
+  const token = request.headers.get('X-Auth-Token');
+  if (!userId || !token) return null;
+  const row = await env.ansim_doumi_db.prepare(
+    `SELECT id FROM users WHERE id = ? AND token = ? AND is_admin = 1`
+  ).bind(userId, token).first();
+  return row ? row.id : null;
 }
 
 /** X-Guardian-Phone/X-Guardian-Token 헤더로 요청한 seniorId에 대한 유효한(active) 연결인지 확인한다.
@@ -485,7 +490,7 @@ export default {
 
       try {
         const user = await env.ansim_doumi_db.prepare(
-          `SELECT id, pin_hash, pin_salt, name, failed_attempts, locked_until FROM users WHERE phone = ?`
+          `SELECT id, pin_hash, pin_salt, name, is_admin, failed_attempts, locked_until FROM users WHERE phone = ?`
         ).bind(phoneDigits).first();
 
         if (!user) {
@@ -496,7 +501,7 @@ export default {
             `INSERT INTO users (phone, pin_hash, pin_salt, name, token)
              VALUES (?, ?, ?, '', ?)`
           ).bind(phoneDigits, pinHash, pinSalt, token).run();
-          return json({ userId: inserted.meta.last_row_id, token, name: '', isNewUser: true }, 200);
+          return json({ userId: inserted.meta.last_row_id, token, name: '', isNewUser: true, isAdmin: false }, 200);
         }
 
         if (user.locked_until && new Date(user.locked_until).getTime() > Date.now()) {
@@ -520,7 +525,7 @@ export default {
           `UPDATE users SET token = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?`
         ).bind(token, user.id).run();
 
-        return json({ userId: user.id, token, name: user.name || '', isNewUser: false }, 200);
+        return json({ userId: user.id, token, name: user.name || '', isNewUser: false, isAdmin: !!user.is_admin }, 200);
       } catch (err) {
         return json({ error: '처리에 실패했습니다.', detail: String(err && err.message || err) }, 502);
       }
@@ -879,22 +884,12 @@ export default {
       }
     }
 
-    /* ---- 관리자 대시보드: 어르신/보호자 인증 체계와 분리된, ADMIN_PASSWORD 비밀번호 1개로만 접속하는
-       내부 테스트용 조회 화면. 회원 수정·삭제나 분석 원문 열람 기능은 없다(조회 전용). ---- */
-    if (url.pathname === '/admin/login' && request.method === 'POST') {
-      let body;
-      try {
-        body = await request.json();
-      } catch {
-        return json({ error: '잘못된 요청입니다.' }, 400);
-      }
-      const ok = !!env.ADMIN_PASSWORD && body && body.password === env.ADMIN_PASSWORD;
-      if (!ok) return json({ error: 'invalid' }, 401);
-      return json({ ok: true }, 200);
-    }
-
+    /* ---- 관리자 대시보드: is_admin=1인 계정만 볼 수 있는 조회 전용 화면. 로그인은 일반 회원과 동일한
+       /auth(전화번호+PIN)로 하고, 여기서는 그 세션 토큰에 관리자 권한이 있는지만 확인한다.
+       회원 수정·삭제나 분석 원문 열람 기능은 없다(조회 전용). ---- */
     if (url.pathname === '/admin/users' && request.method === 'GET') {
-      if (!authenticateAdmin(env, request)) return json({ error: 'unauthorized' }, 401);
+      const adminId = await authenticateAdminRequest(env, request);
+      if (!adminId) return json({ error: 'unauthorized' }, 401);
 
       try {
         const { results } = await env.ansim_doumi_db.prepare(

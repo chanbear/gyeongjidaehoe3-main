@@ -669,6 +669,62 @@
           <img src="assets/social-kakao.png" alt="" width="24" height="24" />
           <span data-i18n="onboard.signup.kakao">카카오 로그인</span>
         </button>
+
+        <button
+          type="button"
+          class="nav-btn"
+          style="align-self: center; color: var(--ink-faint); margin-top: 4px"
+          onclick="toggleAdminLoginBox()"
+        >
+          관리자용 로그인
+        </button>
+        <div id="adminLoginBox" style="display: none; margin-top: 10px">
+          <input
+            type="text"
+            id="adminLoginCode"
+            placeholder="admin"
+            autocomplete="off"
+            style="
+              min-height: 48px;
+              width: 100%;
+              box-sizing: border-box;
+              border: 2px solid var(--line);
+              border-radius: var(--radius-md);
+              padding: 0 16px;
+              font-size: 16px;
+              color: var(--ink);
+              font-family: inherit;
+              margin-bottom: 8px;
+            "
+          />
+          <button class="primary-btn" onclick="handleAdminShortcutLogin()">
+            이동
+          </button>
+        </div>
+      </section>
+
+      <!-- 관리자 대시보드: is_admin=1인 계정으로 로그인하면 여기로 온다. 조회 전용(회원 목록만) -->
+      <section
+        class="screen"
+        id="screen-admin"
+        data-voice="관리자 화면입니다. 가입한 회원 목록을 볼 수 있어요."
+      >
+        <div class="topbar">
+          <button class="nav-btn" onclick="handleLogout()">나가기</button>
+        </div>
+        <h1>관리자</h1>
+        <p class="desc">가입한 회원 목록이에요. 조회만 할 수 있어요.</p>
+
+        <div class="settings-section">
+          <h2>전체 회원 <span id="adminTotalCount">-</span>명</h2>
+          <div class="group" id="adminUserRows"></div>
+          <p
+            id="adminEmptyState"
+            style="display: none; color: var(--ink-faint); text-align: center; padding: 24px 0"
+          >
+            아직 가입한 회원이 없어요.
+          </p>
+        </div>
       </section>
 
       <!-- 비밀번호 재설정 -->

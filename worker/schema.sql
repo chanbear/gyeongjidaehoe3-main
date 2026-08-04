@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS users (
   otp_expires_at TEXT,
   otp_attempts INTEGER DEFAULT 0,
   guardian_phone TEXT,
+  is_admin INTEGER NOT NULL DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_users_guardian_phone ON users(guardian_phone);
