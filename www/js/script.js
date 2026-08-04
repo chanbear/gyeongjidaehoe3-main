@@ -231,7 +231,7 @@ function screenVoiceText(screenEl){
   const key = screenEl.getAttribute('data-voice-i18n');
   return key ? t(key) : screenEl.getAttribute('data-voice');
 }
-/** data-voice-i18n이 있는 화면만 번역된 언어로 읽고, 나머지 화면은 항상 한국어로 읽는다(대부분의 data-voice가 여전히 한국어 원문이므로) */
+/** data-voice-i18n이 있는 화면(전체 43개 중 대부분)은 현재 언어로, 없는 화면만 한국어로 읽는다 */
 function screenVoiceLang(screenEl){
   return screenEl.hasAttribute('data-voice-i18n') ? currentTtsLang() : 'ko-KR';
 }
