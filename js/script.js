@@ -2083,6 +2083,35 @@ const I18N = {
     'error.docBlurVoice': '사진이 흐려서 읽을 수 없어요. 밝은 곳에서 다시 찍어주세요.',
     'error.retry': '다시 시도', 'error.goHome': '홈으로 돌아가기',
     'error.aiVoice': '지금은 분석이 어려워요. 잠시 후 다시 시도해주세요.',
+    'admin.voice': '관리자 화면입니다. 가입한 회원 목록을 볼 수 있어요.',
+    'home.voice': '무엇을 도와드릴까요? 문서 촬영, 문자 내용 요약, 경로당 찾기 중에서 골라보세요.',
+    'stats.voice': '지금까지 확인한 고지서의 금액과 납부 기한을 모아서 보여드려요.',
+    'info.voice': '어르신께 도움이 되는 정보를 모았어요.',
+    'welfareNearby.voice': '내 주변 복지센터와 경로당을 찾고 있어요.',
+    'infoPension.voice': '기초연금은 만 65세 이상이면서 소득 기준을 충족하면 매달 받을 수 있는 연금입니다.',
+    'infoCheckup.voice': '만 40세 이상은 국민건강보험공단에서 2년마다 무료로 건강검진을 받을 수 있습니다.',
+    'infoVoicephishing.voice': '의심스러운 전화나 문자를 받으면 118로 바로 신고할 수 있습니다.',
+    'infoBreastCheckup.voice': '만 40세 이상 여성은 국민건강보험공단에서 2년마다 무료로 유방암 검진을 받을 수 있습니다.',
+    'infoCervicalCheckup.voice': '만 20세 이상 여성은 국민건강보험공단에서 2년마다 무료로 자궁경부암 검진을 받을 수 있습니다.',
+    'infoTransitionCheckup.voice': '66세, 70세, 80세가 되면 국민건강보험공단에서 노인 맞춤 생애전환기 건강진단을 무료로 받을 수 있습니다.',
+    'help.voice': '무엇이 궁금하세요? 궁금한 항목을 골라주세요.',
+    'helpDoc.voice': '홈 화면에서 문서 촬영을 누르고, 직접 촬영하거나 앨범에서 사진을 골라주세요. 잠시 후 AI가 쉬운 설명과 해야 할 일을 알려드려요.',
+    'helpSms.voice': '홈 화면에서 문자 내용 요약을 누르면 최근 받은 문자 중에서 골라 AI가 안전한지 확인해드려요.',
+    'helpHistory.voice': '화면 아래 메뉴에서 기록을 누르면 지금까지 확인한 문서와 문자를 다시 볼 수 있어요.',
+    'helpInfo.voice': '화면 아래 메뉴에서 정보를 누르면 기초연금, 건강검진 같은 공공 정보를 안내해드려요.',
+    'helpWelfare.voice': '홈 화면에서 주변 복지센터·경로당 찾기를 누르면 내 위치 주변의 복지센터와 경로당을 함께 찾아드려요.',
+    'helpVoice.voice': '화면 위쪽의 다시 듣기 버튼을 누르면 화면 안내를 다시 소리로 들을 수 있어요.',
+    'helpEmergency.voice': '화면 아래 메뉴 가운데의 빨간 도움 버튼을 누르면 보호자나 119, 112, 118로 바로 연락할 수 있어요.',
+    'helpSettings.voice': '설정 화면에서 글자 크기, 음성 속도, 보호자 정보, 언어를 바꿀 수 있어요.',
+    'docBlurExample.voice': '이렇게 흐릿하면 글씨를 읽기 어려워요. 밝은 곳에서 다시 찍어주세요.',
+    'loadingDoc.voice': '문서를 읽고, 해야 할 일을 그림으로도 준비하고 있습니다. 잠시만 기다려주세요.',
+    'loadingText.voice': '문자를 확인하고, 해야 할 일을 그림으로도 준비하고 있습니다. 잠시만 기다려주세요.',
+    'history.voice': '지금까지 분석한 기록과 일정을 확인할 수 있습니다.',
+    'settings.voice': '설정 화면입니다. 글자 크기, 음성 속도, 보호자 정보를 바꿀 수 있습니다.',
+    'myInfo.voice': '이름과 성별, 나이, 사시는 지역을 확인하고 고칠 수 있어요.',
+    'customerSupport.voice': '사용 방법 안내, 화면 안내 다시 보기, 고객센터 연결을 확인할 수 있어요.',
+    'privacyPolicy.voice': '온담이 개인정보를 어떻게 보관하고 보호하는지 안내해드릴게요.',
+    'more.voice': '더보기 화면입니다. 내 정보, 분석 기록, 통계, 정보, 설정, 고객 지원으로 이동할 수 있어요.',
   },
   zh: {
     'home.sectionTitle': '需要什么帮助？',
@@ -2747,7 +2776,7 @@ const I18N = {
    Worker(Claude API, /translate)로 화면 문구 전체를 실시간 번역해 기기에 캐시해둔다.
    캐시가 있으면 정적 사전보다 그 결과를 우선 쓴다. 오프라인이거나 호출이 실패하면
    조용히 기존 정적 사전(I18N)으로 폴백한다 — 화면이 비거나 깨지는 대신 이전과 같은 번역을 계속 보여준다. ---- */
-const TRANSLATION_CACHE_KEY = 'ai_helper_translations_v1';
+const TRANSLATION_CACHE_KEY = 'ai_helper_translations_v2';
 let dynamicTranslations = {}; // { [lang]: { [i18nKey]: 번역된 문구 } }
 (function loadDynamicTranslations(){
   try {

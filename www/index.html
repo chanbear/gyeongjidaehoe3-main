@@ -708,6 +708,7 @@
         class="screen"
         id="screen-admin"
         data-voice="관리자 화면입니다. 가입한 회원 목록을 볼 수 있어요."
+        data-voice-i18n="admin.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="handleLogout()">나가기</button>
@@ -1272,6 +1273,7 @@
         class="screen"
         id="screen-home"
         data-voice="무엇을 도와드릴까요? 문서 촬영, 문자 내용 요약, 경로당 찾기 중에서 골라보세요."
+        data-voice-i18n="home.voice"
       >
         <div class="topbar">
           <!-- 쉬운 모드: 홈 화면에서만 좌측 상단에 노출. 아이콘 없이 큰 글자·같은 색 계열 블록 버튼으로 바꾸는 토글(ATM 큰글씨 모드 참고) -->
@@ -1520,6 +1522,7 @@
         class="screen"
         id="screen-stats"
         data-voice="지금까지 확인한 고지서의 금액과 납부 기한을 모아서 보여드려요."
+        data-voice-i18n="stats.voice"
       >
         <div class="topbar">
           <button
@@ -1581,6 +1584,7 @@
         class="screen"
         id="screen-info"
         data-voice="어르신께 도움이 되는 정보를 모았어요."
+        data-voice-i18n="info.voice"
       >
         <div class="topbar">
           <button
@@ -1661,6 +1665,7 @@
         class="screen"
         id="screen-welfare-nearby"
         data-voice="내 주변 복지센터와 경로당을 찾고 있어요."
+        data-voice-i18n="welfareNearby.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button
@@ -1787,6 +1792,7 @@
         class="screen"
         id="screen-info-pension"
         data-voice="기초연금은 만 65세 이상이면서 소득 기준을 충족하면 매달 받을 수 있는 연금입니다."
+        data-voice-i18n="infoPension.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button
@@ -1856,6 +1862,7 @@
         class="screen"
         id="screen-info-checkup"
         data-voice="만 40세 이상은 국민건강보험공단에서 2년마다 무료로 건강검진을 받을 수 있습니다."
+        data-voice-i18n="infoCheckup.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button
@@ -1923,6 +1930,7 @@
         class="screen"
         id="screen-info-voicephishing"
         data-voice="의심스러운 전화나 문자를 받으면 118로 바로 신고할 수 있습니다."
+        data-voice-i18n="infoVoicephishing.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button
@@ -1987,6 +1995,7 @@
         class="screen"
         id="screen-info-breast-checkup"
         data-voice="만 40세 이상 여성은 국민건강보험공단에서 2년마다 무료로 유방암 검진을 받을 수 있습니다."
+        data-voice-i18n="infoBreastCheckup.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button
@@ -2055,6 +2064,7 @@
         class="screen"
         id="screen-info-cervical-checkup"
         data-voice="만 20세 이상 여성은 국민건강보험공단에서 2년마다 무료로 자궁경부암 검진을 받을 수 있습니다."
+        data-voice-i18n="infoCervicalCheckup.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button
@@ -2123,6 +2133,7 @@
         class="screen"
         id="screen-info-transition-checkup"
         data-voice="66세, 70세, 80세가 되면 국민건강보험공단에서 노인 맞춤 생애전환기 건강진단을 무료로 받을 수 있습니다."
+        data-voice-i18n="infoTransitionCheckup.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button
@@ -2191,6 +2202,7 @@
         class="screen"
         id="screen-help"
         data-voice="무엇이 궁금하세요? 궁금한 항목을 골라주세요."
+        data-voice-i18n="help.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-settings')">
@@ -2342,6 +2354,7 @@
         class="screen"
         id="screen-help-doc"
         data-voice="홈 화면에서 문서 촬영을 누르고, 직접 촬영하거나 앨범에서 사진을 골라주세요. 잠시 후 AI가 쉬운 설명과 해야 할 일을 알려드려요."
+        data-voice-i18n="helpDoc.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-help')">← 뒤로</button
@@ -2405,6 +2418,7 @@
         class="screen"
         id="screen-help-sms"
         data-voice="홈 화면에서 문자 내용 요약을 누르면 최근 받은 문자 중에서 골라 AI가 안전한지 확인해드려요."
+        data-voice-i18n="helpSms.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-help')">← 뒤로</button
@@ -2461,6 +2475,7 @@
         class="screen"
         id="screen-help-history"
         data-voice="화면 아래 메뉴에서 기록을 누르면 지금까지 확인한 문서와 문자를 다시 볼 수 있어요."
+        data-voice-i18n="helpHistory.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-help')">← 뒤로</button
@@ -2505,6 +2520,7 @@
         class="screen"
         id="screen-help-info"
         data-voice="화면 아래 메뉴에서 정보를 누르면 기초연금, 건강검진 같은 공공 정보를 안내해드려요."
+        data-voice-i18n="helpInfo.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-help')">← 뒤로</button
@@ -2550,6 +2566,7 @@
         class="screen"
         id="screen-help-welfare"
         data-voice="홈 화면에서 주변 복지센터·경로당 찾기를 누르면 내 위치 주변의 복지센터와 경로당을 함께 찾아드려요."
+        data-voice-i18n="helpWelfare.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-help')">← 뒤로</button
@@ -2614,6 +2631,7 @@
         class="screen"
         id="screen-help-voice"
         data-voice="화면 위쪽의 다시 듣기 버튼을 누르면 화면 안내를 다시 소리로 들을 수 있어요."
+        data-voice-i18n="helpVoice.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-help')">← 뒤로</button
@@ -2658,6 +2676,7 @@
         class="screen"
         id="screen-help-emergency"
         data-voice="화면 아래 메뉴 가운데의 빨간 도움 버튼을 누르면 보호자나 119, 112, 118로 바로 연락할 수 있어요."
+        data-voice-i18n="helpEmergency.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-help')">← 뒤로</button
@@ -2698,6 +2717,7 @@
         class="screen"
         id="screen-help-settings"
         data-voice="설정 화면에서 글자 크기, 음성 속도, 보호자 정보, 언어를 바꿀 수 있어요."
+        data-voice-i18n="helpSettings.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-help')">← 뒤로</button
@@ -3012,6 +3032,7 @@
         class="screen"
         id="screen-doc-blur-example"
         data-voice="이렇게 흐릿하면 글씨를 읽기 어려워요. 밝은 곳에서 다시 찍어주세요."
+        data-voice-i18n="docBlurExample.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-doc-capture')">
@@ -3048,6 +3069,7 @@
         class="screen"
         id="screen-loading-doc"
         data-voice="문서를 읽고, 해야 할 일을 그림으로도 준비하고 있습니다. 잠시만 기다려주세요."
+        data-voice-i18n="loadingDoc.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-doc-choice')">
@@ -3356,6 +3378,7 @@
         class="screen"
         id="screen-loading-text"
         data-voice="문자를 확인하고, 해야 할 일을 그림으로도 준비하고 있습니다. 잠시만 기다려주세요."
+        data-voice-i18n="loadingText.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-sms-recent')">
@@ -3528,6 +3551,7 @@
         class="screen"
         id="screen-history"
         data-voice="지금까지 분석한 기록과 일정을 확인할 수 있습니다."
+        data-voice-i18n="history.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button
@@ -3561,6 +3585,7 @@
         class="screen"
         id="screen-settings"
         data-voice="설정 화면입니다. 글자 크기, 음성 속도, 보호자 정보를 바꿀 수 있습니다."
+        data-voice-i18n="settings.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button
@@ -3787,6 +3812,7 @@
         class="screen"
         id="screen-my-info"
         data-voice="이름과 성별, 나이, 사시는 지역을 확인하고 고칠 수 있어요."
+        data-voice-i18n="myInfo.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">
@@ -3910,6 +3936,7 @@
         class="screen"
         id="screen-customer-support"
         data-voice="사용 방법 안내, 화면 안내 다시 보기, 고객센터 연결을 확인할 수 있어요."
+        data-voice-i18n="customerSupport.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">
@@ -3989,6 +4016,7 @@
         class="screen"
         id="screen-privacy-policy"
         data-voice="온담이 개인정보를 어떻게 보관하고 보호하는지 안내해드릴게요."
+        data-voice-i18n="privacyPolicy.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-customer-support')" data-i18n="common.back">
@@ -4037,6 +4065,7 @@
         class="screen"
         id="screen-more"
         data-voice="더보기 화면입니다. 내 정보, 분석 기록, 통계, 정보, 설정, 고객 지원으로 이동할 수 있어요."
+        data-voice-i18n="more.voice"
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">
