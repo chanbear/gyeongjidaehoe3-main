@@ -2989,7 +2989,7 @@ function syncSettingsUI(){
     if (auth && auth.phone) {
       const digits = auth.phone;
       const masked = digits.length >= 8
-        ? digits.slice(0, digits.length - 8) + digits.slice(-8, -4) + '****' + digits.slice(-4)
+        ? digits.slice(0, digits.length - 8) + '****' + digits.slice(-4)
         : digits;
       acct.textContent = (auth.name ? auth.name + ' · ' : '') + masked;
     } else {
