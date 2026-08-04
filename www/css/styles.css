@@ -478,21 +478,7 @@
   background:var(--bg-app); color:var(--ink); font-size:calc(15px * var(--scale)); font-weight:700; cursor:pointer;
 }
 
-/* ---- 4-1. 더보기: 오른쪽에서 슬라이드인하는 사이드바 드로어(디자인 시안 기준) ----
-   왼쪽에 배경 화면이 얇게 dim된 채 보이도록 폭을 85vw로 제한하고, 하단 네비게이션 바는
-   드로어보다 아래(bottom)에서 멈춰 계속 눌릴 수 있게 둔다. */
-#moreBackdrop{ bottom:calc(var(--bottom-nav-h) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom))); }
-.more-drawer{
-  position:fixed; top:0; right:0; bottom:calc(var(--bottom-nav-h) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
-  width:85vw; max-width:360px;
-  background:var(--bg-page); z-index:90; box-shadow:-8px 0 24px rgba(0,0,0,.18);
-  transform:translateX(100%); transition:transform .25s ease;
-  overflow-y:auto; padding:0 20px 24px;
-  display:flex; flex-direction:column;
-}
-.more-drawer.open{ transform:translateX(0); }
-
-/* ---- 5. 긴급 도움 Bottom Sheet (버튼 자체는 하단 네비게이션 바 가운데에 있다) ---- */
+/* ---- 5. 긴급 도움 Bottom Sheet (버튼 자체는 하단 네비게이션 바 위로 떠 있다) ---- */
 .sheet-backdrop{
   position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:85;
 }
@@ -870,17 +856,20 @@ body.has-bottom-nav .bottom-nav{ display:flex; }
 .bottom-nav button span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
 .bottom-nav button.is-active{ color:var(--accent-strong); }
 
-/* 가운데 긴급 도움: 다른 칸과 높이는 같게 두되 채워진 원으로 눈에 띄게 한다.
-   어르신이 급할 때 찾는 버튼이라 색·형태를 나머지와 확실히 구분한다. */
-.bottom-nav button.nav-help{ color:var(--help); }
+/* 긴급 도움: 나머지 탭과 같은 줄에 두지 않고 네비바 위로 떠 있는 원형 버튼으로 눈에 띄게 한다.
+   어르신이 급할 때 찾는 버튼이라 색·형태·위치를 나머지와 확실히 구분한다. */
+.bottom-nav button.nav-help{
+  position:fixed; right:18px; bottom:calc(var(--bottom-nav-h) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)) + 18px);
+  width:76px; height:76px; min-width:76px; z-index:72; color:#fff;
+  border-radius:50%; background:var(--help); box-shadow:0 7px 20px rgba(255,107,120,.4);
+  gap:1px;
+}
 .bottom-nav .nav-help-badge{
   display:flex; align-items:center; justify-content:center;
-  width:36px; height:36px; border-radius:50%;
-  background:var(--help); color:#fff;
-  box-shadow:0 4px 12px rgba(255,107,120,0.45);
+  width:30px; height:30px; border-radius:50%;
+  background:transparent; color:#fff; box-shadow:none;
 }
 .bottom-nav .nav-help-badge svg{ width:22px; height:22px; }
-.bottom-nav button.nav-help{ gap:1px; }
 
 /* 네비바가 마지막 콘텐츠를 가리지 않도록 탭 화면에만 아래 여백을 준다 */
 body.has-bottom-nav .screen.active{

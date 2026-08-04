@@ -256,10 +256,9 @@ const onboardScreens = new Set(['screen-greet', 'screen-signup', 'screen-reset-p
 
 /* 하단 네비게이션 바를 노출할 최상위 화면. 여기 없는 화면(촬영·로딩·결과 등 흐름 중간)에서는 숨겨서
    "네비바가 보이면 출발점, 안 보이면 진행 중"이라는 규칙을 만든다.
-   더보기는 이제 화면 전환이 아니라 사이드바 드로어(openMoreDrawer())라 여기 포함되지 않는다.
    기록(screen-history)·설정(screen-settings)은 더보기 메뉴로 옮겨갔다 — 각 화면의 gear-btn과
    더보기의 "분석 기록" 행으로 여전히 접근 가능하다. */
-const TAB_SCREENS = new Set(['screen-home', 'screen-info']);
+const TAB_SCREENS = new Set(['screen-home', 'screen-info', 'screen-more']);
 
 /** 네비바의 활성 탭 표시를 현재 화면에 맞춘다 */
 function syncBottomNav(id){
@@ -297,6 +296,7 @@ function goTo(id){
 
   if (id === 'screen-home') renderHomeDashboard(); // 오늘 해야 할 일 카드(renderTodayTasks 포함)를 홈 진입 시 채운다
   if (id === 'screen-info') renderInfoTab();
+  if (id === 'screen-more') renderMoreProfileSummary();
   if (id === 'screen-stats') renderStats();
   if (id === 'screen-settings' || id === 'screen-settings-account' || id === 'screen-settings-guardian' || id === 'screen-settings-language') syncSettingsUI();
   if (id === 'screen-onboard-access') syncAccessibilityOnboardUI();
@@ -1732,20 +1732,6 @@ function openMap(query){
   window.open('https://map.kakao.com/?q=' + encodeURIComponent(query), '_blank');
 }
 
-/* ---------------------------------------------------------
-   9-1. 더보기: 오른쪽에서 슬라이드인하는 사이드바 드로어
-   --------------------------------------------------------- */
-function openMoreDrawer(){
-  renderMoreProfileSummary();
-  document.getElementById('moreBackdrop').style.display = 'block';
-  document.getElementById('moreDrawer').classList.add('open');
-  syncBottomNav('screen-more'); // 드로어가 열려있는 동안은 "더보기" 탭을 활성 표시한다
-}
-function closeMoreDrawer(){
-  document.getElementById('moreBackdrop').style.display = 'none';
-  document.getElementById('moreDrawer').classList.remove('open');
-  syncBottomNav(activeScreenEl ? activeScreenEl.id : 'screen-home'); // 실제로 보고 있던 화면 탭으로 활성 표시 복구
-}
 
 /* ---------------------------------------------------------
    10. 긴급 도움 FAB + Bottom Sheet

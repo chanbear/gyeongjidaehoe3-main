@@ -4030,6 +4030,118 @@
           </p>
         </div>
       </section>
+
+      <!-- 더보기: 하단 네비게이션 바의 네 번째 탭이 이동하는 화면(예전엔 슬라이드인 드로어였다가
+           2026-08 화면 방식으로 변경). -->
+      <section
+        class="screen"
+        id="screen-more"
+        data-voice="더보기 화면입니다. 내 정보, 분석 기록, 통계, 정보, 설정, 고객 지원으로 이동할 수 있어요."
+      >
+        <div class="topbar">
+          <button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">
+            ← 홈으로</button
+          ><span class="header-title"
+            ><span data-i18n="home.moreMenu">더보기</span></span
+          ><span></span>
+        </div>
+
+        <!-- 프로필 요약 카드: appState.profile(이름/나이/성별/지역)을 그대로 보여준다.
+             값이 비어있으면 '-'로 표시(지어내지 않음) — renderMoreProfileSummary()가 채운다. -->
+        <div class="profile-summary-card">
+          <div class="profile-summary-name">
+            <span data-i18n="home.moreNameLabel">이름 :</span>
+            <strong id="moreProfileName">-</strong>
+          </div>
+          <div class="profile-summary-stats">
+            <div class="profile-summary-stat">
+              <span class="pss-label" data-i18n="home.moreAgeLabel">나이</span>
+              <span class="pss-value" id="moreProfileAge">-</span>
+            </div>
+            <div class="profile-summary-stat">
+              <span class="pss-label" data-i18n="home.moreGenderLabel"
+                >성별</span
+              >
+              <span class="pss-value" id="moreProfileGender">-</span>
+            </div>
+            <div class="profile-summary-stat">
+              <span class="pss-label" data-i18n="home.moreRegionLabel"
+                >지역</span
+              >
+              <span class="pss-value" id="moreProfileRegion">-</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="more-menu-list">
+          <button class="more-menu-row" onclick="goTo('screen-my-info')">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-user"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="home.moreMyInfo"
+              >내 정보</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
+          </button>
+          <button class="more-menu-row" onclick="goTo('screen-history')">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="home.moreHistory"
+              >분석 기록</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
+          </button>
+          <button class="more-menu-row" onclick="goTo('screen-stats')">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-list"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="home.moreStats"
+              >통계</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
+          </button>
+          <button class="more-menu-row" onclick="goTo('screen-info')">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="home.publicInfoDefault"
+              >알아두면 좋은 정보</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
+          </button>
+          <button class="more-menu-row" onclick="goTo('screen-settings')">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="settings.title"
+              >설정</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
+          </button>
+          <button class="more-menu-row" onclick="goTo('screen-customer-support')">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-question"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="settings.support"
+              >고객 지원</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
+          </button>
+        </div>
+      </section>
     </div>
 
     <!-- 음성 안내 켜기/끄기: .screen-stack 밖에 두어 어느 화면으로 이동해도 우측 상단에 계속 고정되어 보인다.
@@ -4059,10 +4171,8 @@
       >
     </button>
 
-    <!-- 하단 네비게이션 바: 최상위 화면(홈·정보)에서만 보인다(body.has-bottom-nav).
-       .screen-stack 밖에 하나만 두고 goTo()가 표시/활성 상태를 갱신한다.
-       "더보기"는 화면이 아니라 openMoreDrawer()로 여는 사이드바 드로어라, 다른 화면 위에서도 늘 누를 수 있게
-       이 nav 자체는 계속 화면 하단에 붙어있다(드로어가 열려도 이 nav는 드로어 아래쪽에서 계속 보인다). -->
+    <!-- 하단 네비게이션 바: 최상위 화면(홈·정보·더보기)에서만 보인다(body.has-bottom-nav).
+       .screen-stack 밖에 하나만 두고 goTo()가 표시/활성 상태를 갱신한다. -->
     <nav class="bottom-nav" id="bottomNav" aria-label="주요 화면 이동">
       <!-- 순서: 도움 / 홈 / 정보 / 더보기 — 가장 급할 때 누르는 도움을 엄지가 닿기 쉬운 맨 왼쪽에 둔다.
          기록·설정은 더보기 드로어 메뉴 안으로 옮겼다(각 화면 gear-btn으로도 설정에 접근 가능).
@@ -4098,127 +4208,12 @@
       <button
         type="button"
         data-tab="screen-more"
-        onclick="openMoreDrawer()"
+        onclick="goTo('screen-more')"
       >
         <svg viewBox="0 0 24 24"><use href="#ic-list"></use></svg
         ><span data-i18n="home.moreMenu">더보기</span>
       </button>
     </nav>
-
-    <!-- 더보기: 오른쪽에서 슬라이드인하는 사이드바(디자인 시안 기준, 2026-07-31) — goTo()로 전환하는
-         전체 화면이 아니라 emergencyBackdrop/Sheet와 같은 오버레이 패턴. 배경 화면은 어둡게 깔리고
-         왼쪽 가장자리만 살짝 보인다. -->
-    <div
-      class="sheet-backdrop"
-      id="moreBackdrop"
-      style="display: none"
-      onclick="closeMoreDrawer()"
-    ></div>
-    <div class="more-drawer" id="moreDrawer">
-      <div class="topbar">
-        <button class="nav-btn" onclick="closeMoreDrawer()" data-i18n="common.home">
-          ← 홈으로</button
-        ><span class="header-title"
-          ><span data-i18n="home.moreMenu">더보기</span></span
-        ><span></span>
-      </div>
-
-      <!-- 프로필 요약 카드: appState.profile(이름/나이/성별/지역)을 그대로 보여준다.
-           값이 비어있으면 '-'로 표시(지어내지 않음) — renderMoreProfileSummary()가 채운다. -->
-      <div class="profile-summary-card">
-        <div class="profile-summary-name">
-          <span data-i18n="home.moreNameLabel">이름 :</span>
-          <strong id="moreProfileName">-</strong>
-        </div>
-        <div class="profile-summary-stats">
-          <div class="profile-summary-stat">
-            <span class="pss-label" data-i18n="home.moreAgeLabel">나이</span>
-            <span class="pss-value" id="moreProfileAge">-</span>
-          </div>
-          <div class="profile-summary-stat">
-            <span class="pss-label" data-i18n="home.moreGenderLabel"
-              >성별</span
-            >
-            <span class="pss-value" id="moreProfileGender">-</span>
-          </div>
-          <div class="profile-summary-stat">
-            <span class="pss-label" data-i18n="home.moreRegionLabel"
-              >지역</span
-            >
-            <span class="pss-value" id="moreProfileRegion">-</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="more-menu-list">
-        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-my-info')">
-          <span class="more-menu-icon"
-            ><svg viewBox="0 0 24 24"><use href="#ic-user"></use></svg
-          ></span>
-          <span class="more-menu-label" data-i18n="home.moreMyInfo"
-            >내 정보</span
-          >
-          <svg class="more-menu-chevron" viewBox="0 0 24 24">
-            <use href="#ic-chevron"></use>
-          </svg>
-        </button>
-        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-history')">
-          <span class="more-menu-icon"
-            ><svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg
-          ></span>
-          <span class="more-menu-label" data-i18n="home.moreHistory"
-            >분석 기록</span
-          >
-          <svg class="more-menu-chevron" viewBox="0 0 24 24">
-            <use href="#ic-chevron"></use>
-          </svg>
-        </button>
-        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-stats')">
-          <span class="more-menu-icon"
-            ><svg viewBox="0 0 24 24"><use href="#ic-list"></use></svg
-          ></span>
-          <span class="more-menu-label" data-i18n="home.moreStats"
-            >통계</span
-          >
-          <svg class="more-menu-chevron" viewBox="0 0 24 24">
-            <use href="#ic-chevron"></use>
-          </svg>
-        </button>
-        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-info')">
-          <span class="more-menu-icon"
-            ><svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg
-          ></span>
-          <span class="more-menu-label" data-i18n="home.publicInfoDefault"
-            >알아두면 좋은 정보</span
-          >
-          <svg class="more-menu-chevron" viewBox="0 0 24 24">
-            <use href="#ic-chevron"></use>
-          </svg>
-        </button>
-        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-settings')">
-          <span class="more-menu-icon"
-            ><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg
-          ></span>
-          <span class="more-menu-label" data-i18n="settings.title"
-            >설정</span
-          >
-          <svg class="more-menu-chevron" viewBox="0 0 24 24">
-            <use href="#ic-chevron"></use>
-          </svg>
-        </button>
-        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-customer-support')">
-          <span class="more-menu-icon"
-            ><svg viewBox="0 0 24 24"><use href="#ic-question"></use></svg
-          ></span>
-          <span class="more-menu-label" data-i18n="settings.support"
-            >고객 지원</span
-          >
-          <svg class="more-menu-chevron" viewBox="0 0 24 24">
-            <use href="#ic-chevron"></use>
-          </svg>
-        </button>
-      </div>
-    </div>
 
     <!-- 긴급 도움 Bottom Sheet -->
     <div
