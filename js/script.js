@@ -389,16 +389,18 @@ function renderHomeGreet(){
 }
 
 /** 정보 탭: 홈에 있던 읽을거리를 이쪽으로 옮겼다.
- *  두 카드 모두 조건에 안 맞아 숨겨지면(지역 미입력 등) 빈 화면이 되므로 안내 문구를 대신 띄운다. */
+ *  세 카드 모두 조건에 안 맞아 숨겨지면(지역 미입력 등) 빈 화면이 되므로 안내 문구를 대신 띄운다. */
 async function renderInfoTab(){
   renderPublicInfoCard();
-  await renderRegionInfoCard();
+  await Promise.all([renderRegionInfoCard(), renderLocalWelfareCard()]);
   const publicCard = document.getElementById('publicInfoCard');
   const regionCard = document.getElementById('regionInfoCard');
+  const welfareCard = document.getElementById('localWelfareCard');
   const empty = document.getElementById('infoEmptyState');
   if (!empty) return;
   const anyVisible = (publicCard && publicCard.style.display !== 'none') ||
-                     (regionCard && regionCard.style.display !== 'none');
+                     (regionCard && regionCard.style.display !== 'none') ||
+                     (welfareCard && welfareCard.style.display !== 'none');
   empty.style.display = anyVisible ? 'none' : 'block';
 }
 
@@ -439,6 +441,48 @@ async function renderRegionInfoCard(){
   document.getElementById('regionInfoTitle').innerHTML =
     `<svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-pin"></use></svg>${escapeHtml(data.city)} 근처 경로당`;
   document.getElementById('regionInfoList').innerHTML = data.centers.map(regionCenterRowHtml).join('');
+  card.style.display = 'block';
+}
+
+/** 지역 복지 서비스(한국사회보장정보원 지자체복지서비스 실제 공공데이터, 전국 대상).
+ *  프로필의 지역 텍스트에서 시/도가 인식될 때만 조회하고, 매칭 안 되면 지어내지 않고 카드를 숨긴다. */
+let localWelfareCache = {};
+async function fetchLocalWelfare(region, age){
+  if (!region || !AI_WORKER_URL) return { matched: false };
+  const cacheKey = region + '|' + (age || '');
+  if (!(cacheKey in localWelfareCache)) {
+    try {
+      const params = new URLSearchParams({ region });
+      if (age) params.set('age', String(age));
+      const res = await fetch(AI_WORKER_URL + '/local-welfare?' + params.toString());
+      localWelfareCache[cacheKey] = res.ok ? await res.json() : { matched: false };
+    } catch (err) {
+      localWelfareCache[cacheKey] = { matched: false };
+    }
+  }
+  return localWelfareCache[cacheKey];
+}
+
+function localWelfareRowHtml(item){
+  return `
+    <div class="row" ${item.link ? `onclick="window.open('${escapeHtml(item.link).replace(/'/g, "\\'")}', '_blank')" role="button" tabindex="0"` : ''}>
+      <div class="icon-chip accent"><svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg></div>
+      <div class="text"><div class="t1">${escapeHtml(item.name)}</div><div class="t2">${escapeHtml(item.summary || item.dept || '')}</div></div>
+      ${item.link ? `<svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>` : ''}
+    </div>
+  `;
+}
+
+async function renderLocalWelfareCard(){
+  const card = document.getElementById('localWelfareCard');
+  if (!card) return;
+  const region = (appState.profile.region || '').trim();
+  const data = await fetchLocalWelfare(region, appState.profile.age);
+  if (!data || !data.matched || !data.items || data.items.length === 0) { card.style.display = 'none'; return; }
+
+  document.getElementById('localWelfareTitle').innerHTML =
+    `<svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-pin"></use></svg>${escapeHtml(data.region)} 복지 서비스`;
+  document.getElementById('localWelfareList').innerHTML = data.items.map(localWelfareRowHtml).join('');
   card.style.display = 'block';
 }
 
@@ -3220,13 +3264,30 @@ function syncProfileUI(){
   setValueIfChanged(document.getElementById('profileRegionMyInfo'), appState.profile.region);
 }
 
-/** 홈 화면 "알아두면 좋은 정보" 카드: 전국 공통으로 실제 확인된 노인 복지·안전 정보만 안내(지역별 실제 데이터는 없어 인사말만 맞춤화).
+/** 홈 화면 "알아두면 좋은 정보" 카드: 전국 공통으로 실제 확인된 노인 복지·안전 정보를 성별·연령에 맞춰 추가/숨긴다.
+ *  아래 조건은 전부 실제 국가건강검진·기초연금 제도의 대상 기준이다(지어낸 조건이 아님) — CLAUDE.md 5·6번.
+ *  나이를 입력하지 않았으면 확실하지 않다고 숨기지 않고 지금까지처럼 기본 항목을 보여준다.
+ *  지역별 실데이터는 이 카드가 아니라 별도 카드(localWelfareCard)가 담당한다.
  *  각 항목을 누르면 외부 사이트로 바로 나가는 대신, 앱 안의 설명 화면(screen-info-*)으로 이동한다. */
-const PUBLIC_INFO_ITEMS = [
-  { id: 'pension', title: '기초연금 신청 안내', desc: '만 65세 이상, 소득 기준을 충족하면 매달 받을 수 있어요' },
-  { id: 'checkup', title: '무료 건강검진', desc: '만 40세 이상은 국민건강보험공단에서 정기 검진을 받을 수 있어요' },
-  { id: 'voicephishing', title: '보이스피싱 예방', desc: '의심스러운 전화나 문자는 118로 바로 신고할 수 있어요' }
-];
+function getPersonalizedInfoItems(profile){
+  const { gender, age } = profile || {};
+  const items = [];
+  if (!age || age >= 65) {
+    items.push({ id: 'pension', title: '기초연금 신청 안내', desc: '만 65세 이상, 소득 기준을 충족하면 매달 받을 수 있어요' });
+  }
+  items.push({ id: 'checkup', title: '무료 건강검진', desc: '만 40세 이상은 국민건강보험공단에서 정기 검진을 받을 수 있어요' });
+  if (gender === '여성' && (!age || age >= 40)) {
+    items.push({ id: 'breast-checkup', title: '유방암 검진 안내', desc: '만 40세 이상 여성은 2년마다 무료로 유방암 검진을 받을 수 있어요' });
+  }
+  if (gender === '여성' && (!age || age >= 20)) {
+    items.push({ id: 'cervical-checkup', title: '자궁경부암 검진 안내', desc: '만 20세 이상 여성은 2년마다 무료로 자궁경부암 검진을 받을 수 있어요' });
+  }
+  if (age === 66 || age === 70 || age === 80) {
+    items.push({ id: 'transition-checkup', title: '생애전환기 건강진단', desc: `만 ${age}세를 맞아 신체기능·인지기능 검사를 추가로 무료로 받을 수 있어요` });
+  }
+  items.push({ id: 'voicephishing', title: '보이스피싱 예방', desc: '의심스러운 전화나 문자는 118로 바로 신고할 수 있어요' });
+  return items;
+}
 
 /* ---- 납부 기한 통계 ----
    기록(appState.history)에 dueDate/amount 가 있는 항목만 대상으로 한다.
@@ -3517,7 +3578,10 @@ function publicInfoGreeting(){
 const INFO_DETAIL_GREET_IDS = {
   'screen-info-pension': 'infoPensionGreet',
   'screen-info-checkup': 'infoCheckupGreet',
-  'screen-info-voicephishing': 'infoVoicephishingGreet'
+  'screen-info-voicephishing': 'infoVoicephishingGreet',
+  'screen-info-breast-checkup': 'infoBreastCheckupGreet',
+  'screen-info-cervical-checkup': 'infoCervicalCheckupGreet',
+  'screen-info-transition-checkup': 'infoTransitionCheckupGreet'
 };
 function renderInfoDetailGreet(screenId){
   const elId = INFO_DETAIL_GREET_IDS[screenId];
@@ -3541,7 +3605,7 @@ function renderPublicInfoCard(){
   if (!card) return;
   document.getElementById('publicInfoTitle').innerHTML =
     `<svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-info"></use></svg>${escapeHtml(publicInfoGreeting())}`;
-  document.getElementById('publicInfoList').innerHTML = publicInfoRowsHtml(PUBLIC_INFO_ITEMS);
+  document.getElementById('publicInfoList').innerHTML = publicInfoRowsHtml(getPersonalizedInfoItems(appState.profile));
   card.style.display = 'block';
 }
 
@@ -3553,7 +3617,7 @@ function renderHomeInfoCard(){
   if (!card) return;
   document.getElementById('homeInfoTitle').innerHTML =
     `<svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-info"></use></svg>${escapeHtml(publicInfoGreeting())}`;
-  document.getElementById('homeInfoList').innerHTML = publicInfoRowsHtml(PUBLIC_INFO_ITEMS.slice(0, HOME_INFO_PREVIEW_COUNT));
+  document.getElementById('homeInfoList').innerHTML = publicInfoRowsHtml(getPersonalizedInfoItems(appState.profile).slice(0, HOME_INFO_PREVIEW_COUNT));
   card.style.display = 'block';
 }
 

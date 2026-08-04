@@ -235,7 +235,7 @@
             fill="none"
             stroke="currentColor"
             stroke-width="2"
-            stroke-linejoin="round"
+            stroke-linejoin="round" 
           />
           <circle
             cx="12"
@@ -538,15 +538,34 @@
       >
         <div class="topbar"></div>
         <div class="center-col">
+          <div class="greet-illustration" aria-hidden="true">
+            <svg viewBox="0 0 240 130" width="220" height="119">
+              <rect x="10" y="10" width="70" height="90" rx="8" fill="#fff" stroke="#171b2b" stroke-width="3"/>
+              <path d="M60 10 L80 30 L60 30 Z" fill="#eaf0fe" stroke="#171b2b" stroke-width="3" stroke-linejoin="round"/>
+              <line x1="24" y1="46" x2="66" y2="46" stroke="#3d6bf5" stroke-width="4" stroke-linecap="round"/>
+              <line x1="24" y1="60" x2="66" y2="60" stroke="#c7d3f5" stroke-width="4" stroke-linecap="round"/>
+              <line x1="24" y1="74" x2="50" y2="74" stroke="#c7d3f5" stroke-width="4" stroke-linecap="round"/>
+              <circle cx="116" cy="55" r="27" fill="#eaf0fe" stroke="#3d6bf5" stroke-width="3"/>
+              <text x="116" y="63" text-anchor="middle" font-size="20" font-weight="800" fill="#3d6bf5" font-family="-apple-system,sans-serif">AI</text>
+              <path d="M147 55 H166" stroke="#3d6bf5" stroke-width="4" stroke-linecap="round"/>
+              <path d="M159 46 L169 55 L159 64" stroke="#3d6bf5" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <rect x="175" y="10" width="60" height="90" rx="8" fill="#fff" stroke="#171b2b" stroke-width="3"/>
+              <circle cx="192" cy="32" r="8" fill="#1fa851"/>
+              <path d="M188 32 L191 35 L197 28" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <line x1="205" y1="32" x2="224" y2="32" stroke="#171b2b" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="192" cy="55" r="8" fill="#1fa851"/>
+              <path d="M188 55 L191 58 L197 51" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <line x1="205" y1="55" x2="224" y2="55" stroke="#171b2b" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="192" cy="78" r="8" fill="#eaf0fe" stroke="#c7d3f5" stroke-width="2"/>
+              <line x1="205" y1="78" x2="224" y2="78" stroke="#c7d3f5" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
           <h1 data-i18n="onboard.greet.title">
             안녕하세요!<br />AI 디지털 도우미 <span class="accent-ink">온담(OnDam)</span>입니다.
           </h1>
           <p class="desc" data-i18n="onboard.greet.desc">
             복잡한 공문서와 납부 고지서를 대신 읽고<br />꼭 하셔야 할 일을 쉽게 정리해 드립니다.
           </p>
-          <div class="greet-illustration" aria-hidden="true">
-            <img src="assets/greet-icon.png" alt="" width="220" height="220" />
-          </div>
         </div>
         <button
           class="primary-btn"
@@ -557,35 +576,47 @@
         </button>
       </section>
 
-      <!-- 로그인/회원가입 통합: 전화번호+비밀번호(PIN)만 받는다. 계정이 없으면 그 자리에서 자동으로 만들어지고,
-           이름은 다음 단계(screen-profile)에서 받는다. 구글/네이버/카카오 버튼은 실제 연동 전이라 누르면
-           준비중 안내만 뜬다(연동 안 된 서비스를 연동된 것처럼 보여주지 않는다). -->
+      <!-- 회원가입: 전화번호+PIN 계정을 만든다. 로그인해야만 앱을 쓸 수 있다. -->
       <section
         class="screen"
         id="screen-signup"
-        data-voice="전화번호와 비밀번호를 입력해주세요. 계정이 없으면 자동으로 새로 만들어드려요."
+        data-voice="이름과 전화번호, 비밀번호를 입력해서 가입해주세요."
         data-voice-i18n="onboard.signup.voice"
       >
-        <div class="topbar">
-          <button
-            class="nav-btn"
-            onclick="goTo('screen-greet')"
-            data-i18n="onboard.signup.backHome"
-          >
-            ← 홈으로
-          </button>
-        </div>
-        <h1 data-i18n="onboard.signup.title">로그인 또는<br />회원가입하기</h1>
+        <div class="topbar"></div>
+        <h1 data-i18n="onboard.signup.title">회원가입</h1>
         <p class="desc" data-i18n="onboard.signup.desc">
-          전화번호와 비밀번호를 입력해주세요.<br />계정이 없으면 자동으로 새로 만들어드려요.
+          전화번호와 비밀번호로 계정을 만들어요.<br />이 계정으로 다른
+          기기에서도 내 정보를 이어서 쓸 수 있어요.
         </p>
+
+        <div class="settings-section">
+          <h2 data-i18n="settings.nameLabel">이름</h2>
+          <div class="field-row">
+            <input
+              type="text"
+              id="signupName"
+              placeholder="예: 홍길동"
+              data-i18n-placeholder="settings.namePlaceholder"
+              style="
+                min-height: 56px;
+                border: 2px solid var(--line);
+                border-radius: var(--radius-md);
+                padding: 0 16px;
+                font-size: 18px;
+                color: var(--ink);
+                font-family: inherit;
+              "
+            />
+          </div>
+        </div>
 
         <div class="settings-section">
           <h2 data-i18n="onboard.signup.phoneLabel">전화번호</h2>
           <div class="field-row">
             <input
               type="tel"
-              id="authPhone"
+              id="signupPhone"
               placeholder="예: 010-1234-5678"
               data-i18n-placeholder="settings.guardianPhonePlaceholder"
               style="
@@ -608,7 +639,106 @@
               type="password"
               inputmode="numeric"
               maxlength="4"
-              id="authPin"
+              id="signupPin"
+              placeholder="비밀번호 입력"
+              data-i18n-placeholder="onboard.signup.pinPlaceholder"
+              style="
+                min-height: 56px;
+                border: 2px solid var(--line);
+                border-radius: var(--radius-md);
+                padding: 0 16px;
+                font-size: 18px;
+                color: var(--ink);
+                font-family: inherit;
+              "
+            />
+          </div>
+          <div class="field-row" style="margin-top: 10px">
+            <input
+              type="password"
+              inputmode="numeric"
+              maxlength="4"
+              id="signupPinConfirm"
+              placeholder="비밀번호 다시 입력"
+              data-i18n-placeholder="onboard.signup.pinConfirmPlaceholder"
+              style="
+                min-height: 56px;
+                border: 2px solid var(--line);
+                border-radius: var(--radius-md);
+                padding: 0 16px;
+                font-size: 18px;
+                color: var(--ink);
+                font-family: inherit;
+              "
+            />
+          </div>
+        </div>
+
+        <p
+          class="settings-save-note"
+          id="signupError"
+          style="display: none; color: var(--danger-strong, #c0392b)"
+        ></p>
+
+        <button
+          class="primary-btn"
+          onclick="handleSignupSubmit()"
+          data-i18n="onboard.signup.submit"
+        >
+          가입하기
+        </button>
+        <button
+          class="nav-btn"
+          style="align-self: center; color: var(--ink-faint)"
+          onclick="goTo('screen-login')"
+          data-i18n="onboard.signup.toLogin"
+        >
+          이미 계정이 있으신가요? 로그인하기
+        </button>
+      </section>
+
+      <!-- 로그인 -->
+      <section
+        class="screen"
+        id="screen-login"
+        data-voice="전화번호와 비밀번호를 입력해서 로그인해주세요."
+        data-voice-i18n="onboard.login.voice"
+      >
+        <div class="topbar"></div>
+        <h1 data-i18n="onboard.login.title">로그인</h1>
+        <p class="desc" data-i18n="onboard.login.desc">
+          가입할 때 쓴 전화번호와 비밀번호를 입력해주세요.
+        </p>
+
+        <div class="settings-section">
+          <h2 data-i18n="onboard.signup.phoneLabel">전화번호</h2>
+          <div class="field-row">
+            <input
+              type="tel"
+              id="loginPhone"
+              placeholder="예: 010-1234-5678"
+              data-i18n-placeholder="settings.guardianPhonePlaceholder"
+              style="
+                min-height: 56px;
+                border: 2px solid var(--line);
+                border-radius: var(--radius-md);
+                padding: 0 16px;
+                font-size: 18px;
+                color: var(--ink);
+                font-family: inherit;
+              "
+            />
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h2 data-i18n="onboard.signup.pinLabel">비밀번호</h2>
+          <div class="field-row">
+            <input
+              type="password"
+              inputmode="numeric"
+              maxlength="4"
+              id="loginPin"
               placeholder="비밀번호 입력"
               data-i18n-placeholder="onboard.signup.pinPlaceholder"
               style="
@@ -626,16 +756,24 @@
 
         <p
           class="settings-save-note"
-          id="authError"
+          id="loginError"
           style="display: none; color: var(--danger-strong, #c0392b)"
         ></p>
 
         <button
           class="primary-btn"
-          onclick="handleAuthSubmit()"
-          data-i18n="onboard.signup.submit"
+          onclick="handleLoginSubmit()"
+          data-i18n="onboard.login.submit"
         >
-          로그인 · 회원가입
+          로그인
+        </button>
+        <button
+          class="nav-btn"
+          style="align-self: center; color: var(--ink-faint)"
+          onclick="goTo('screen-signup')"
+          data-i18n="onboard.login.toSignup"
+        >
+          계정이 없으신가요? 회원가입
         </button>
         <button
           class="nav-btn"
@@ -644,30 +782,6 @@
           data-i18n="onboard.login.forgotPin"
         >
           비밀번호를 잊으셨나요?
-        </button>
-
-        <div class="auth-divider" data-i18n="onboard.signup.or">또는</div>
-
-        <button
-          class="secondary-btn social-btn"
-          onclick="showSocialComingSoon('구글')"
-        >
-          <img src="assets/social-google.svg" alt="" width="24" height="24" />
-          <span data-i18n="onboard.signup.google">구글 로그인</span>
-        </button>
-        <button
-          class="secondary-btn social-btn social-btn-naver"
-          onclick="showSocialComingSoon('네이버')"
-        >
-          <img src="assets/social-naver.svg" alt="" width="24" height="24" />
-          <span data-i18n="onboard.signup.naver">네이버 로그인</span>
-        </button>
-        <button
-          class="secondary-btn social-btn social-btn-kakao"
-          onclick="showSocialComingSoon('카카오')"
-        >
-          <img src="assets/social-kakao.png" alt="" width="24" height="24" />
-          <span data-i18n="onboard.signup.kakao">카카오 로그인</span>
         </button>
       </section>
 
@@ -838,9 +952,6 @@
       >
         <div class="topbar"></div>
         <h1 data-i18n="onboard.access.title">몇 가지만<br />알려주시겠어요?</h1>
-        <p class="desc" data-i18n="onboard.access.desc">
-          원하지 않으면 건너뛰어도 됩니다.
-        </p>
 
         <div class="settings-section">
           <h2>
@@ -1559,6 +1670,19 @@
           </p>
         </div>
 
+        <!-- 지역 복지 서비스 (한국사회보장정보원 지자체복지서비스 실제 공공데이터). 시/도가 매칭될 때만 표시 -->
+        <div class="dashboard-card" id="localWelfareCard" style="display: none">
+          <div class="dashboard-card-title" id="localWelfareTitle">
+            <svg class="inline-icon" viewBox="0 0 24 24">
+              <use href="#ic-pin"></use></svg
+            >우리 지역 복지 서비스
+          </div>
+          <div class="group" id="localWelfareList" style="background: #fff"></div>
+          <p class="settings-save-note" style="margin: 8px 0 0">
+            복지로(한국사회보장정보원) 공공데이터 기준입니다.
+          </p>
+        </div>
+
         <!-- 지역 미입력 등으로 두 카드가 모두 숨겨졌을 때 빈 화면이 되지 않도록 안내한다 -->
         <div
           class="empty-state"
@@ -1898,6 +2022,210 @@
         </button>
       </section>
 
+      <!-- 알아두면 좋은 정보: 유방암 검진 (여성 40세 이상, 국가건강검진 실제 기준) -->
+      <section
+        class="screen"
+        id="screen-info-breast-checkup"
+        data-voice="만 40세 이상 여성은 국민건강보험공단에서 2년마다 무료로 유방암 검진을 받을 수 있습니다."
+      >
+        <div class="topbar">
+          <button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button
+          ><span></span>
+        </div>
+        <div class="hero-card">
+          <div class="hero-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <use href="#ic-doc"></use>
+            </svg>
+          </div>
+          <h1>유방암 검진 안내</h1>
+          <p class="hero-greet" id="infoBreastCheckupGreet"></p>
+        </div>
+        <div class="doc-info-card">
+          <p class="desc" style="margin: 0">
+            만 40세 이상 여성은 국가암검진으로 2년마다 유방촬영술(X선 촬영)을
+            무료로 받을 수 있어요. 앞서 안내한 일반 건강검진과 별도로, 대상이
+            되면 추가로 안내가 옵니다.
+          </p>
+        </div>
+        <div class="tip-card">
+          <div class="tip-title">
+            <svg class="inline-icon" viewBox="0 0 24 24">
+              <use href="#ic-question"></use></svg
+            >준비물
+          </div>
+          <ul>
+            <li>신분증만 챙기면 돼요</li>
+            <li>검진 당일은 로션이나 파우더를 바르지 않는 게 좋아요</li>
+          </ul>
+        </div>
+        <button
+          class="auto-action-btn"
+          style="width: 100%; margin-bottom: 10px"
+          onclick="window.open('https://www.nhis.or.kr', '_blank')"
+        >
+          <svg class="inline-icon" viewBox="0 0 24 24">
+            <use href="#ic-globe"></use></svg
+          >국민건강보험공단 홈페이지
+        </button>
+        <a
+          class="auto-action-btn"
+          style="width: 100%; justify-content: center"
+          href="tel:1577-1000"
+          ><svg class="inline-icon" viewBox="0 0 24 24">
+            <use href="#ic-phone"></use></svg
+          >고객센터 (1577-1000)</a
+        >
+        <button
+          class="primary-btn"
+          style="margin-top: 16px"
+          onclick="goTo('screen-home')"
+        >
+          홈으로 돌아가기
+        </button>
+      </section>
+
+      <!-- 알아두면 좋은 정보: 자궁경부암 검진 (여성 20세 이상, 국가건강검진 실제 기준) -->
+      <section
+        class="screen"
+        id="screen-info-cervical-checkup"
+        data-voice="만 20세 이상 여성은 국민건강보험공단에서 2년마다 무료로 자궁경부암 검진을 받을 수 있습니다."
+      >
+        <div class="topbar">
+          <button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button
+          ><span></span>
+        </div>
+        <div class="hero-card">
+          <div class="hero-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <use href="#ic-doc"></use>
+            </svg>
+          </div>
+          <h1>자궁경부암 검진 안내</h1>
+          <p class="hero-greet" id="infoCervicalCheckupGreet"></p>
+        </div>
+        <div class="doc-info-card">
+          <p class="desc" style="margin: 0">
+            만 20세 이상 여성은 국가암검진으로 2년마다 자궁경부세포검사를
+            무료로 받을 수 있어요. 나이가 있어도 계속 대상이니 안내가 오면
+            받아보시는 게 좋아요.
+          </p>
+        </div>
+        <div class="tip-card">
+          <div class="tip-title">
+            <svg class="inline-icon" viewBox="0 0 24 24">
+              <use href="#ic-question"></use></svg
+            >준비물
+          </div>
+          <ul>
+            <li>신분증만 챙기면 돼요</li>
+            <li>검진 이틀 전부터는 질 세정제나 좌약 사용을 피하는 게 좋아요</li>
+          </ul>
+        </div>
+        <button
+          class="auto-action-btn"
+          style="width: 100%; margin-bottom: 10px"
+          onclick="window.open('https://www.nhis.or.kr', '_blank')"
+        >
+          <svg class="inline-icon" viewBox="0 0 24 24">
+            <use href="#ic-globe"></use></svg
+          >국민건강보험공단 홈페이지
+        </button>
+        <a
+          class="auto-action-btn"
+          style="width: 100%; justify-content: center"
+          href="tel:1577-1000"
+          ><svg class="inline-icon" viewBox="0 0 24 24">
+            <use href="#ic-phone"></use></svg
+          >고객센터 (1577-1000)</a
+        >
+        <button
+          class="primary-btn"
+          style="margin-top: 16px"
+          onclick="goTo('screen-home')"
+        >
+          홈으로 돌아가기
+        </button>
+      </section>
+
+      <!-- 알아두면 좋은 정보: 생애전환기 건강진단 (66·70·80세, 국가건강검진 실제 기준) -->
+      <section
+        class="screen"
+        id="screen-info-transition-checkup"
+        data-voice="66세, 70세, 80세가 되면 국민건강보험공단에서 노인 맞춤 생애전환기 건강진단을 무료로 받을 수 있습니다."
+      >
+        <div class="topbar">
+          <button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button
+          ><span></span>
+        </div>
+        <div class="hero-card">
+          <div class="hero-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <use href="#ic-doc"></use>
+            </svg>
+          </div>
+          <h1>생애전환기 건강진단</h1>
+          <p class="hero-greet" id="infoTransitionCheckupGreet"></p>
+        </div>
+        <div class="doc-info-card">
+          <p class="desc" style="margin: 0">
+            만 66세, 70세, 80세가 되는 해에는 일반 건강검진에 더해 근력·보행
+            같은 신체기능검사, 인지기능(치매) 선별검사, 우울증검사를 무료로
+            추가로 받을 수 있어요. 대상 연도가 되면 별도로 안내가 옵니다.
+          </p>
+        </div>
+        <div class="tip-card">
+          <div class="tip-title">
+            <svg class="inline-icon" viewBox="0 0 24 24">
+              <use href="#ic-question"></use></svg
+            >준비물
+          </div>
+          <ul>
+            <li>신분증만 챙기면 돼요</li>
+            <li>걷기 편한 신발을 신고 가시는 게 좋아요(신체기능검사 때문)</li>
+          </ul>
+        </div>
+        <button
+          class="auto-action-btn"
+          style="width: 100%; margin-bottom: 10px"
+          onclick="window.open('https://www.nhis.or.kr', '_blank')"
+        >
+          <svg class="inline-icon" viewBox="0 0 24 24">
+            <use href="#ic-globe"></use></svg
+          >국민건강보험공단 홈페이지
+        </button>
+        <a
+          class="auto-action-btn"
+          style="width: 100%; justify-content: center"
+          href="tel:1577-1000"
+          ><svg class="inline-icon" viewBox="0 0 24 24">
+            <use href="#ic-phone"></use></svg
+          >고객센터 (1577-1000)</a
+        >
+        <button
+          class="primary-btn"
+          style="margin-top: 16px"
+          onclick="goTo('screen-home')"
+        >
+          홈으로 돌아가기
+        </button>
+      </section>
+
       <!-- 사용 방법 안내: 무엇이 궁금하세요? -->
       <section
         class="screen"
@@ -2153,7 +2481,7 @@
           <ul>
             <li>계좌번호, 비밀번호, 인증번호를 요구하는 문자</li>
             <li>모르는 링크(주소)를 눌러보라는 문자</li>
-            <li>"확인이 필요해요" 표시가 뜨면 절대 응답하지 말고 118로 신고하세요</li>
+            <li>"위험 감지" 표시가 뜨면 절대 응답하지 말고 118로 신고하세요</li>
           </ul>
         </div>
         <button class="primary-btn" onclick="openSmsCheck()">
@@ -3099,7 +3427,7 @@
             ← 홈으로</button
           ><span class="header-title"
             ><svg viewBox="0 0 24 24"><use href="#ic-shield"></use></svg
-            ><span data-i18n="result.textTitle">확인 결과</span></span
+            ><span data-i18n="result.textTitle">진위 판별 결과</span></span
           ><button
             class="gear-btn"
             onclick="goTo('screen-settings')"
@@ -3113,14 +3441,14 @@
             <svg viewBox="0 0 24 24"><use href="#ic-alert"></use></svg>
           </div>
           <span class="danger-pill" data-i18n="result.dangerPill"
-            >⚠ 확인이 필요해요</span
+            >⚠ 위험 감지</span
           >
-          <span class="badge">주의 · 응답하지 않는 게 안전해요</span>
+          <span class="badge">위험 · 응답하지 마세요</span>
           <div class="headline">이 문자는 위험할 수 있어요.</div>
           <!-- 위험(danger) 상태에서는 이 이유 문장을 아래 "위험 문자 요소" 카드로 대신 보여준다(renderSmsResult()가 토글) —
                같은 내용을 두 번 보여주지 않기 위함. 정상/정보 상태에서는 그대로 여기에 남는다. -->
           <div class="reason-label" data-i18n="result.reasonLabel">
-            이런 점을 확인해보세요
+            왜 위험한가요?
           </div>
           <div class="subtext">
             공공기관은 문자로 계좌번호나 링크 클릭을 요구하지 않습니다. 절대
@@ -3256,7 +3584,7 @@
       <section
         class="screen"
         id="screen-settings"
-        data-voice="설정 화면입니다. 글자 크기와 음성 속도를 바꾸거나, 계정·보호자 정보·언어 설정으로 들어갈 수 있습니다."
+        data-voice="설정 화면입니다. 글자 크기, 음성 속도, 보호자 정보를 바꿀 수 있습니다."
       >
         <div class="topbar">
           <button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button
@@ -3364,68 +3692,11 @@
         </div>
 
         <div class="settings-section">
-          <div
-            class="settings-link-row"
-            onclick="goTo('screen-settings-account')"
-            role="button"
-            tabindex="0"
-          >
-            <span
-              ><svg class="inline-icon" viewBox="0 0 24 24">
-                <use href="#ic-user"></use></svg
-              ><span data-i18n="settings.accountTitle">계정</span></span
-            >
-            <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
-          </div>
-          <div
-            class="settings-link-row"
-            onclick="goTo('screen-settings-guardian')"
-            role="button"
-            tabindex="0"
-          >
-            <span
-              ><svg class="inline-icon" viewBox="0 0 24 24">
-                <use href="#ic-family"></use></svg
-              ><span data-i18n="settings.guardian">보호자 정보</span></span
-            >
-            <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
-          </div>
-          <div
-            class="settings-link-row"
-            onclick="goTo('screen-settings-language')"
-            role="button"
-            tabindex="0"
-          >
-            <span
-              ><svg class="inline-icon" viewBox="0 0 24 24">
-                <use href="#ic-globe"></use></svg
-              ><span data-i18n="settings.language">언어 설정</span></span
-            >
-            <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
-          </div>
-        </div>
-
-        <p class="settings-save-note" style="margin-top: 6px">
-          앱 버전 1.0.0 · © 2026 온담
-        </p>
-      </section>
-
-      <!-- 계정: 예전에는 설정 화면 안의 한 섹션이었으나, 화면 하나에 정보가 너무 몰려 있다는
-           심사 피드백("UI/UX 더 쉽게")에 따라 별도 화면으로 분리했다. 필드 id·로직은 그대로 옮겨왔다. -->
-      <section
-        class="screen"
-        id="screen-settings-account"
-        data-voice="계정 정보를 확인하거나 로그아웃, 회원 탈퇴를 할 수 있어요."
-      >
-        <div class="topbar">
-          <button class="nav-btn" onclick="goTo('screen-settings')" data-i18n="common.back">
-            ← 뒤로</button
-          ><span class="header-title"
-            ><svg viewBox="0 0 24 24"><use href="#ic-user"></use></svg
-            ><span data-i18n="settings.accountTitle">계정</span></span
-          ><span></span>
-        </div>
-        <div class="settings-section">
+          <h2>
+            <svg class="inline-icon" viewBox="0 0 24 24">
+              <use href="#ic-user"></use></svg
+            ><span data-i18n="settings.accountTitle">계정</span>
+          </h2>
           <p
             class="settings-save-note"
             style="text-align: left"
@@ -3448,23 +3719,13 @@
             회원 탈퇴
           </button>
         </div>
-      </section>
 
-      <!-- 보호자 정보: 위와 같은 이유로 분리. -->
-      <section
-        class="screen"
-        id="screen-settings-guardian"
-        data-voice="보호자 이름과 전화번호를 등록하면, 위험한 문자를 확인했을 때 알릴 수 있어요."
-      >
-        <div class="topbar">
-          <button class="nav-btn" onclick="goTo('screen-settings')" data-i18n="common.back">
-            ← 뒤로</button
-          ><span class="header-title"
-            ><svg viewBox="0 0 24 24"><use href="#ic-family"></use></svg
-            ><span data-i18n="settings.guardian">보호자 정보</span></span
-          ><span></span>
-        </div>
         <div class="settings-section">
+          <h2>
+            <svg class="inline-icon" viewBox="0 0 24 24">
+              <use href="#ic-family"></use></svg
+            ><span data-i18n="settings.guardian">보호자 정보</span>
+          </h2>
           <div class="field-row">
             <label for="guardianName" data-i18n="settings.guardianNameLabel"
               >보호자 이름</label
@@ -3512,23 +3773,13 @@
             모든 설정은 이 기기에 자동 저장되어, 앱을 새로고침해도 유지됩니다.
           </p>
         </div>
-      </section>
 
-      <!-- 언어 설정: 위와 같은 이유로 분리. -->
-      <section
-        class="screen"
-        id="screen-settings-language"
-        data-voice="화면에서 쓸 언어를 고를 수 있어요."
-      >
-        <div class="topbar">
-          <button class="nav-btn" onclick="goTo('screen-settings')" data-i18n="common.back">
-            ← 뒤로</button
-          ><span class="header-title"
-            ><svg viewBox="0 0 24 24"><use href="#ic-globe"></use></svg
-            ><span data-i18n="settings.language">언어 설정</span></span
-          ><span></span>
-        </div>
         <div class="settings-section">
+          <h2>
+            <svg class="inline-icon" viewBox="0 0 24 24">
+              <use href="#ic-globe"></use></svg
+            ><span data-i18n="settings.language">언어 설정</span>
+          </h2>
           <div class="segmented" id="languageGroup" style="flex-wrap: wrap">
             <button data-value="ko" onclick="setLanguage('ko')">한국어</button>
             <button data-value="zh" onclick="setLanguage('zh')">中文</button>
@@ -3547,6 +3798,10 @@
             제공됩니다.
           </p>
         </div>
+
+        <p class="settings-save-note" style="margin-top: 6px">
+          앱 버전 1.0.0 · © 2026 온담
+        </p>
       </section>
 
       <!-- 내 정보(맞춤 안내용, 선택 사항): 더보기 드로어의 "내 정보"에서 들어온다. 설정 화면 전체가 아니라
@@ -4172,6 +4427,35 @@
         onclick="closeWelfareRouteSheet()"
       >
         닫기
+      </button>
+    </div>
+
+    <!-- 튜토리얼 건너뛰기 확인: 브라우저 기본 confirm() 창은 앱과 생김새가 달라 낯설게 느껴지므로 앱 안의 시트로 대체 -->
+    <div
+      class="sheet-backdrop"
+      id="skipConfirmBackdrop"
+      style="display: none"
+      onclick="closeSkipConfirm()"
+    ></div>
+    <div class="bottom-sheet" id="skipConfirmSheet" style="display: none">
+      <div class="bottom-sheet-title">
+        <svg class="inline-icon" viewBox="0 0 24 24">
+          <use href="#ic-question"></use></svg
+        ><span data-i18n="skipConfirm.title">튜토리얼을 건너뛸까요?</span>
+      </div>
+      <button
+        class="sheet-btn"
+        onclick="acceptSkipConfirm()"
+        data-i18n="onboard.skip"
+      >
+        건너뛰기
+      </button>
+      <button
+        class="sheet-btn sheet-btn-cancel"
+        onclick="closeSkipConfirm()"
+        data-i18n="skipConfirm.keep"
+      >
+        계속 보기
       </button>
     </div>
 
