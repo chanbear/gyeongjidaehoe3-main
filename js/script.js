@@ -231,7 +231,7 @@ function screenVoiceText(screenEl){
   const key = screenEl.getAttribute('data-voice-i18n');
   return key ? t(key) : screenEl.getAttribute('data-voice');
 }
-/** data-voice-i18n이 있는 화면만 번역된 언어로 읽고, 나머지 화면은 항상 한국어로 읽는다(대부분의 data-voice가 여전히 한국어 원문이므로) */
+/** data-voice-i18n이 있는 화면(전체 43개 중 대부분)은 현재 언어로, 없는 화면만 한국어로 읽는다 */
 function screenVoiceLang(screenEl){
   return screenEl.hasAttribute('data-voice-i18n') ? currentTtsLang() : 'ko-KR';
 }
@@ -2810,8 +2810,8 @@ async function translateUiIfNeeded(lang){
       keys.forEach((k, i) => { dict[k] = data.translations[i] || I18N.ko[k]; });
       dynamicTranslations[lang] = dict;
       try { localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(dynamicTranslations)); } catch (err) {}
-      // 번역이 도착했을 때도 여전히 이 언어를 보고 있으면 화면에 바로 반영한다(먼저 정적 사전으로 보여주고 있었으므로)
-      if (appState.settings.language === lang) applyLanguage();
+      // 번역이 도착했을 때도 여전히 이 언어를 보고 있으면 화면과 음성 안내에 바로 반영한다(먼저 정적 사전으로 보여주고 있었으므로)
+      if (appState.settings.language === lang) { applyLanguage(); replayCurrentVoice(); }
     } catch (err) {
       // 네트워크 오류 등: 조용히 넘어가고 기존 정적 사전으로 계속 보여준다
     } finally {
@@ -3002,6 +3002,7 @@ function setLanguage(lang){
   appState.settings.language = lang;
   saveState();
   applyLanguage();
+  replayCurrentVoice();
   translateUiIfNeeded(lang);
 }
 
