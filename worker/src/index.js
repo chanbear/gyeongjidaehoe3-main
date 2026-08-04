@@ -439,6 +439,38 @@ export default {
       }
     }
 
+    if (url.pathname === '/guardian-connect' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      const phoneDigits = String(body && body.phone || '').replace(/\D/g, '');
+      if (phoneDigits.length < 9) return json({ error: 'invalid_phone' }, 400);
+
+      try {
+        const user = await env.ansim_doumi_db.prepare(
+          `SELECT id, name FROM users WHERE phone = ?`
+        ).bind(phoneDigits).first();
+        if (!user) return json({ error: 'not_found' }, 404);
+
+        const row = await env.ansim_doumi_db.prepare(
+          `SELECT state_json FROM user_state WHERE user_id = ?`
+        ).bind(user.id).first();
+        const state = row ? JSON.parse(row.state_json) : {
+          profile: { name: user.name || '' },
+          guardian: {},
+          history: [],
+          schedule: [],
+          guardianInbox: []
+        };
+        return json({ state }, 200);
+      } catch (err) {
+        return json({ error: '연결에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
     if (url.pathname === '/login' && request.method === 'POST') {
       let body;
       try {

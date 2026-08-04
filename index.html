@@ -7,7 +7,7 @@
 <!-- 디자인 가이드 (5순위: 색상 최소화 / 7순위: 아이콘+글자)
      🟢 정상  🔴 위험  🔵 진행 중  ⚪ 일반 정보
      예: 📄 문서 찍기, 💬 문자 보기 (아이콘만 사용 금지) -->
-<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/styles.css?v=20260803-6">
 
 <!-- 일정 길찾기 지도 (Leaflet + OpenStreetMap, API 키 불필요) -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -71,7 +71,6 @@
           <p class="desc" data-i18n="onboard.greet.desc">문서를 쉽게 이해하고<br>해야 할 일을 알려드리겠습니다.</p>
         </div>
         <button class="primary-btn" onclick="goTo('screen-signup')" data-i18n="onboard.greet.start">시작하기</button>
-        <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="confirmSkipTutorial()" data-i18n="onboard.skip">건너뛰기</button>
       </section>
 
       <!-- 회원가입: 전화번호+비밀번호 계정을 만든다. 로그인해야만 앱을 쓸 수 있다. -->
@@ -218,10 +217,10 @@
       <!-- 자녀(보호자) 정보 입력 (선택 사항): 긴급 도움·문자 위험 알림에 쓰는 보호자 이름/전화번호를
            설정 화면에서만 받던 것을, 온보딩에서도 처음부터 받을 수 있게 한 화면.
            설정 화면의 같은 입력칸과 appState.guardian을 공유한다(syncGuardianUI/setGuardianField). -->
-      <section class="screen" id="screen-guardian-profile" data-voice="급한 일이 있을 때 알릴 자녀나 보호자의 이름과 전화번호를 알려주시겠어요? 원하지 않으면 건너뛰어도 됩니다." data-voice-i18n="onboard.guardian.voice">
+      <section class="screen" id="screen-guardian-profile" data-voice="급한 일이 있을 때 연락할 보호자의 이름과 전화번호를 입력해주세요.">
         <div class="topbar"><span></span><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="onboard.replay">다시 듣기</span></button></div>
         <h1 data-i18n="onboard.guardian.title">자녀(보호자) 정보도<br>알려주시겠어요?</h1>
-        <p class="desc" data-i18n="onboard.guardian.desc">위험한 문자를 받았을 때 자녀에게 바로 알리거나,<br>긴급 도움 버튼으로 전화를 걸 때 사용돼요.<br>원하지 않으면 건너뛰어도 됩니다.</p>
+        <p class="desc">위험한 문자를 알리거나 긴급할 때 전화하는 데 사용해요.<br>나중에 더보기에서 바꿀 수 있습니다.</p>
 
         <div class="settings-section">
           <h2 data-i18n="settings.guardianNameLabel">보호자 이름</h2>
@@ -237,8 +236,7 @@
           </div>
         </div>
 
-        <button class="primary-btn" onclick="startCoachmark()" data-i18n="onboard.profile.next">다음</button>
-        <button class="nav-btn" style="align-self:center;color:var(--ink-faint);" onclick="startCoachmark()" data-i18n="onboard.skip">건너뛰기</button>
+        <button class="primary-btn" onclick="startFirstUseTutorial()">저장하고 기능 설명 보기</button>
       </section>
 
 
@@ -250,45 +248,41 @@
           <span class="spacer"></span>
         </div>
 
-        <!-- 인사 카드: 왼쪽은 프로필 사진(로컬에만 저장, 서버로 보내지 않음), 오른쪽은 음성 지원 on/off.
-             설정 화면의 음성 안내 스위치(voiceEnabledToggle)와 같은 상태를 공유한다(toggleVoice/syncVoiceEnabledToggles). -->
-        <div class="home-greet-row">
-          <button type="button" class="home-avatar" id="homeAvatarBtn" onclick="pickAvatarPhoto()" aria-label="프로필 사진 설정">
-            <svg class="home-avatar-icon" viewBox="0 0 24 24"><use href="#ic-user"></use></svg>
-            <span class="home-avatar-badge"><svg viewBox="0 0 24 24"><use href="#ic-camera"></use></svg></span>
-          </button>
-          <div class="home-greet-text">
-            <div class="home-greet-name" id="homeGreetName"></div>
-            <div class="home-greet-sub" data-i18n="home.assistantActive">온담 비서가 활성화되었습니다</div>
-          </div>
-          <label class="switch" aria-label="음성 지원 켜고 끄기">
-            <input type="checkbox" class="voice-enabled-toggle" checked onchange="toggleVoice(this)">
-            <span class="track"></span>
-          </label>
-        </div>
-
         <div class="large-title" data-i18n="home.sectionTitle">무엇을 도와드릴까요?</div>
 
         <!-- 홈은 가장 자주 쓰는 핵심 기능 3개만 크게 보여준다. 기록·통계·정보 등 나머지는 "더보기"(screen-more)로 옮겼다. -->
         <div class="section">
-          <div class="feature-card home-big-card" onclick="goTo('screen-doc-choice')" role="button" tabindex="0">
-            <div class="fc-icon"><svg viewBox="0 0 24 24"><use href="#ic-camera"></use></svg></div>
-            <div class="fc-text"><div class="fc-title" data-i18n="home.docCaptureTitle">문서 촬영</div><div class="fc-desc" data-i18n="home.docCaptureDesc">사진을 찍거나 불러오면 AI가 쉽게 설명해드려요</div></div>
-            <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+          <div class="home-feature-item">
+            <div class="feature-card home-big-card" onclick="goTo('screen-doc-choice')" role="button" tabindex="0">
+              <div class="fc-icon"><svg viewBox="0 0 24 24"><use href="#ic-camera"></use></svg></div>
+              <div class="fc-text"><div class="fc-title">문서 찍어서 확인하기</div></div>
+              <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+            </div>
+            <button class="home-tutorial-btn" onclick="startHomeFeatureTutorial('doc')">
+              <svg viewBox="0 0 24 24"><use href="#ic-question"></use></svg> 문서 기능 사용 방법 보기
+            </button>
           </div>
-          <div class="feature-card home-big-card" onclick="openSmsCheck()" role="button" tabindex="0">
-            <div class="fc-icon" style="background:var(--accent-strong);"><svg viewBox="0 0 24 24"><use href="#ic-chat"></use></svg></div>
-            <div class="fc-text"><div class="fc-title" data-i18n="home.smsCheckTitle">문자 내용 요약</div><div class="fc-desc" data-i18n="home.smsCheckDesc">받은 문자가 안전한지 AI가 확인해드려요</div></div>
-            <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+          <div class="home-feature-item">
+            <div class="feature-card home-big-card" onclick="openSmsCheck()" role="button" tabindex="0">
+              <div class="fc-icon" style="background:var(--accent-strong);"><svg viewBox="0 0 24 24"><use href="#ic-chat"></use></svg></div>
+              <div class="fc-text"><div class="fc-title">수상한 문자 확인하기</div></div>
+              <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+            </div>
+            <button class="home-tutorial-btn" onclick="startHomeFeatureTutorial('sms')">
+              <svg viewBox="0 0 24 24"><use href="#ic-question"></use></svg> 문자 기능 사용 방법 보기
+            </button>
           </div>
-          <div class="feature-card home-big-card" onclick="goTo('screen-welfare-nearby')" role="button" tabindex="0">
-            <div class="fc-icon" style="background:var(--success-strong);"><svg viewBox="0 0 24 24"><use href="#ic-pin"></use></svg></div>
-            <div class="fc-text"><div class="fc-title" data-i18n="home.welfareTitle">주변 복지센터·경로당 찾기</div><div class="fc-desc" data-i18n="home.welfareDesc">내 위치 주변 복지센터·경로당 위치를 알려드려요</div></div>
-            <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+          <div class="home-feature-item">
+            <div class="feature-card home-big-card" onclick="goTo('screen-welfare-nearby')" role="button" tabindex="0">
+              <div class="fc-icon" style="background:var(--success-strong);"><svg viewBox="0 0 24 24"><use href="#ic-pin"></use></svg></div>
+              <div class="fc-text"><div class="fc-title">가까운 경로당 찾기</div></div>
+              <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+            </div>
+            <button class="home-tutorial-btn" onclick="startHomeFeatureTutorial('welfare')">
+              <svg viewBox="0 0 24 24"><use href="#ic-question"></use></svg> 경로당 기능 사용 방법 보기
+            </button>
           </div>
         </div>
-
-        <button class="dashboard-more-btn" style="margin-top:6px;" onclick="goTo('screen-more')" data-i18n="home.moreMenu">더보기</button>
 
         <div class="disclaimer-banner" data-i18n="home.disclaimer">본 서비스는 AI 분석 결과로 참고용이며,<br>중요 문서는 전문가와 상담하시기 바랍니다.</div>
       </section>
@@ -788,7 +782,6 @@
         </div>
         <div class="error-hint" data-i18n="error.docBlurHint">💡 문서를 평평하게 놓고, 그림자가 생기지 않도록 밝은 곳에서 찍으면 더 잘 인식돼요.</div>
         <button class="primary-btn" onclick="goTo('screen-doc-capture')" data-i18n="error.retakePhoto">다시 찍기</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-doc-choice')" data-i18n="error.pickGallery">갤러리에서 선택하기</button>
       </section>
 
       <!-- AI 분석 자체가 실패했을 때(서버 오류, API 크레딧 부족 등) 공통으로 쓰는 화면 -->
@@ -802,7 +795,6 @@
           <p class="desc" id="aiErrorDesc">잠시 후 다시 시도해주세요.</p>
         </div>
         <button class="primary-btn" id="aiErrorRetryBtn" onclick="retryAiError()" data-i18n="error.retry">다시 시도</button>
-        <button class="secondary-btn" style="margin-top:12px;" onclick="goTo('screen-home')" data-i18n="error.goHome">홈으로 돌아가기</button>
       </section>
 
       <!-- 튜토리얼 전용: AI 분석 실패 안내 (체험판이라 실제 분석은 제공되지 않을 수 있음을 안내하고 다음 튜토리얼로 계속 진행) -->
@@ -973,8 +965,20 @@
           <h1 id="smsPermissionTitle" data-i18n="sms.permission.title">문자 확인을 하려면<br>문자 읽기 권한이 필요해요.</h1>
           <p class="desc" id="smsPermissionDesc" data-i18n="sms.permission.desc">확인을 누른 문자만 서버로 보내 분석해요.<br>다른 문자는 읽지 않아요.</p>
         </div>
-        <button class="primary-btn" id="smsPermissionRetryBtn" onclick="openSmsCheck()" data-i18n="sms.permission.retry">다시 시도</button>
+        <button class="primary-btn" onclick="goTo('screen-sms-paste')">문자 직접 붙여넣기</button>
+        <button class="secondary-btn" id="smsPermissionRetryBtn" style="margin-top:12px;" onclick="openSmsCheck()" data-i18n="sms.permission.retry">다시 시도</button>
         <button class="secondary-btn" id="smsPermissionSettingsBtn" style="margin-top:12px;" onclick="openSmsAppSettings()" data-i18n="sms.permission.openSettings">앱 설정에서 허용하기</button>
+      </section>
+
+      <!-- 웹 또는 문자 권한을 사용하지 못할 때 쓰는 쉬운 붙여넣기 화면 -->
+      <section class="screen" id="screen-sms-paste" data-voice="복사한 문자를 붙여넣고 확인하기를 눌러주세요.">
+        <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button><span></span></div>
+        <h1>수상한 문자를<br>확인해볼까요?</h1>
+        <p class="desc">문자 앱에서 내용을 복사한 다음<br>아래 큰 버튼을 눌러주세요.</p>
+        <button class="primary-btn" onclick="pasteSmsFromClipboard()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-paste"></use></svg> 복사한 문자 붙여넣기</button>
+        <textarea class="sms-paste-input" id="smsPasteInput" placeholder="문자 내용이 여기에 표시됩니다" oninput="syncSmsPasteButton()"></textarea>
+        <p class="error-hint" id="smsPasteHint">문자를 붙여넣으면 아래 확인 버튼을 누를 수 있어요.</p>
+        <button class="primary-btn" id="smsPasteAnalyzeButton" onclick="analyzePastedSms()" disabled>이 문자 확인하기</button>
       </section>
 
       <!-- 실사용: 최근 문자 목록에서 골라 확인 (복사/붙여넣기 없음) -->
@@ -1011,19 +1015,16 @@
           <div class="reason-label" data-i18n="result.reasonLabel">왜 위험한가요?</div>
           <div class="subtext">공공기관은 문자로 계좌번호나 링크 클릭을 요구하지 않습니다. 절대 누르지 마세요.</div>
         </div>
-        <button class="voice-pill block" data-replay><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="result.listenVoice">음성으로 듣기</span></button>
-
-        <!-- 해야 할 일을 대표하는 일러스트. renderSmsResult()가 채우고, 생성에 실패했으면 통째로 숨긴다. -->
-        <div class="illustration-card" id="smsIllustration" style="display:none;">
-          <img id="smsIllustrationImg" alt="">
-        </div>
-
         <button class="guardian-btn" onclick="notifyGuardian()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-bell"></use></svg><span data-i18n="result.notifyGuardian">보호자에게 문자 전달하기</span></button>
         <p class="guardian-note" id="guardianNoteText"></p>
-        <button class="secondary-btn" style="margin-top:10px;" onclick="openSmsCheck()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-chat"></use></svg><span data-i18n="result.checkAnotherSms">다른 문자 확인하기</span></button>
-        <p class="settings-save-note" style="margin-top:14px;" data-i18n="result.legalNote">본 판별은 인공지능 분석 결과이므로 법적 효력이 없습니다.<br>의심스러운 경우 반드시 관계 기관에 직접 문의하세요.</p>
-        <button class="primary-btn" style="margin-top:14px;" onclick="finishSmsResult()" data-i18n="result.textConfirm">확인했습니다</button>
-        <button class="practice-again-box" style="margin-top:12px;" onclick="goTo('screen-greet')"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-refresh"></use></svg><span data-i18n="result.practiceAgain">연습 다시 하기</span></button>
+        <button class="sms-detail-toggle" id="smsDetailToggle" onclick="toggleSmsResultDetails()">자세히 보기 ↓</button>
+        <div id="smsResultDetails" hidden>
+          <button class="voice-pill block" data-replay><svg viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="result.listenVoice">음성으로 듣기</span></button>
+          <div class="illustration-card" id="smsIllustration" style="display:none;"><img id="smsIllustrationImg" alt=""></div>
+          <button class="secondary-btn" style="margin-top:10px;" onclick="openSmsCheck()"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-chat"></use></svg><span data-i18n="result.checkAnotherSms">다른 문자 확인하기</span></button>
+          <p class="settings-save-note" style="margin-top:14px;" data-i18n="result.legalNote">본 판별은 인공지능 분석 결과이므로 법적 효력이 없습니다.<br>의심스러운 경우 반드시 관계 기관에 직접 문의하세요.</p>
+        </div>
+        <button class="primary-btn" style="margin-top:14px;" onclick="finishSmsResult()" data-i18n="result.textConfirm">확인했어요</button>
       </section>
 
       <!-- 기존 메시지 내역 / 일정 -->
@@ -1040,12 +1041,23 @@
         </div>
       </section>
 
-      <!-- 설정 화면 -->
-      <section class="screen" id="screen-settings" data-voice="설정 화면입니다. 글자 크기, 음성 속도, 보호자 정보를 바꿀 수 있습니다.">
+      <!-- 더보기: 자주 쓰지 않는 설정은 큰 메뉴를 누른 뒤에만 보여준다. -->
+      <section class="screen" id="screen-settings" data-voice="더보기 화면입니다. 바꾸고 싶은 항목을 골라주세요.">
         <div class="topbar"><button class="nav-btn" onclick="goTo('screen-home')">← 홈으로</button><button class="replay-btn" data-replay aria-label="음성 다시 듣기"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg>다시 듣기</button></div>
-        <h1 class="page-title"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-gear"></use></svg><span data-i18n="settings.title">설정</span></h1>
+        <h1 class="page-title"><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-gear"></use></svg><span id="morePageTitle">더보기</span></h1>
 
-        <div class="settings-section">
+        <div class="more-menu" id="moreMenu">
+          <button id="moreDisplayMenu" onclick="openMorePanel('display')"><span class="more-menu-icon"><svg viewBox="0 0 24 24"><use href="#ic-textsize"></use></svg></span><span><strong>글자와 음성</strong><small>글자 크기와 읽기 속도를 바꿔요</small></span><b>›</b></button>
+          <button id="moreProfileMenu" onclick="openMorePanel('profile')"><span class="more-menu-icon"><svg viewBox="0 0 24 24"><use href="#ic-user"></use></svg></span><span><strong>내 정보</strong><small>이름, 나이, 사는 지역을 확인해요</small></span><b>›</b></button>
+          <button id="moreGuardianMenu" onclick="openMorePanel('guardian')"><span class="more-menu-icon"><svg viewBox="0 0 24 24"><use href="#ic-family"></use></svg></span><span><strong>보호자 정보</strong><small>연락할 가족의 번호를 적어요</small></span><b>›</b></button>
+          <button id="moreLanguageMenu" onclick="openMorePanel('language')"><span class="more-menu-icon"><svg viewBox="0 0 24 24"><use href="#ic-globe"></use></svg></span><span><strong>언어</strong><small>화면에 표시할 언어를 골라요</small></span><b>›</b></button>
+          <button onclick="goTo('screen-info')"><span class="more-menu-icon"><svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg></span><span><strong>생활 정보</strong><small>복지와 건강 정보를 확인해요</small></span><b>›</b></button>
+          <button onclick="startFirstUseTutorial()"><span class="more-menu-icon"><svg viewBox="0 0 24 24"><use href="#ic-question"></use></svg></span><span><strong>사용 방법</strong><small>홈의 세 가지 기능을 알아봐요</small></span><b>›</b></button>
+          <button class="more-menu-danger" onclick="handleLogout()"><span class="more-menu-icon"><svg viewBox="0 0 24 24"><use href="#ic-refresh"></use></svg></span><span><strong>로그아웃</strong><small>이 기기의 계정 사용을 마쳐요</small></span><b>›</b></button>
+        </div>
+        <button class="more-back-button" id="moreBackButton" onclick="showMoreOverview()" hidden>← 더보기로 돌아가기</button>
+
+        <div class="settings-section" data-more-panel="display" hidden>
           <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-textsize"></use></svg><span data-i18n="settings.fontSize">화면 글자 크기</span></h2>
           <div class="segmented" id="fontScaleGroup">
             <button data-scale="1.15" onclick="setFontScale(1.15)" data-i18n="settings.fontNormal">보통</button>
@@ -1054,7 +1066,7 @@
           </div>
         </div>
 
-        <div class="settings-section">
+        <div class="settings-section" data-more-panel="display" hidden>
           <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-speaker"></use></svg><span data-i18n="settings.voiceSpeed">음성 읽기 속도</span></h2>
           <div class="segmented" id="voiceRateGroup">
             <button data-rate="1" onclick="setVoiceRate(1)" data-i18n="settings.rate1">1배속</button>
@@ -1074,13 +1086,13 @@
           </div>
         </div>
 
-        <div class="settings-section">
+        <div class="settings-section more-hidden-account" hidden>
           <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-user"></use></svg><span data-i18n="settings.accountTitle">계정</span></h2>
           <p class="settings-save-note" style="text-align:left;" id="accountInfoLine"></p>
           <button class="secondary-btn" style="margin-top:10px;" onclick="handleLogout()" data-i18n="settings.logout">로그아웃</button>
         </div>
 
-        <div class="settings-section">
+        <div class="settings-section" data-more-panel="profile" hidden>
           <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-question"></use></svg><span data-i18n="settings.myInfo">내 정보 (맞춤 안내용, 선택 사항)</span></h2>
           <div class="field-row">
             <label for="profileNameSettings" data-i18n="settings.nameLabel">이름</label>
@@ -1101,7 +1113,7 @@
           <p class="settings-save-note" data-i18n="settings.myInfoNote">문서·문자를 분석할 때 이 정보를 함께 참고해서 더 알맞게 설명해드려요. 다른 곳에 공유되지 않습니다.</p>
         </div>
 
-        <div class="settings-section">
+        <div class="settings-section" data-more-panel="guardian" hidden>
           <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-family"></use></svg><span data-i18n="settings.guardian">보호자 정보</span></h2>
           <div class="field-row">
             <label for="guardianName" data-i18n="settings.guardianNameLabel">보호자 이름</label>
@@ -1123,7 +1135,7 @@
           <p class="settings-save-note" data-i18n="settings.guardianNote">모든 설정은 이 기기에 자동 저장되어, 앱을 새로고침해도 유지됩니다.</p>
         </div>
 
-        <div class="settings-section">
+        <div class="settings-section" data-more-panel="language" hidden>
           <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-globe"></use></svg><span data-i18n="settings.language">언어 설정</span></h2>
           <div class="segmented" id="languageGroup" style="flex-wrap:wrap;">
             <button data-value="ko" onclick="setLanguage('ko')">한국어</button>
@@ -1135,7 +1147,7 @@
           <p class="settings-save-note" data-i18n="settings.languageNote">경기도 거주 외국인주민 중 비중이 높은 4개 언어를 지원합니다(중국·베트남·태국·우즈베키스탄, 공공통계 기준 상위 국적). 화면 핵심 문구만 번역되며, AI 분석 결과는 정확성을 위해 한국어로 제공됩니다.</p>
         </div>
 
-        <div class="settings-section">
+        <div class="settings-section more-hidden-account" hidden>
           <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-question"></use></svg><span data-i18n="settings.support">고객 지원</span></h2>
           <div class="settings-link-row" onclick="goTo('screen-help')" role="button" tabindex="0">
             <span><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-question"></use></svg><span data-i18n="settings.supportHelp">사용 방법 안내</span></span>
@@ -1151,7 +1163,7 @@
           </div>
         </div>
 
-        <div class="settings-section">
+        <div class="settings-section more-hidden-account" hidden>
           <h2><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-gear"></use></svg><span data-i18n="settings.account">계정</span></h2>
           <div class="settings-link-row" onclick="confirmResetDevice()" role="button" tabindex="0">
             <span><svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-refresh"></use></svg><span data-i18n="settings.accountLogout">로그아웃 (이 기기 데이터 초기화)</span></span>
@@ -1162,12 +1174,12 @@
           <p class="settings-save-note" data-i18n="settings.accountLogoutNote">이 앱은 별도 로그인이 없어요. '로그아웃'을 누르면 이 기기에 저장된 기록·일정·설정·내 정보가 모두 지워지고, 처음 사용하는 것처럼 다시 시작돼요.</p>
         </div>
 
-        <p class="settings-save-note" style="margin-top:6px;">앱 버전 1.0.0 · © 2026 온담</p>
+        <p class="settings-save-note" id="moreVersionNote" style="margin-top:18px;">앱 버전 1.0.0 · © 2026 온담</p>
       </section>
 
     </div>
 
-  <!-- 하단 네비게이션 바: 최상위 4개 탭 화면(홈·정보·기록·설정)에서만 보인다(body.has-bottom-nav).
+  <!-- 하단 네비게이션 바: 최상위 탭 화면에서만 보인다(body.has-bottom-nav).
        .screen-stack 밖에 하나만 두고 goTo()가 표시/활성 상태를 갱신한다. -->
   <nav class="bottom-nav" id="bottomNav" aria-label="주요 화면 이동">
     <!-- 순서: 도움 / 정보 / 홈 / 기록 / 설정 — 가장 급할 때 누르는 도움을 엄지가 닿기 쉬운 맨 왼쪽에, 홈을 가운데에 둔다.
@@ -1186,7 +1198,7 @@
       <svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg><span data-i18n="nav.history">기록</span>
     </button>
     <button type="button" data-tab="screen-settings" onclick="goTo('screen-settings')">
-      <svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg><span data-i18n="nav.settings">설정</span>
+      <span class="more-nav-dots" aria-hidden="true">•••</span><span>더보기</span>
     </button>
   </nav>
 
@@ -1276,7 +1288,7 @@
 <div class="sr-only" role="status" aria-live="polite" id="liveRegion"></div>
 <div class="global-toast" id="globalToast"></div>
 
-<script src="js/script.js"></script>
+<script src="js/script.js?v=20260804-1"></script>
 
 </body>
 </html>

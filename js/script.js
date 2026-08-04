@@ -28,9 +28,6 @@ const appState = {
   profile: { name: '', gender: '', age: '', region: '' }, // 맞춤 안내용(선택 사항): AI 분석 요청에 참고 정보로만 함께 전달됨.
                     // age는 실제로 입력받기 전까지 빈 값으로 둔다 — 기본값을 숫자로 두면 온보딩 나이 입력칸에
                     // 사용자가 입력한 적 없는 값이 이미 채워진 것처럼 보이는 문제가 있었다.
-  avatarPhoto: '', // 홈 화면에 보여줄 프로필 사진(선택 사항). profile과 분리해두는 이유: pushStateToServer()가
-                    // profile을 포함한 나머지 필드는 그대로 서버(D1)로 보내는데, 사진은 순전히 이 기기에서만
-                    // 쓰는 것이라 서버로 전송되면 안 된다.
   onboardingDone: false // 인사→프로필→튜토리얼을 한 번이라도 끝냈는지. true면 다음 실행부터 홈에서 시작한다
 };
 
@@ -49,7 +46,6 @@ function saveState(){
       settings: appState.settings,
       guardian: appState.guardian,
       profile: appState.profile,
-      avatarPhoto: appState.avatarPhoto,
       onboardingDone: appState.onboardingDone
     }));
   } catch (err) {
@@ -106,7 +102,7 @@ async function pullStateFromServer(){
       if (s.guardian) appState.guardian = Object.assign(appState.guardian, s.guardian);
       if (s.profile) appState.profile = Object.assign(appState.profile, s.profile);
       if (s.onboardingDone) appState.onboardingDone = true;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(Object.assign({ avatarPhoto: appState.avatarPhoto }, s)));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
     } else {
       // 서버에 아직 아무것도 없음(첫 가입 직후) — 지금 로컬 값을 최초 스냅샷으로 올린다
       await pushStateToServer();
@@ -129,7 +125,6 @@ function loadState(){
     if (saved.settings) appState.settings = Object.assign(appState.settings, saved.settings);
     if (saved.guardian) appState.guardian = Object.assign(appState.guardian, saved.guardian);
     if (saved.profile) appState.profile = Object.assign(appState.profile, saved.profile);
-    if (saved.avatarPhoto) appState.avatarPhoto = saved.avatarPhoto;
     if (saved.onboardingDone) appState.onboardingDone = true;
   } catch (err) {
     console.warn('불러오기 실패:', err);
@@ -245,11 +240,11 @@ function goTo(id){
     saveState();
   }
 
-  if (id === 'screen-home') { renderHomeGreet(); renderAvatarPhoto(); }
+  if (id === 'screen-home') renderHomeGreet();
   if (id === 'screen-more') renderHomeDashboard();
   if (id === 'screen-info') renderInfoTab();
   if (id === 'screen-stats') renderStats();
-  if (id === 'screen-settings') syncSettingsUI();
+  if (id === 'screen-settings') { showMoreOverview(); syncSettingsUI(); }
   if (id === 'screen-profile') syncProfileUI();
   if (id === 'screen-history') renderHistory();
   if (id === 'screen-welfare-nearby') loadWelfareNearby();
@@ -296,6 +291,12 @@ function acceptSkipConfirm(){
 /** 첫 화면의 "건너뛰기": 실수로 누르는 경우가 많아 같은 문구로 한 번 더 확인한다 */
 function confirmSkipTutorial(){
   openSkipConfirm(() => goTo('screen-home'));
+}
+
+/** 첫 사용 안내는 홈의 핵심 기능 세 가지만 차례로 강조하고, 기능을 실행시키지 않은 채 홈에서 끝낸다. */
+function startFirstUseTutorial(){
+  goTo('screen-home');
+  setTimeout(() => startCoachmark(homeFeatureCoachSteps), 200);
 }
 
 /** 설정 화면 "로그아웃": 이 앱엔 로그인 계정이 없으므로 실제로는 이 기기에 저장된 데이터(기록·일정·설정·
@@ -367,7 +368,6 @@ function renderHomeDashboard(){
   renderHomeDueCard();
   renderHomeInfoCard();
   renderHomeGreet();
-  renderAvatarPhoto();
 }
 
 /** 프로필의 성별 값("남성"/"여성", 항상 한국어로 저장됨)을 현재 화면 언어로 번역한다 */
@@ -1050,10 +1050,29 @@ const smsMiniCoachSteps = fullCoachSteps.slice(3, 6);
 const historyMiniCoachSteps = fullCoachSteps.slice(6, 8);
 const publicInfoMiniCoachSteps = fullCoachSteps.slice(8, 10);
 const welfareMiniCoachSteps = fullCoachSteps.slice(10, 12);
+const homeFeatureCoachSteps = [
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-doc-choice"]', cat: 'doc', key: 'doc1', skippable: true },
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="openSmsCheck"]', cat: 'sms', key: 'sms1', skippable: true },
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-welfare-nearby"]', cat: 'welfare', key: 'welfare1', skippable: true }
+];
 const voiceMiniCoachSteps = [fullCoachSteps[12]];
 const emergencyMiniCoachSteps = [fullCoachSteps[13]];
-const settingsLanguageMiniStep = { screen: 'screen-settings', target: '#languageGroup', cat: 'settings', key: 'language', skippable: true };
-const settingsMiniCoachSteps = [fullCoachSteps[15], fullCoachSteps[16], fullCoachSteps[17], settingsLanguageMiniStep, fullCoachSteps[20]];
+const settingsMiniCoachSteps = [
+  { screen: 'screen-settings', target: '#moreDisplayMenu', cat: 'settings', key: 'fontsize', skippable: true },
+  { screen: 'screen-settings', target: '#moreProfileMenu', cat: 'settings', key: 'settingsIntro', skippable: true },
+  { screen: 'screen-settings', target: '#moreGuardianMenu', cat: 'settings', key: 'guardian', skippable: true },
+  { screen: 'screen-settings', target: '#moreLanguageMenu', cat: 'settings', key: 'language', skippable: true }
+];
+
+/** 홈 카드의 "사용 방법 보기": 선택한 기능의 실제 이용 순서만 큰 안내로 보여준다. */
+function startHomeFeatureTutorial(feature){
+  const tutorials = {
+    doc: docMiniCoachSteps,
+    sms: smsMiniCoachSteps,
+    welfare: welfareMiniCoachSteps
+  };
+  startCoachmark(tutorials[feature] || homeFeatureCoachSteps);
+}
 
 /** 첫 실행 안내: 앱의 핵심인 문서 촬영·문자 확인만 다루고 마지막에 "나머지는 여기서 볼 수 있어요"로 마무리한다.
  *  예전에는 8개 분류 25단계를 첫 실행에 한 번에 보여줬는데, 처음 쓰는 어르신에게는 부담이 컸다.
@@ -1225,14 +1244,17 @@ function positionCoachStep(el, step){
   document.getElementById('coachTipTitle').textContent = t('coach.' + step.key + '.title');
   document.getElementById('coachTipDesc').textContent = t('coach.' + step.key + '.desc');
   // 값을 안 바꾸거나 입력을 건너뛰어도 다음 단계로 넘어갈 수 있도록, 선택 사항인 단계에만 "다음으로" 버튼을 보여준다
-  document.getElementById('coachTipNext').style.display = step.skippable ? 'block' : 'none';
+  const nextButton = document.getElementById('coachTipNext');
+  nextButton.style.display = step.skippable ? 'block' : 'none';
+  nextButton.textContent = coachIndex === coachSteps.length - 1 ? '안내 끝내기' : '다음 기능 보기';
 
   const tip = document.getElementById('coachTip');
   const spaceBelow = window.innerHeight - rect.bottom;
   const putBelow = spaceBelow > 180 || rect.top < 180;
   tip.style.top = putBelow ? (rect.bottom + pad + 10) + 'px' : '';
   tip.style.bottom = putBelow ? '' : (window.innerHeight - rect.top + pad + 10) + 'px';
-  tip.style.left = Math.max(12, Math.min(rect.left, window.innerWidth - 300)) + 'px';
+  const tipWidth = Math.min(380, window.innerWidth - 32);
+  tip.style.left = Math.max(16, Math.min(rect.left, window.innerWidth - tipWidth - 16)) + 'px';
 }
 
 /* ---------------------------------------------------------
@@ -1386,62 +1408,6 @@ function captureInAppPhoto(){
   goTo('screen-doc-collect');
 }
 
-/* ---- 홈 화면 프로필 사진 ----
-   문서 사진과 달리 서버로 보내지 않고 이 기기에만 작은 크기로 저장한다(appState.avatarPhoto). */
-const AVATAR_MAX_SIDE = 320;
-
-/** 원본 사진을 정사각형에 가깝게 줄여 작은 data URL로 만든다. 캔버스가 막히면(교차 출처 등) 원본을 그대로 돌려준다. */
-function prepareAvatarPhoto(src){
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const scale = Math.min(1, AVATAR_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
-        const w = Math.max(1, Math.round(img.naturalWidth * scale));
-        const h = Math.max(1, Math.round(img.naturalHeight * scale));
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
-      } catch (err) {
-        resolve(src);
-      }
-    };
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
-}
-
-async function pickAvatarPhoto(){
-  const Camera = getCameraPlugin();
-  let raw = null;
-  try {
-    if (Camera) {
-      const { results } = await Camera.chooseFromGallery({ quality: 80 });
-      if (!results || !results.length) return;
-      raw = results[0].webPath;
-    } else {
-      raw = await pickWebPhoto(null);
-      if (!raw) return;
-    }
-  } catch (err) {
-    return; // 사용자가 선택을 취소한 경우 등: 그대로 둔다
-  }
-  const prepared = await prepareAvatarPhoto(raw);
-  if (!prepared) return;
-  appState.avatarPhoto = prepared;
-  saveState();
-  renderAvatarPhoto();
-}
-
-function renderAvatarPhoto(){
-  document.querySelectorAll('.home-avatar').forEach(el => {
-    el.classList.toggle('has-photo', !!appState.avatarPhoto);
-    el.style.backgroundImage = appState.avatarPhoto ? `url("${appState.avatarPhoto}")` : '';
-  });
-}
-
 /** 지금 보고 있는 문서(lastDocAnalysis)에 해당하는 사진을 pendingPhotos에서 찾는다.
  *  Worker가 돌려주는 pages(1부터 시작하는 사진 번호)로 매칭하고, 없으면 문서 순서(docAnalysisIndex)로 대신한다.
  *  사진이 여러 장이라 문서마다 다른 사진을 봐야 하는데, 예전에는 항상 첫 장(lastCapturedPhoto)만 보여줬다. */
@@ -1558,7 +1524,7 @@ function goToAiError(retryScreen, isOffline){
     : '지금은 분석이 어려워요.';
   document.getElementById('aiErrorDesc').textContent = isOffline
     ? '와이파이나 데이터가 꺼져있는 것 같아요. 연결을 확인한 후 다시 시도해주세요.'
-    : '잠시 후 다시 시도해주세요.';
+    : '서버 연결이 잠시 원활하지 않아요. 아래 다시 시도 버튼을 눌러주세요.';
   goTo('screen-ai-error');
 }
 
@@ -1798,7 +1764,7 @@ function getSmsReaderPlugin(){
  *  (플러그인 자체가 없는 웹/iOS라면) 권한 필요 화면으로 보낸다. 복사/붙여넣기로는 폴백하지 않는다. */
 async function openSmsCheck(){
   const SmsReader = getSmsReaderPlugin();
-  if (!SmsReader) { showSmsPermissionNeeded('unsupported'); return; }
+  if (!SmsReader) { goTo('screen-sms-paste'); return; }
   try {
     const status = await SmsReader.checkPermissions();
     if (status.sms === 'granted') { await loadAndShowRecentSms(SmsReader); return; }
@@ -1933,6 +1899,10 @@ function renderSmsResult(){
 
   applyResultHero(document.querySelector('#screen-result-text .result-card'), data);
   applyIllustration('smsIllustration', 'smsIllustrationImg', data.illustration);
+  const details = document.getElementById('smsResultDetails');
+  const toggle = document.getElementById('smsDetailToggle');
+  if (details) details.hidden = true;
+  if (toggle) toggle.textContent = '자세히 보기 ↓';
 
   // "지금 바로 대처하세요" — 예전에는 HTML에 고정된 두 문장이라 분석 결과가 바뀌어도 그대로였다.
   // AI가 이 문자에 맞춰 알려준 checklist로 채우고, 비어있을 때만 일반 안전 수칙으로 대신한다.
@@ -2248,17 +2218,17 @@ const I18N = {
     'onboard.notice.voice': '지금은 분석이 어려워요. 체험판이라 실제 분석은 제공되지 않을 수 있어요. 궁금한 점은 관리자에게 문의하세요.',
     'coach.moreHelp.title': '여기서 다른 기능도 볼 수 있어요', 'coach.moreHelp.desc': '아래 정보·기록·설정을 눌러 보세요.', 'coach.moreHelp.voice': '아래쪽 메뉴에서 다른 기능도 볼 수 있어요.',
     'coach.next': '다음으로 넘어가기', 'coach.skipTutorial': '튜토리얼 건너뛰기',
-    'coach.doc1.title': '문서를 촬영해보세요', 'coach.doc1.desc': '이 카드를 누르면 문서를 찍어 AI에게 분석을 맡길 수 있어요.', 'coach.doc1.voice': '문서 촬영 카드를 눌러보세요.',
+    'coach.doc1.title': '문서 찍어서 확인하기', 'coach.doc1.desc': '고지서나 안내문을 찍으면 중요한 내용과 해야 할 일을 쉽게 알려드려요.', 'coach.doc1.voice': '문서 찍어서 확인하기는 고지서나 안내문의 중요한 내용을 쉽게 알려드리는 기능입니다.',
     'coach.doc2.title': '직접 촬영해볼게요', 'coach.doc2.desc': '카메라로 문서를 찍어보세요.', 'coach.doc2.voice': '직접 촬영하기를 눌러보세요.',
     'coach.doc3.title': '촬영 버튼을 눌러주세요', 'coach.doc3.desc': '문서가 화면 가운데 오도록 맞추고 눌러주세요.', 'coach.doc3.voice': '촬영 버튼을 눌러주세요.',
-    'coach.sms1.title': '문자도 확인해보세요', 'coach.sms1.desc': '받은 문자가 안전한지도 여기서 확인할 수 있어요.', 'coach.sms1.voice': '문자 내용 불러오기 카드를 눌러보세요.',
+    'coach.sms1.title': '수상한 문자 확인하기', 'coach.sms1.desc': '받은 문자가 위험한지 안전한지 확인하고, 위험한 이유도 알려드려요.', 'coach.sms1.voice': '수상한 문자 확인하기는 받은 문자가 위험한지 안전한지 알려드리는 기능입니다.',
     'coach.smsPermission.title': '문자 읽기를 허용해주세요', 'coach.smsPermission.desc': '허용하면 최근 문자를 바로 보여드려요.', 'coach.smsPermission.voice': '허용을 눌러주세요.',
     'coach.sms2.title': '이 문자를 눌러 확인해보세요', 'coach.sms2.desc': '탭 한 번으로 바로 확인할 수 있어요.', 'coach.sms2.voice': '문자를 눌러 확인해보세요.',
     'coach.history1.title': '기록도 볼 수 있어요', 'coach.history1.desc': '지금까지 확인한 문서와 문자 기록을 모아볼 수 있어요.', 'coach.history1.voice': '아래 기록 버튼을 눌러보세요.',
     'coach.history2.title': '다시 홈으로 돌아가볼게요', 'coach.history2.desc': '← 홈으로 버튼을 누르면 언제든 돌아갈 수 있어요.', 'coach.history2.voice': '홈으로 버튼을 눌러 돌아가보세요.',
     'coach.info1.title': '알아두면 좋은 정보도 있어요', 'coach.info1.desc': '기초연금, 건강검진 같은 유용한 정보를 안내해드려요.', 'coach.info1.voice': '알아두면 좋은 정보를 눌러보세요.',
     'coach.info2.title': '다 보셨으면 홈으로 돌아가요', 'coach.info2.desc': '홈으로 돌아가기 버튼을 눌러주세요.', 'coach.info2.voice': '홈으로 돌아가기 버튼을 눌러주세요.',
-    'coach.welfare1.title': '주변 복지센터·경로당도 찾아드려요', 'coach.welfare1.desc': '내 위치 주변의 복지센터와 경로당 위치를 함께 알려드려요.', 'coach.welfare1.voice': '주변 복지센터·경로당 찾기를 눌러보세요.',
+    'coach.welfare1.title': '가까운 경로당 찾기', 'coach.welfare1.desc': '현재 위치나 입력한 지역을 기준으로 가까운 경로당을 찾아드려요.', 'coach.welfare1.voice': '가까운 경로당 찾기는 내 주변 경로당의 위치를 알려드리는 기능입니다.',
     'coach.welfare2.title': '홈 화면으로 돌아가볼게요', 'coach.welfare2.desc': '홈 화면으로 돌아가기 버튼을 눌러주세요.', 'coach.welfare2.voice': '홈 화면으로 돌아가기 버튼을 눌러주세요.',
     'coach.voice1.title': '음성으로 안내받을 수도 있어요', 'coach.voice1.desc': '이 버튼을 누르면 화면 안내를 다시 들을 수 있어요.', 'coach.voice1.voice': '음성으로 안내받기 버튼을 눌러보세요.',
     'coach.emergency1.title': '긴급할 땐 이 버튼을 누르세요', 'coach.emergency1.desc': '보호자나 119·112·118로 바로 연락할 수 있어요. 눌러서 직접 확인해보시고, 다 보셨으면 다음으로 넘어가세요.', 'coach.emergency1.voice': '도움 버튼을 눌러보세요. 확인하셨으면 다음으로 눌러 넘어가세요.',
@@ -3241,6 +3211,7 @@ function queueRegionInfoRefresh(){
 /* ---- 인증(회원가입/로그인) 상태: appState와 분리된 별도 localStorage 키에 저장한다.
    토큰이 서버로 동기화되는 appState JSON 안에 섞여 들어가면 안 되기 때문이다. ---- */
 const AUTH_KEY = 'ai_helper_auth_v1';
+const LOCAL_ACCOUNTS_KEY = 'ai_helper_local_accounts_v1';
 
 function getAuth(){
   try {
@@ -3260,6 +3231,121 @@ function authHeaders(){
   return { 'X-User-Id': String(auth.userId), 'X-Auth-Token': auth.token };
 }
 
+function toggleSmsResultDetails(){
+  const details = document.getElementById('smsResultDetails');
+  const toggle = document.getElementById('smsDetailToggle');
+  if (!details || !toggle) return;
+  details.hidden = !details.hidden;
+  toggle.textContent = details.hidden ? '자세히 보기 ↓' : '간단히 보기 ↑';
+}
+
+async function pasteSmsFromClipboard(){
+  const input = document.getElementById('smsPasteInput');
+  const hint = document.getElementById('smsPasteHint');
+  try {
+    const text = await navigator.clipboard.readText();
+    if (!text.trim()) throw new Error('empty');
+    input.value = text.trim();
+    hint.textContent = '문자를 붙여넣었어요. 아래 버튼을 눌러 확인해주세요.';
+  } catch (err) {
+    hint.textContent = '자동으로 붙여넣지 못했어요. 빈 칸을 길게 눌러 붙여넣기를 선택해주세요.';
+    input.focus();
+  }
+  syncSmsPasteButton();
+}
+
+function syncSmsPasteButton(){
+  const input = document.getElementById('smsPasteInput');
+  const button = document.getElementById('smsPasteAnalyzeButton');
+  if (button) button.disabled = !input || !input.value.trim();
+}
+
+function analyzePastedSms(){
+  const input = document.getElementById('smsPasteInput');
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+  pendingSmsText = text;
+  startSmsAnalysis();
+}
+
+const MORE_PANEL_TITLES = {
+  display: '글자와 음성',
+  profile: '내 정보',
+  guardian: '보호자 정보',
+  language: '언어'
+};
+
+function showMoreOverview(){
+  const menu = document.getElementById('moreMenu');
+  const back = document.getElementById('moreBackButton');
+  const title = document.getElementById('morePageTitle');
+  const version = document.getElementById('moreVersionNote');
+  if (menu) menu.hidden = false;
+  if (back) back.hidden = true;
+  if (title) title.textContent = '더보기';
+  if (version) version.hidden = false;
+  document.querySelectorAll('#screen-settings [data-more-panel]').forEach(section => { section.hidden = true; });
+  const screen = document.getElementById('screen-settings');
+  if (screen) screen.setAttribute('data-voice', '더보기 화면입니다. 바꾸고 싶은 항목을 골라주세요.');
+}
+
+function openMorePanel(panel){
+  const titleText = MORE_PANEL_TITLES[panel];
+  if (!titleText) return;
+  const menu = document.getElementById('moreMenu');
+  const back = document.getElementById('moreBackButton');
+  const title = document.getElementById('morePageTitle');
+  const version = document.getElementById('moreVersionNote');
+  if (menu) menu.hidden = true;
+  if (back) back.hidden = false;
+  if (title) title.textContent = titleText;
+  if (version) version.hidden = true;
+  document.querySelectorAll('#screen-settings [data-more-panel]').forEach(section => {
+    section.hidden = section.dataset.morePanel !== panel;
+  });
+  const screen = document.getElementById('screen-settings');
+  if (screen) {
+    screen.scrollTop = 0;
+    screen.setAttribute('data-voice', `${titleText} 화면입니다.`);
+  }
+  syncSettingsUI();
+}
+
+function getLocalAccounts(){
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_ACCOUNTS_KEY) || '{}');
+  } catch (err) { return {}; }
+}
+
+async function hashLocalPin(pin){
+  const bytes = new TextEncoder().encode(String(pin || ''));
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function localSignup(phone, pin, name){
+  const digits = String(phone || '').replace(/\D/g, '');
+  const accounts = getLocalAccounts();
+  if (accounts[digits]) return { ok: false, error: 'phone_exists' };
+  accounts[digits] = {
+    userId: `local-${Date.now()}`,
+    name: name || '',
+    pinHash: await hashLocalPin(pin)
+  };
+  localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(accounts));
+  setAuth({ userId: accounts[digits].userId, token: 'local-only', name: name || '', phone: digits, localOnly: true });
+  return { ok: true, localOnly: true };
+}
+
+async function localLogin(phone, pin){
+  const digits = String(phone || '').replace(/\D/g, '');
+  const account = getLocalAccounts()[digits];
+  if (!account) return null;
+  if (account.pinHash !== await hashLocalPin(pin)) return { ok: false, error: 'invalid' };
+  setAuth({ userId: account.userId, token: 'local-only', name: account.name || '', phone: digits, localOnly: true });
+  return { ok: true, localOnly: true };
+}
+
 async function signupRequest(phone, pin, name){
   try {
     const res = await fetch(AI_WORKER_URL + '/signup', {
@@ -3267,16 +3353,19 @@ async function signupRequest(phone, pin, name){
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, pin, name }),
     });
+    if (res.status === 404) return localSignup(phone, pin, name);
     const data = await res.json();
     if (!res.ok) return { ok: false, error: data.error || 'unknown' };
     setAuth({ userId: data.userId, token: data.token, name: data.name, phone: phone.replace(/\D/g, '') });
     return { ok: true };
   } catch (err) {
-    return { ok: false, error: 'network' };
+    return localSignup(phone, pin, name);
   }
 }
 
 async function loginRequest(phone, pin){
+  const localResult = await localLogin(phone, pin);
+  if (localResult) return localResult;
   try {
     const res = await fetch(AI_WORKER_URL + '/login', {
       method: 'POST',
@@ -3347,7 +3436,7 @@ async function handleSignupSubmit(){
   }
   appState.profile.name = name;
   saveState();
-  goTo('screen-profile');
+  goTo('screen-guardian-profile');
 }
 
 async function handleLoginSubmit(){
