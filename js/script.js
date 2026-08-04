@@ -23,7 +23,7 @@ const STORAGE_KEY = 'ai_helper_state_v1';
 const appState = {
   history: [],                                   // 최근 분석/대화 기록 (최대 10개)
   schedule: [],                                   // { id, text, source, date, time, done, createdAt }
-  settings: { fontScale: 1.15, voiceRate: 1, voiceEnabled: true, language: 'ko' }, // 접근성 설정 — 어르신 대상 서비스라 기본 글자 크기 자체를 키움
+  settings: { fontScale: 1.15, voiceRate: 1, voiceEnabled: true, language: 'ko', easyMode: false }, // 접근성 설정 — 어르신 대상 서비스라 기본 글자 크기 자체를 키움
   guardian: { name: '', phone: '', autoNotify: false },
   profile: { name: '', gender: '', age: '', region: '' }, // 맞춤 안내용(선택 사항): AI 분석 요청에 참고 정보로만 함께 전달됨.
                     // age는 실제로 입력받기 전까지 빈 값으로 둔다 — 기본값을 숫자로 두면 온보딩 나이 입력칸에
@@ -180,6 +180,20 @@ function syncVoiceEnabledToggles(){
   if (rateSection) rateSection.style.display = appState.settings.voiceEnabled ? '' : 'none';
   const greetEmoji = document.getElementById('greetVoiceEmoji');
   if (greetEmoji) greetEmoji.textContent = appState.settings.voiceEnabled ? '🔊' : '🔇';
+}
+
+/** 쉬운 모드: 홈 화면 핵심 기능 3개를 아이콘 없이 큰 글자 + 같은 색 계열 블록 버튼으로 바꾼다(ATM 큰글씨 모드 참고).
+ *  다른 화면·기능에는 영향 없음 — body.easy-mode 클래스 하나로 css/styles.css의 홈 카드 스타일만 덮어쓴다. */
+function toggleEasyMode(){
+  appState.settings.easyMode = !appState.settings.easyMode;
+  syncEasyModeUI();
+  saveState();
+}
+
+function syncEasyModeUI(){
+  document.body.classList.toggle('easy-mode', !!appState.settings.easyMode);
+  const label = document.getElementById('easyModeToggleLabel');
+  if (label) label.textContent = appState.settings.easyMode ? '쉬운 모드 켜짐' : '쉬운 모드';
 }
 
 /** 번역된 문구(온보딩/튜토리얼)를 읽어줄 때만 언어별 TTS lang을 쓰고, 그 외(AI 분석 결과 등 항상 한국어인 문구)는 기본값(한국어)을 유지한다 */
@@ -2981,6 +2995,7 @@ function syncSettingsUI(){
   syncToggleGroup('voiceRateGroup', 'rate', appState.settings.voiceRate);
   syncGuardianUI();
   syncVoiceEnabledToggles();
+  syncEasyModeUI();
   syncProfileUI();
   const acct = document.getElementById('accountInfoLine');
   if (acct) {

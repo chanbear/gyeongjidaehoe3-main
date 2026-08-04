@@ -13,6 +13,8 @@
     --success:#1fa851;
     --success-soft:#e8f7ed;
     --success-strong:#187a3c;
+    --fam-1:#6f92f7;
+    --fam-4:#1c3a99;
     --help:#ff6b78;
     --help-soft:#ffe4e6;
     --line:#e9ecf2;
@@ -627,6 +629,21 @@
 .home-big-card .fc-icon svg{ width:28px; height:28px; }
 .home-big-card .fc-title{ font-size:calc(20px * var(--scale)); }
 .home-big-card .fc-desc{ font-size:calc(14.5px * var(--scale)); }
+
+/* ---- 쉬운 모드: 홈 화면 핵심 기능 3개를 아이콘 없이 큰 글자 + 같은 파란 계열 블록 버튼으로 (ATM 큰글씨 모드 참고).
+   body.easy-mode일 때만 적용되고, 나머지 화면과 기본 모드는 그대로 유지된다. */
+body.easy-mode .home-big-card{
+  background:var(--accent); border:none; padding:26px 16px; justify-content:center;
+}
+body.easy-mode .home-big-card .fc-icon,
+body.easy-mode .home-big-card .fc-desc,
+body.easy-mode .home-big-card .chev{ display:none; }
+body.easy-mode .home-big-card .fc-title{
+  color:#fff; font-size:calc(23px * var(--scale)); font-weight:800; text-align:center;
+}
+body.easy-mode .home-big-card:nth-of-type(1){ background:var(--fam-1); }
+body.easy-mode .home-big-card:nth-of-type(2){ background:var(--accent); }
+body.easy-mode .home-big-card:nth-of-type(3){ background:var(--fam-4); }
 
 /* 홈의 'AI 문서 분석하기' 카드: 사진 촬영/사진 불러오기/문자 불러오기 3가지로 가는 단일 진입점이라
    나머지 feature-card보다 눈에 띄게 크고 진하게 강조한다. */
