@@ -178,6 +178,8 @@ function syncVoiceEnabledToggles(){
   if (sub) sub.textContent = t(appState.settings.voiceEnabled ? 'home.assistantActive' : 'home.assistantInactive');
   const rateSection = document.getElementById('voiceRateSection');
   if (rateSection) rateSection.style.display = appState.settings.voiceEnabled ? '' : 'none';
+  const greetEmoji = document.getElementById('greetVoiceEmoji');
+  if (greetEmoji) greetEmoji.textContent = appState.settings.voiceEnabled ? '🔊' : '🔇';
 }
 
 /** 번역된 문구(온보딩/튜토리얼)를 읽어줄 때만 언어별 TTS lang을 쓰고, 그 외(AI 분석 결과 등 항상 한국어인 문구)는 기본값(한국어)을 유지한다 */
@@ -344,10 +346,6 @@ function formatNow(){
 
 function renderHomeDashboard(){
   renderTodayTasks();
-  renderUpcomingSchedule();
-  renderHomeDueCard();
-  renderHomeInfoCard();
-  renderHomeGreet();
 }
 
 /** 프로필의 성별 값("남성"/"여성", 항상 한국어로 저장됨)을 현재 화면 언어로 번역한다 */
@@ -371,22 +369,6 @@ function renderMoreProfileSummary(){
   if (regionEl) regionEl.textContent = p.region || '-';
 }
 
-/** 홈 인사 카드의 이름 부분("OOO님" / "70대 어르신" / 기본값). 언어를 바꾸면 이 문구도 같이 바뀌도록 t()로 가져온다. */
-function homeGreetName(){
-  const { name, gender, age } = appState.profile;
-  if (name) return name + t('home.greetNameSuffix');
-  if (age) {
-    const genderWord = homeGenderWord(gender);
-    const template = genderWord ? t('home.greetAgeGender') : t('home.greetAge');
-    return template.replace('{age}', toAgeBand(age)).replace('{gender}', genderWord);
-  }
-  return t('home.greetDefault');
-}
-
-function renderHomeGreet(){
-  const el = document.getElementById('homeGreetName');
-  if (el) el.textContent = homeGreetName();
-}
 
 /** 정보 탭: 홈에 있던 읽을거리를 이쪽으로 옮겼다.
  *  세 카드 모두 조건에 안 맞아 숨겨지면(지역 미입력 등) 빈 화면이 되므로 안내 문구를 대신 띄운다. */
