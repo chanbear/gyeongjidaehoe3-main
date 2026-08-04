@@ -1072,6 +1072,11 @@ body.easy-mode .more-menu-icon svg{ width:35px; height:35px; }
 body.easy-mode .more-menu-label{ color:#fff; font-size:26px; font-weight:900; }
 body.easy-mode .more-menu-chevron{ display:none; }
 
+/* .screen-stack 밖에 고정된 음성 안내 켜기/끄기 알약은 guardian-app 디자인에 없던 요소라
+   커진 큰 글자 제목과 겹친다. 같은 기능(voiceEnabledToggle)이 설정 화면에도 있고
+   각 화면 topbar의 다시 듣기 버튼도 있으니, 쉬운 모드에서는 숨겨서 화면을 정리한다. */
+body.easy-mode #greetVoiceToggleBtn{ display:none !important; }
+
 /* 홈의 'AI 문서 분석하기' 카드: 사진 촬영/사진 불러오기/문자 불러오기 3가지로 가는 단일 진입점이라
    나머지 feature-card보다 눈에 띄게 크고 진하게 강조한다. */
 .ai-analyze-card{
