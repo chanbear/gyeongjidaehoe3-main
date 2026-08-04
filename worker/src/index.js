@@ -23,7 +23,7 @@ export class AnthropicProxy {
 
 // 웹 배포본(Cloudflare Pages)과 안드로이드 APK(Capacitor 기본 WebView origin)만 허용한다.
 // capacitor.config.json에 별도 server 설정이 없으면 Capacitor Android는 https://localhost를 origin으로 보낸다.
-const ALLOWED_ORIGINS = new Set(['https://ondam-web.pages.dev', 'https://localhost']);
+const ALLOWED_ORIGINS = new Set(['https://ondam-web.pages.dev', 'https://localhost', 'https://easy-mode-test.ondam-web-demo.pages.dev']);
 
 function corsHeadersFor(request) {
   const origin = request.headers.get('Origin');
