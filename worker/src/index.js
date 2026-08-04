@@ -30,7 +30,7 @@ function corsHeadersFor(request) {
   return {
     'Access-Control-Allow-Origin': origin && ALLOWED_ORIGINS.has(origin) ? origin : 'null',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, X-Auth-Token, X-Guardian-Phone, X-Guardian-Token',
+    'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, X-Auth-Token, X-Guardian-Phone, X-Guardian-Token, X-Admin-Password',
     'Vary': 'Origin',
   };
 }
@@ -242,6 +242,13 @@ async function authenticateRequest(env, request) {
   return row ? row.id : null;
 }
 
+/** X-Admin-Password 헤더가 ADMIN_PASSWORD 시크릿과 일치하는지 확인한다. 어르신/보호자 인증 체계와는
+ *  완전히 분리된, 내부 테스트용 대시보드 전용 인증 — 세션·토큰 없이 매 요청마다 비밀번호 자체를 비교한다. */
+function authenticateAdmin(env, request) {
+  const password = request.headers.get('X-Admin-Password');
+  return !!password && !!env.ADMIN_PASSWORD && password === env.ADMIN_PASSWORD;
+}
+
 /** X-Guardian-Phone/X-Guardian-Token 헤더로 요청한 seniorId에 대한 유효한(active) 연결인지 확인한다.
  *  일치하는 guardian_links 행을 반환(없으면 null) — 호출부가 senior_user_id·id 등을 그대로 쓸 수 있게. */
 async function authenticateGuardianRequest(env, request, seniorId) {
@@ -349,7 +356,7 @@ export default {
     }
 
     const url = new URL(request.url);
-    const ALLOWED_GET_PATHS = new Set(['/state', '/region-info', '/guardian/seniors', '/guardian/state']);
+    const ALLOWED_GET_PATHS = new Set(['/state', '/region-info', '/local-welfare', '/guardian/seniors', '/guardian/state', '/admin/users']);
     const isAllowedGet = request.method === 'GET' && ALLOWED_GET_PATHS.has(url.pathname);
     if (request.method !== 'POST' && !isAllowedGet) {
       return json({ error: 'Not found' }, 404);
@@ -872,6 +879,52 @@ export default {
       }
     }
 
+    /* ---- 관리자 대시보드: 어르신/보호자 인증 체계와 분리된, ADMIN_PASSWORD 비밀번호 1개로만 접속하는
+       내부 테스트용 조회 화면. 회원 수정·삭제나 분석 원문 열람 기능은 없다(조회 전용). ---- */
+    if (url.pathname === '/admin/login' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: '잘못된 요청입니다.' }, 400);
+      }
+      const ok = !!env.ADMIN_PASSWORD && body && body.password === env.ADMIN_PASSWORD;
+      if (!ok) return json({ error: 'invalid' }, 401);
+      return json({ ok: true }, 200);
+    }
+
+    if (url.pathname === '/admin/users' && request.method === 'GET') {
+      if (!authenticateAdmin(env, request)) return json({ error: 'unauthorized' }, 401);
+
+      try {
+        const { results } = await env.ansim_doumi_db.prepare(
+          `SELECT u.id, u.name, u.phone, u.created_at,
+                  COALESCE(json_array_length(us.state_json, '$.history'), 0) AS history_count
+           FROM users u
+           LEFT JOIN user_state us ON us.user_id = u.id
+           ORDER BY u.created_at DESC`
+        ).all();
+
+        const users = (results || []).map((u) => {
+          const digits = String(u.phone || '');
+          const masked = digits.length >= 7
+            ? digits.slice(0, 3) + '*'.repeat(digits.length - 7) + digits.slice(-4)
+            : digits;
+          return {
+            id: u.id,
+            name: u.name || '',
+            phone: masked,
+            createdAt: u.created_at,
+            historyCount: u.history_count || 0,
+          };
+        });
+
+        return json({ users, totalCount: users.length }, 200);
+      } catch (err) {
+        return json({ error: '조회에 실패했습니다.', detail: String(err && err.message || err) }, 502);
+      }
+    }
+
     /* 경기데이터드림(경로당 현황, SenircentFaclt) 실제 공공데이터로 지역별 맞춤 정보 제공.
        경기도 31개 시/군 중 하나가 사용자가 입력한 자유 텍스트 지역에 포함될 때만 조회하고,
        매칭되지 않으면(경기도 밖 등) 지어내지 않고 matched:false만 반환한다. */
@@ -941,6 +994,77 @@ ${JSON.stringify(texts)}`;
           `SELECT name, phone, address FROM senior_centers WHERE sigun_nm = ? LIMIT 3`
         ).bind(matchedCity).all();
         return json({ matched: true, city: matchedCity, source: '경기데이터드림(경로당 현황)', centers: results || [] }, 200);
+      } catch (err) {
+        return json({ matched: false, error: String(err && err.message || err) }, 200);
+      }
+    }
+
+    /* 지역 복지 서비스: 한국사회보장정보원_지자체복지서비스(복지로) 실제 공공데이터 — 전국 대상 실시간 API 호출.
+       경로당(위)과 달리 apis.data.go.kr는 표준 오픈API 게이트웨이라 Worker에서 직접 호출한다.
+       lifeArray=006(노년) 고정 + 나이·시도·시군구로 필터링하고, 시/도를 못 알아보면 지어내지 않고 matched:false. */
+    const KOREA_PROVINCES = [
+      '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시', '대전광역시', '울산광역시',
+      '세종특별자치시', '경기도', '강원특별자치도', '강원도', '충청북도', '충청남도',
+      '전북특별자치도', '전라북도', '전라남도', '경상북도', '경상남도', '제주특별자치도',
+    ];
+    const PROVINCE_ALIASES = {
+      '서울': '서울특별시', '부산': '부산광역시', '대구': '대구광역시', '인천': '인천광역시',
+      '광주': '광주광역시', '대전': '대전광역시', '울산': '울산광역시', '세종': '세종특별자치시',
+      '경기': '경기도', '강원': '강원특별자치도', '충북': '충청북도', '충남': '충청남도',
+      '전북': '전북특별자치도', '전남': '전라남도', '경북': '경상북도', '경남': '경상남도', '제주': '제주특별자치도',
+    };
+
+    function parseRegionText(region) {
+      const text = (region || '').trim();
+      if (!text) return { ctpvNm: null, sggNm: '' };
+      for (const full of KOREA_PROVINCES) {
+        if (text.includes(full)) return { ctpvNm: full, sggNm: text.replace(full, '').trim() };
+      }
+      for (const short of Object.keys(PROVINCE_ALIASES)) {
+        if (text.includes(short)) return { ctpvNm: PROVINCE_ALIASES[short], sggNm: text.replace(short, '').trim() };
+      }
+      return { ctpvNm: null, sggNm: text };
+    }
+
+    /* 지자체복지서비스 목록조회는 XML만 지원한다(JSON 미지원) — servList 블록 단위로 잘라 필요한 필드만 정규식으로 뽑는다. */
+    function parseWelfareXml(xml) {
+      const blocks = xml.split('<servList>').slice(1).map((s) => s.split('</servList>')[0]);
+      const field = (block, tag) => {
+        const m = block.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`));
+        if (!m) return '';
+        return m[1]
+          .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/, '$1')
+          .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&')
+          .trim();
+      };
+      return blocks
+        .map((b) => ({ name: field(b, 'servNm'), summary: field(b, 'servDgst'), link: field(b, 'servDtlLink'), dept: field(b, 'bizChrDeptNm') }))
+        .filter((item) => item.name);
+    }
+
+    if (url.pathname === '/local-welfare' && request.method === 'GET') {
+      const region = (url.searchParams.get('region') || '').trim();
+      const age = (url.searchParams.get('age') || '').trim();
+      const { ctpvNm, sggNm } = parseRegionText(region);
+      if (!ctpvNm || !env.WELFARE_API_KEY) return json({ matched: false }, 200);
+
+      try {
+        /* data.go.kr는 서비스키를 Encoding(퍼센트 인코딩된 형태)·Decoding(원문) 두 가지로 발급한다.
+           URLSearchParams가 어차피 다시 인코딩하므로, 어느 쪽을 넣어도 이중 인코딩되지 않게 먼저 디코딩해둔다
+           (원문 키에는 %로 시작하는 유효한 escape가 없어 decodeURIComponent가 그대로 통과한다). */
+        let serviceKey = env.WELFARE_API_KEY;
+        try { serviceKey = decodeURIComponent(serviceKey); } catch { /* 이미 원문이면 그대로 둔다 */ }
+
+        const params = new URLSearchParams({ serviceKey, lifeArray: '006', numOfRows: '3', pageNo: '1', ctpvNm });
+        if (sggNm) params.set('sggNm', sggNm);
+        if (age) params.set('age', age);
+
+        const res = await fetch(`https://apis.data.go.kr/B554287/LocalGovernmentWelfareInformations/LcgvWelfarelist?${params.toString()}`);
+        if (!res.ok) return json({ matched: false }, 200);
+        const xml = await res.text();
+        const items = parseWelfareXml(xml);
+        if (items.length === 0) return json({ matched: false }, 200);
+        return json({ matched: true, region: [ctpvNm, sggNm].filter(Boolean).join(' '), items }, 200);
       } catch (err) {
         return json({ matched: false, error: String(err && err.message || err) }, 200);
       }
