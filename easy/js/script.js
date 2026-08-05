@@ -23,14 +23,12 @@ const STORAGE_KEY = 'ai_helper_state_v1';
 const appState = {
   history: [],                                   // 최근 분석/대화 기록 (최대 10개)
   schedule: [],                                   // { id, text, source, date, time, done, createdAt }
-  settings: { fontScale: 1.15, voiceRate: 1, voiceEnabled: true, language: 'ko', easyMode: false }, // 접근성 설정 — 어르신 대상 서비스라 기본 글자 크기 자체를 키움
+  guardianInbox: [],                              // 보호자 앱으로 전달한 분석 결과
+  settings: { fontScale: 1.15, voiceRate: 1, voiceEnabled: true, language: 'ko' }, // 접근성 설정 — 어르신 대상 서비스라 기본 글자 크기 자체를 키움
   guardian: { name: '', phone: '', autoNotify: false },
   profile: { name: '', gender: '', age: '', region: '' }, // 맞춤 안내용(선택 사항): AI 분석 요청에 참고 정보로만 함께 전달됨.
                     // age는 실제로 입력받기 전까지 빈 값으로 둔다 — 기본값을 숫자로 두면 온보딩 나이 입력칸에
                     // 사용자가 입력한 적 없는 값이 이미 채워진 것처럼 보이는 문제가 있었다.
-  avatarPhoto: '', // 홈 화면에 보여줄 프로필 사진(선택 사항). profile과 분리해두는 이유: pushStateToServer()가
-                    // profile을 포함한 나머지 필드는 그대로 서버(D1)로 보내는데, 사진은 순전히 이 기기에서만
-                    // 쓰는 것이라 서버로 전송되면 안 된다.
   onboardingDone: false // 인사→프로필→튜토리얼을 한 번이라도 끝냈는지. true면 다음 실행부터 홈에서 시작한다
 };
 
@@ -46,10 +44,10 @@ function saveState(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       history: appState.history,
       schedule: appState.schedule,
+      guardianInbox: appState.guardianInbox,
       settings: appState.settings,
       guardian: appState.guardian,
       profile: appState.profile,
-      avatarPhoto: appState.avatarPhoto,
       onboardingDone: appState.onboardingDone
     }));
   } catch (err) {
@@ -76,6 +74,7 @@ async function pushStateToServer(){
         state: {
           history: appState.history,
           schedule: appState.schedule,
+          guardianInbox: appState.guardianInbox,
           settings: appState.settings,
           guardian: appState.guardian,
           profile: appState.profile,
@@ -102,11 +101,12 @@ async function pullStateFromServer(){
       const s = data.state;
       if (s.history) appState.history = s.history;
       if (s.schedule) appState.schedule = s.schedule;
+      if (Array.isArray(s.guardianInbox)) appState.guardianInbox = s.guardianInbox;
       if (s.settings) appState.settings = Object.assign(appState.settings, s.settings);
       if (s.guardian) appState.guardian = Object.assign(appState.guardian, s.guardian);
       if (s.profile) appState.profile = Object.assign(appState.profile, s.profile);
       if (s.onboardingDone) appState.onboardingDone = true;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(Object.assign({ avatarPhoto: appState.avatarPhoto }, s)));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
     } else {
       // 서버에 아직 아무것도 없음(첫 가입 직후) — 지금 로컬 값을 최초 스냅샷으로 올린다
       await pushStateToServer();
@@ -118,19 +118,6 @@ async function pullStateFromServer(){
   }
 }
 
-/** 새 계정 가입 직후 호출: 이 기기에 남아있던 다른(이전) 계정의 로컬 데이터가 새 계정으로
- *  새는 것을 막는다 — 초기화하지 않으면 이전 사용자의 이름·나이·지역·보호자 연락처·기록이
- *  화면에 그대로 채워지고, 첫 저장 때 새 계정의 서버 데이터로 그대로 올라간다.
- *  접근성 설정(settings)은 개인정보가 아니라 기기 단위 취향이라 초기화하지 않는다. */
-function resetLocalAccountData(){
-  appState.history = [];
-  appState.schedule = [];
-  appState.guardian = { name: '', phone: '', autoNotify: false };
-  appState.profile = { name: '', gender: '', age: '', region: '' };
-  appState.avatarPhoto = '';
-  appState.onboardingDone = false;
-}
-
 /** localStorage에서 상태 복원 */
 function loadState(){
   try {
@@ -139,10 +126,10 @@ function loadState(){
     const saved = JSON.parse(raw);
     if (saved.history) appState.history = saved.history;
     if (saved.schedule) appState.schedule = saved.schedule;
+    if (Array.isArray(saved.guardianInbox)) appState.guardianInbox = saved.guardianInbox;
     if (saved.settings) appState.settings = Object.assign(appState.settings, saved.settings);
     if (saved.guardian) appState.guardian = Object.assign(appState.guardian, saved.guardian);
     if (saved.profile) appState.profile = Object.assign(appState.profile, saved.profile);
-    if (saved.avatarPhoto) appState.avatarPhoto = saved.avatarPhoto;
     if (saved.onboardingDone) appState.onboardingDone = true;
   } catch (err) {
     console.warn('불러오기 실패:', err);
@@ -155,11 +142,8 @@ function loadState(){
 function loadVoices(){ voices = window.speechSynthesis ? speechSynthesis.getVoices() : []; }
 if (window.speechSynthesis) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
 
-/** 안드로이드 시스템 WebView는 Web Speech API(window.speechSynthesis)를 안정적으로 지원하지 않아
- *  APK에서 음성 안내가 무음이 되는 문제가 있었다 — 네이티브 TTS 플러그인이 있으면 그걸 쓰고,
- *  없으면(웹 브라우저) 기존 speechSynthesis로 폴백한다. */
-function getTtsPlugin(){
-  return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Tts) || null;
+function nativeTextToSpeech(){
+  return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.TextToSpeech) || null;
 }
 
 /** 음성 지원 on/off 스위치는 홈 화면과 설정 화면 두 곳에 있다(voice-enabled-toggle 클래스로 묶임).
@@ -173,130 +157,139 @@ function toggleVoice(el){
 }
 
 function syncVoiceEnabledToggles(){
-  document.querySelectorAll('.voice-enabled-toggle').forEach(el => { el.checked = appState.settings.voiceEnabled; });
-  const sub = document.querySelector('.home-greet-sub');
-  if (sub) sub.textContent = t(appState.settings.voiceEnabled ? 'home.assistantActive' : 'home.assistantInactive');
-  const rateSection = document.getElementById('voiceRateSection');
-  if (rateSection) rateSection.style.display = appState.settings.voiceEnabled ? '' : 'none';
-  const greetEmoji = document.getElementById('greetVoiceEmoji');
-  if (greetEmoji) greetEmoji.textContent = appState.settings.voiceEnabled ? '🔊' : '🔇';
+  document.querySelectorAll('.voice-enabled-toggle').forEach(t => { t.checked = appState.settings.voiceEnabled; });
 }
 
-/** "음성 안내 사용하기" 버튼은 맨 처음 인사 화면(screen-greet)에서만 보여주고, 그 다음 화면부터는 숨긴다
- *  (설정 화면에도 같은 기능의 스위치가 있으니 계속 떠 있을 필요가 없다 — 매 화면 우측 상단을 가리던 문제 해결). */
-function syncGreetVoiceToggleVisibility(id){
-  const btn = document.getElementById('greetVoiceToggleBtn');
-  if (btn) btn.style.display = (id === 'screen-greet') ? '' : 'none';
-}
-
-/** env(safe-area-inset-*)는 중첩된 브라우징 컨텍스트(iframe) 안에서는 실제 상태바/제스처바 높이 대신
- *  0을 반환하는 경우가 있다(안드로이드 웹뷰에서 특히 흔함) — 그래서 이 값은 항상 최상위 문서(부모)에서
- *  직접 측정해, 같은 오리진인 iframe 문서에 CSS 커스텀 프로퍼티로 주입해준다. */
-function measureSafeAreaInset(side){
-  const probe = document.createElement('div');
-  probe.style.cssText = `position:fixed; top:0; left:0; visibility:hidden; pointer-events:none; padding-${side}:env(safe-area-inset-${side});`;
-  document.body.appendChild(probe);
-  const value = getComputedStyle(probe).getPropertyValue(`padding-${side}`);
-  probe.remove();
-  return value;
-}
-
-/** 쉬운 모드(easy/app.html)의 상단바가 안드로이드 상태바 밑에 깔려 겹쳐 보이던 문제 수정:
- *  iframe 문서 자체는 env(safe-area-inset-top/bottom)을 0으로 읽는 경우가 있어, 부모에서 측정한
- *  실제 값을 그 문서의 :root에 강제로 심어준다(easy/css/styles.css가 이 값을 우선 사용하도록 되어 있음). */
-function syncEasySafeArea(frame){
-  const doc = frame.contentDocument;
-  if (!doc || !doc.documentElement) return;
-  doc.documentElement.style.setProperty('--safe-area-inset-top', measureSafeAreaInset('top'));
-  doc.documentElement.style.setProperty('--safe-area-inset-bottom', measureSafeAreaInset('bottom'));
-}
-
-/** 쉬운 모드: 페이지 이동(location.href) 없이, codex/guardian-app 앱 자체(easy/app.html, 이 배포에 그대로
- *  복사해 넣은 것)를 같은 페이지 안 전체 화면 iframe으로 띄운다 — 주소창은 그대로고, 실제로 다른 페이지가
- *  열리는 느낌 없이 화면만 바뀐다. 같은 오리진이라 로그인 세션(AUTH_KEY)·appState(STORAGE_KEY)를 그대로 공유한다.
- *  iframe은 처음 켤 때만 로드한다(src를 미리 채워두지 않음 — 안 쓰면 codex 앱 리소스를 받아올 필요가 없다). */
-function toggleEasyMode(checkbox){
-  if (checkbox && !checkbox.checked) return; // 이 페이지에 있다는 것 자체가 "꺼짐" 상태라 끄는 동작은 할 일이 없다
-  const frame = document.getElementById('easyModeFrame');
-  if (!frame.getAttribute('src')) {
-    frame.addEventListener('load', () => syncEasySafeArea(frame), { once: true });
-    frame.src = 'easy/app.html';
-  }
-  document.getElementById('easyModeOverlay').style.display = 'block';
-}
-
-/** easy/app.html(iframe 안)의 "일반 모드" 버튼이 같은 오리진이라 parent.hideEasyMode()로 직접 호출한다.
- *  iframe을 다시 숨기고, 쉬운 모드 스위치도 꺼진 상태로 되돌린다. */
-function hideEasyMode(){
-  const overlay = document.getElementById('easyModeOverlay');
-  if (overlay) overlay.style.display = 'none';
-  const toggle = document.getElementById('easyModeToggleInput');
-  if (toggle) toggle.checked = false;
-}
-window.hideEasyMode = hideEasyMode;
-
-/** 번역된 문구(온보딩/튜토리얼)를 읽어줄 때만 언어별 TTS lang을 쓰고, 그 외(AI 분석 결과 등 항상 한국어인 문구)는 기본값(한국어)을 유지한다 */
+/** 화면 언어와 음성 언어가 어긋나지 않도록 모든 기본 안내에 현재 선택 언어를 사용한다. */
 const TTS_LANG_MAP = { ko: 'ko-KR', zh: 'zh-CN', vi: 'vi-VN', th: 'th-TH', uz: 'uz-UZ' };
 function currentTtsLang(){ return TTS_LANG_MAP[appState.settings.language] || 'ko-KR'; }
 
-/** force=true면 "음성 안내 사용하기"가 꺼져 있어도 읽는다 - "다시 듣기" 버튼처럼 사용자가 직접 눌러 요청한 경우에만 쓴다.
- *  화면 진입 시 자동으로 읽어주는 것(force 없음)은 토글을 그대로 따른다. */
-function speak(text, lang, force){
+/* data-voice-i18n 키가 아직 없는 기존 화면도 한국어로 읽히지 않도록 주요 화면별 안내와
+ * 언어별 공통 안내를 둔다. 기기에 해당 언어 음성이 설치되어 있으면 같은 언어 음성을 우선 선택한다. */
+const SCREEN_VOICE_GUIDES = {
+  zh: {
+    'screen-home':'需要什么帮助？请选择文件、短信或附近设施。',
+    'screen-info':'这里汇集了对您有用的生活信息。请选择要查看的项目。',
+    'screen-history':'这里可以查看以前分析的记录和日程。',
+    'screen-settings':'这是更多设置。请选择要更改的项目。',
+    'screen-help':'您想了解什么？请选择一个项目。',
+    default:'请查看屏幕上的大按钮，并选择需要的项目。'
+  },
+  vi: {
+    'screen-home':'Bạn cần giúp gì? Hãy chọn tài liệu, tin nhắn hoặc cơ sở gần đây.',
+    'screen-info':'Đây là những thông tin sinh hoạt hữu ích. Hãy chọn mục muốn xem.',
+    'screen-history':'Bạn có thể xem lại kết quả phân tích và lịch đã lưu.',
+    'screen-settings':'Đây là phần cài đặt thêm. Hãy chọn mục muốn thay đổi.',
+    'screen-help':'Bạn muốn biết điều gì? Hãy chọn một mục.',
+    default:'Hãy xem các nút lớn trên màn hình và chọn mục bạn cần.'
+  },
+  th: {
+    'screen-home':'ต้องการความช่วยเหลือเรื่องใด กรุณาเลือกเอกสาร ข้อความ หรือสถานที่ใกล้เคียง',
+    'screen-info':'หน้านี้รวมข้อมูลที่เป็นประโยชน์ กรุณาเลือกหัวข้อที่ต้องการดู',
+    'screen-history':'คุณสามารถดูผลการวิเคราะห์และกำหนดการที่ผ่านมาได้',
+    'screen-settings':'นี่คือการตั้งค่าเพิ่มเติม กรุณาเลือกรายการที่ต้องการเปลี่ยน',
+    'screen-help':'อยากทราบเรื่องใด กรุณาเลือกหนึ่งหัวข้อ',
+    default:'กรุณาดูปุ่มขนาดใหญ่บนหน้าจอและเลือกรายการที่ต้องการ'
+  },
+  uz: {
+    'screen-home':"Qanday yordam kerak? Hujjat, xabar yoki yaqin joylarni tanlang.",
+    'screen-info':"Bu yerda foydali ma'lumotlar jamlangan. Kerakli bo'limni tanlang.",
+    'screen-history':"Oldingi tahlil natijalari va rejalarni ko'rishingiz mumkin.",
+    'screen-settings':"Bu qo'shimcha sozlamalar. O'zgartirmoqchi bo'lgan bo'limni tanlang.",
+    'screen-help':"Nimani bilmoqchisiz? Kerakli bo'limni tanlang.",
+    default:"Ekrandagi katta tugmalarni ko'rib, kerakli bo'limni tanlang."
+  }
+};
+
+const LANGUAGE_CHANGE_CONFIRMATION = {
+  ko:'한국어 음성으로 안내해드릴게요.',
+  zh:'现在开始使用中文语音为您提供提示。',
+  vi:'Từ bây giờ, hướng dẫn bằng giọng nói sẽ dùng tiếng Việt.',
+  th:'ต่อจากนี้จะใช้เสียงแนะนำภาษาไทย',
+  uz:"Endi ovozli ko'rsatmalar o'zbek tilida bo'ladi."
+};
+
+async function speak(text, lang){
   const liveRegion = document.getElementById('liveRegion');
-  if ((!force && !appState.settings.voiceEnabled) || !text) {
+  if (!appState.settings.voiceEnabled || !text) {
     if (text && liveRegion) liveRegion.textContent = text;
     return;
   }
-  const ttsLang = lang || 'ko-KR';
-  const Tts = getTtsPlugin();
-  if (Tts) {
-    Tts.speak({ text, lang: ttsLang, rate: appState.settings.voiceRate });
-  } else if (window.speechSynthesis) {
-    speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = ttsLang;
-    utter.rate = appState.settings.voiceRate;
-    const langPrefix = utter.lang.split('-')[0];
-    const matchVoice = voices.find(v => v.lang && v.lang.startsWith(langPrefix));
-    if (matchVoice) utter.voice = matchVoice;
-    speechSynthesis.speak(utter);
-  }
   if (liveRegion) liveRegion.textContent = text;
+
+  const voiceLang = lang || currentTtsLang();
+  const nativeTts = nativeTextToSpeech();
+  if (nativeTts) {
+    try {
+      await nativeTts.stop();
+      const support = await nativeTts.isLanguageSupported({ lang: voiceLang });
+      if (support && support.supported === false) {
+        showGlobalToast('선택한 언어 음성을 휴대폰 설정에서 설치해주세요.');
+        return;
+      }
+      await nativeTts.speak({
+        text,
+        lang: voiceLang,
+        rate: appState.settings.voiceRate,
+        pitch: 1,
+        volume: 1,
+        queueStrategy: 0
+      });
+      return;
+    } catch (err) {
+      console.warn('네이티브 음성 재생 실패:', err);
+    }
+  }
+
+  if (!window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = voiceLang;
+  utter.rate = appState.settings.voiceRate;
+  const langPrefix = utter.lang.split('-')[0];
+  const matchVoice = voices.find(v => v.lang && v.lang.startsWith(langPrefix));
+  if (matchVoice) utter.voice = matchVoice;
+  speechSynthesis.speak(utter);
 }
 
 /** 현재 화면의 안내 음성을 다시 읽기 */
 /** data-voice-i18n이 있는 화면(온보딩)은 현재 언어로 번역된 안내 문구를, 없으면 data-voice의 한국어 원문을 읽어준다 */
 function screenVoiceText(screenEl){
   const key = screenEl.getAttribute('data-voice-i18n');
-  return key ? t(key) : screenEl.getAttribute('data-voice');
+  if (key) return t(key);
+  const lang = appState.settings.language;
+  if (lang !== 'ko' && SCREEN_VOICE_GUIDES[lang]) {
+    return SCREEN_VOICE_GUIDES[lang][screenEl.id] || SCREEN_VOICE_GUIDES[lang].default;
+  }
+  return screenEl.getAttribute('data-voice');
 }
-/** data-voice-i18n이 있는 화면만 번역된 언어로 읽고, 나머지 화면은 항상 한국어로 읽는다(대부분의 data-voice가 여전히 한국어 원문이므로) */
 function screenVoiceLang(screenEl){
-  return screenEl.hasAttribute('data-voice-i18n') ? currentTtsLang() : 'ko-KR';
+  return currentTtsLang();
 }
 
 function replayCurrentVoice(){
   const active = document.querySelector('.screen.active');
-  if (active) speak(screenVoiceText(active), screenVoiceLang(active), true);
+  if (active) speak(screenVoiceText(active), screenVoiceLang(active));
 }
 
 /** 음성 읽기 멈추기 */
-function stopVoice(){
-  const Tts = getTtsPlugin();
-  if (Tts) Tts.stop();
-  else if (window.speechSynthesis) speechSynthesis.cancel();
+async function stopVoice(){
+  const nativeTts = nativeTextToSpeech();
+  if (nativeTts) {
+    try { await nativeTts.stop(); } catch (err) {}
+  }
+  if (window.speechSynthesis) speechSynthesis.cancel();
 }
 
 /* ---------------------------------------------------------
    4. 화면 전환 + 진행바
    --------------------------------------------------------- */
 /* 안내(온보딩) 화면 동안에는 긴급 도움 FAB을 숨긴다 */
-const onboardScreens = new Set(['screen-greet', 'screen-signup', 'screen-reset-pin', 'screen-onboard-access', 'screen-profile', 'screen-guardian-profile']);
+const onboardScreens = new Set(['screen-greet', 'screen-signup', 'screen-login', 'screen-reset-pin', 'screen-profile', 'screen-guardian-profile', 'screen-tutorial-ai-notice']);
 
 /* 하단 네비게이션 바를 노출할 최상위 화면. 여기 없는 화면(촬영·로딩·결과 등 흐름 중간)에서는 숨겨서
-   "네비바가 보이면 출발점, 안 보이면 진행 중"이라는 규칙을 만든다.
-   기록·설정도 codex/guardian-app처럼 각자 탭이 되었다("더보기"가 곧 screen-settings). */
-const TAB_SCREENS = new Set(['screen-home', 'screen-info', 'screen-history', 'screen-more']);
+   "네비바가 보이면 출발점, 안 보이면 진행 중"이라는 규칙을 만든다. */
+const TAB_SCREENS = new Set(['screen-home', 'screen-info', 'screen-history', 'screen-settings']);
 
 /** 네비바의 활성 탭 표시를 현재 화면에 맞춘다 */
 function syncBottomNav(id){
@@ -316,14 +309,15 @@ function goTo(id){
   if (activeScreenEl) activeScreenEl.classList.remove('active');
   const target = document.getElementById(id);
   target.classList.add('active');
-  target.scrollTop = 0; // 화면은 각자 스크롤 위치를 기억하므로, 새로 들어올 때는 항상 맨 위에서 시작한다
+  target.scrollTop = 0; // 화면은 각자 스크롤 위치를 기억하므로, 새로 들어올 때는 항상 맨 위에서 시작한다(코치마크가 특정 위치로 스크롤하는 건 이후 별도로 실행됨)
   activeScreenEl = target;
   // 코치마크가 이 화면에서 직접 안내 음성을 읽어줄 예정이면, 화면 기본 안내와 겹쳐 읽혀 잘리는 걸 막기 위해 기본 음성은 건너뛴다
   if (!coachWillNarrate(id)) speak(screenVoiceText(target), screenVoiceLang(target));
   document.body.classList.toggle('in-onboarding', onboardScreens.has(id));
-  syncGreetVoiceToggleVisibility(id);
 
   // 네비바는 최상위 탭 화면에서만 보인다.
+  // 코치마크 진행 중에도 숨기지 않는다 — 투어의 기록·설정·마무리 단계가 네비바 버튼을 직접 가리키기 때문이다.
+  // 코치마크 오버레이(z-index 500)가 네비바(70)보다 위에 있어 스포트라이트는 정상 동작한다.
   document.body.classList.toggle('has-bottom-nav', TAB_SCREENS.has(id));
   syncBottomNav(id);
 
@@ -334,27 +328,25 @@ function goTo(id){
     saveState();
   }
 
-  if (id === 'screen-home') renderHomeDashboard(); // 오늘 해야 할 일 카드(renderTodayTasks 포함)를 홈 진입 시 채운다
+  if (id === 'screen-home') renderHomeGreet();
+  if (id === 'screen-more') renderHomeDashboard();
   if (id === 'screen-info') renderInfoTab();
   if (id === 'screen-stats') renderStats();
-  if (id === 'screen-settings' || id === 'screen-settings-account' || id === 'screen-settings-guardian' || id === 'screen-settings-language') syncSettingsUI();
-  if (id === 'screen-onboard-access') syncAccessibilityOnboardUI();
+  if (id === 'screen-settings') { showMoreOverview(); syncSettingsUI(); }
   if (id === 'screen-profile') syncProfileUI();
-  if (id === 'screen-my-info') syncProfileUI();
   if (id === 'screen-history') renderHistory();
   if (id === 'screen-welfare-nearby') loadWelfareNearby();
   if (id === 'screen-doc-capture') startInAppCamera();
   if (id === 'screen-loading-doc') startLoadingProgress('progressFillLoadDoc');
   if (id === 'screen-doc-collect') renderPendingPhotos();
   if (id === 'screen-ask') renderAskScreen();
-  if (id === 'screen-result-doc') { renderDocResult(); applyDocPreview(); renderDocPager(); }
+  if (id === 'screen-result-doc') { renderDocResult(); setDocView('easy'); applyDocPreview(); renderDocPager(); }
   if (id === 'screen-loading-text') startLoadingProgress('progressFillLoadText');
   if (id === 'screen-result-text') {
     renderSmsResult();
     syncGuardianNotifyPrompt();
   }
   if (id === 'screen-guardian-profile') syncGuardianUI();
-  if (id === 'screen-more') renderMoreProfileSummary();
   if (INFO_DETAIL_GREET_IDS[id]) renderInfoDetailGreet(id);
 
   coachOnNavigate(id);
@@ -384,242 +376,38 @@ function acceptSkipConfirm(){
   if (action) action();
 }
 
+/** 첫 화면의 "건너뛰기": 실수로 누르는 경우가 많아 같은 문구로 한 번 더 확인한다 */
+function confirmSkipTutorial(){
+  openSkipConfirm(() => goTo('screen-home'));
+}
+
 /** 첫 사용 안내는 홈의 핵심 기능 세 가지만 차례로 강조하고, 기능을 실행시키지 않은 채 홈에서 끝낸다. */
 function startFirstUseTutorial(){
   goTo('screen-home');
   setTimeout(() => startCoachmark(homeFeatureCoachSteps), 200);
 }
 
-/* ---------------------------------------------------------
-   코치마크 튜토리얼: 가짜 미리보기 화면 대신, 실제 화면 위에 스포트라이트 + 말풍선을 띄워
-   사용자가 진짜 버튼을 직접 눌러보며 실제 플로우(문서 촬영, 문자 확인)를 체험하게 한다.
-   각 단계는 { screen, target(실제 화면 안의 CSS 선택자), key, advance?, skippable? } 로 구성되고,
-   화면 전환은 goTo()가 실제로 호출될 때만 다음 단계로 넘어간다(가짜 onclick으로 흉내내지 않음).
-   title/desc/voice는 문구를 직접 담지 않고 key(coach.<key>.title/desc/voice)로 t()를 통해
-   언어 설정에 맞는 문구를 가져온다. (codex/guardian-app에서 이식, main 화면 구조에 맞게 정리)
-   --------------------------------------------------------- */
-const fullCoachSteps = [
-  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-doc-choice"]', key: 'doc1' },
-  { screen: 'screen-doc-choice', target: '#screen-doc-choice .feature-card[onclick*="screen-doc-capture"]', key: 'doc2' },
-  { screen: 'screen-doc-capture', target: '#screen-doc-capture .camera-shutter', key: 'doc3', advance: 'click' },
-  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="openSmsCheck"]', key: 'sms1' },
-  { screen: 'screen-sms-permission-needed', target: '#smsPermissionRetryBtn', key: 'smsPermission', skippable: true },
-  { screen: 'screen-sms-recent', target: '#screen-sms-recent .row:first-child', key: 'sms2' },
-  { screen: 'screen-home', target: '#bottomNav [data-tab="screen-history"]', key: 'history1' },
-  { screen: 'screen-history', target: '#screen-history .nav-btn', key: 'history2' },
-  { screen: 'screen-info', target: '#publicInfoList .row:first-child', key: 'info1' },
-  { screen: 'screen-info-pension', target: '#screen-info-pension .primary-btn', key: 'info2' },
-  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-welfare-nearby"]', key: 'welfare1' },
-  { screen: 'screen-welfare-nearby', target: '#screen-welfare-nearby .secondary-btn[onclick*="screen-home"]', key: 'welfare2' },
-  { screen: 'screen-home', target: '#screen-home .topbar [data-replay]', key: 'voice1', advance: 'click' },
-  { screen: 'screen-home', target: '#emergencyFab', key: 'emergency1', skippable: true },
-  { screen: 'screen-home', target: '#bottomNav [data-tab="screen-more"]', key: 'settingsIntro' },
-  { screen: 'screen-more', target: '#screen-more .more-menu-row[onclick*="screen-settings"]', key: 'moreToSettings' },
-  { screen: 'screen-settings', target: '#fontScaleGroup', key: 'fontsize', skippable: true },
-  { screen: 'screen-settings', target: '#voiceRateGroup', key: 'rate', skippable: true },
-  { screen: 'screen-settings', target: '#guardianName', key: 'guardian', skippable: true },
-  { screen: 'screen-settings', target: '#languageGroup', key: 'language', skippable: true },
-  { screen: 'screen-settings', target: '#screen-settings .topbar .nav-btn', key: 'finish', advance: 'click' }
-];
-
-/** "사용 방법 안내"의 각 항목별 미니 투어: 전체 투어(fullCoachSteps)에서 해당 구간만 골라 재사용한다.
- *  아래 slice/인덱스는 fullCoachSteps의 순서에 의존하므로, 그 배열의 항목을 지우거나 순서를 바꾸지 말 것. */
-const docMiniCoachSteps = fullCoachSteps.slice(0, 3);
-const smsMiniCoachSteps = fullCoachSteps.slice(3, 6);
-const historyMiniCoachSteps = fullCoachSteps.slice(6, 8);
-const publicInfoMiniCoachSteps = fullCoachSteps.slice(8, 10);
-const welfareMiniCoachSteps = fullCoachSteps.slice(10, 12);
-const homeFeatureCoachSteps = [
-  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-doc-choice"]', key: 'doc1', skippable: true },
-  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="openSmsCheck"]', key: 'sms1', skippable: true },
-  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-welfare-nearby"]', key: 'welfare1', skippable: true }
-];
-const voiceMiniCoachSteps = [fullCoachSteps[12]];
-const emergencyMiniCoachSteps = [fullCoachSteps[13]];
-const settingsMiniCoachSteps = [
-  { screen: 'screen-settings', target: '#fontScaleGroup', key: 'fontsize', skippable: true },
-  { screen: 'screen-settings', target: '#voiceRateGroup', key: 'rate', skippable: true },
-  { screen: 'screen-settings', target: '#guardianName', key: 'guardian', skippable: true },
-  { screen: 'screen-settings', target: '#languageGroup', key: 'language', skippable: true }
-];
-
-/** 홈 카드의 "사용 방법 보기": 선택한 기능의 실제 이용 순서만 큰 안내로 보여준다. */
-function startHomeFeatureTutorial(feature){
-  const tutorials = {
-    doc: docMiniCoachSteps,
-    sms: smsMiniCoachSteps,
-    welfare: welfareMiniCoachSteps
-  };
-  startCoachmark(tutorials[feature] || homeFeatureCoachSteps);
+/** 설정 화면 "로그아웃": 이 앱엔 로그인 계정이 없으므로 실제로는 이 기기에 저장된 데이터(기록·일정·설정·
+ *  프로필·deviceId)를 모두 지우고 새로 시작하는 "기기 초기화"다. 되돌릴 수 없어 한 번 더 확인한다. */
+function confirmResetDevice(){
+  document.getElementById('resetConfirmBackdrop').style.display = 'block';
+  document.getElementById('resetConfirmSheet').style.display = 'block';
+  speak(t('resetConfirm.title'));
 }
 
-/** 첫 실행 안내: 앱의 핵심인 문서 촬영·문자 확인만 다루고 마지막에 "나머지는 여기서 볼 수 있어요"로 마무리한다. */
-const firstRunHelpStep = {
-  screen: 'screen-home',
-  target: '#bottomNav',
-  key: 'moreHelp', skippable: true
-};
-const firstRunCoachSteps = [...fullCoachSteps.slice(0, 6), firstRunHelpStep];
-
-let coachSteps = firstRunCoachSteps;
-let coachIndex = -1;
-let coachActive = false;
-
-/** steps를 생략하면 첫 실행 안내(firstRunCoachSteps), 넘기면 "사용 방법 안내"의 항목별 미니 투어를 시작한다 */
-function startCoachmark(steps){
-  coachSteps = steps || firstRunCoachSteps;
-  coachActive = true;
-  coachIndex = 0;
-  goTo(coachSteps[0].screen); // goTo가 coachOnNavigate를 호출해 1단계를 띄워줌
+function closeResetConfirm(){
+  document.getElementById('resetConfirmBackdrop').style.display = 'none';
+  document.getElementById('resetConfirmSheet').style.display = 'none';
 }
 
-/** 코치마크 오버레이(스포트라이트+말풍선)를 한꺼번에 켜고 끈다 */
-function setCoachOverlayVisible(visible){
-  const overlay = document.getElementById('coachOverlay');
-  if (overlay) overlay.style.display = visible ? 'block' : 'none';
-}
-
-function stopCoachmark(silent){
-  coachActive = false;
-  coachIndex = -1;
-  clearCoachAdvanceListener();
-  setCoachOverlayVisible(false);
-  if (activeScreenEl) document.body.classList.toggle('in-onboarding', onboardScreens.has(activeScreenEl.id));
-  if (!silent) {
-    speak('안내가 끝났습니다. 이제 실제로 사용해보세요.');
-    showGlobalToast('튜토리얼이 끝났습니다.');
-  }
-}
-
-/** 진행 중인 코치마크의 "튜토리얼 건너뛰기": 같은 문구로 한 번 더 확인 */
-function confirmSkipCoachmark(){
-  openSkipConfirm(() => { stopCoachmark(true); goTo('screen-home'); });
-}
-
-/** 이 화면에 들어가면 코치마크가 곧바로 안내 음성을 읽어줄지 미리 판단(goTo의 기본 음성과 겹쳐 잘리는 것을 막기 위함) */
-function coachWillNarrate(id){
-  if (!coachActive) return false;
-  const step = coachSteps[coachIndex];
-  if (!step) return false;
-  const nextStep = coachSteps[coachIndex + 1];
-  return id === step.screen || (nextStep && id === nextStep.screen);
-}
-
-/** goTo()가 호출될 때마다 실행됨: 코치마크가 기다리던 다음 화면이면 다음 단계를 보여주고,
- *  같은 화면으로 되돌아온 것이면 같은 단계를 다시 보여주고, 그 외(다른 곳을 눌러본 경우)에는 오버레이만 숨긴다.
- *  마지막 단계의 화면을 벗어나면 튜토리얼을 종료한다. */
-function coachOnNavigate(id){
-  if (!coachActive) return;
-  const step = coachSteps[coachIndex];
-  if (!step) return;
-  const nextStep = coachSteps[coachIndex + 1];
-  const nextNextStep = coachSteps[coachIndex + 2];
-  if (id === step.screen) {
-    setTimeout(showCoachStep, 200);
-  } else if (nextStep && id === nextStep.screen) {
-    coachIndex++;
-    setTimeout(showCoachStep, 200);
-  } else if (nextNextStep && id === nextNextStep.screen) {
-    // 조건에 따라 중간 단계가 통째로 생략될 수 있는 경우(예: 문자 읽기 권한이 이미 있어 권한 안내 화면을 거치지 않음) —
-    // 그 단계는 건너뛰고 실제로 도착한 화면부터 바로 이어받는다
-    coachIndex += 2;
-    setTimeout(showCoachStep, 200);
-  } else if (!nextStep) {
-    stopCoachmark();
-  } else {
-    // 분석 중/결과 화면처럼 성공·실패로 갈라지는 중간 화면은 그냥 지나쳐 보내고(오버레이만 숨김),
-    // 다음 단계가 기다리는 화면(예: 홈)으로 실제로 돌아왔을 때 위 분기에서 자연스럽게 이어받는다
-    setCoachOverlayVisible(false);
-  }
-}
-
-/** 다음 단계로 넘어갈 때 기다리고 있던 이전 단계의 advance 리스너가 뒤늦게 중복으로 발동하지 않도록 정리해둔다 */
-let coachAdvanceEl = null;
-let coachAdvanceType = null;
-let coachAdvanceHandler = null;
-function clearCoachAdvanceListener(){
-  if (coachAdvanceEl && coachAdvanceType && coachAdvanceHandler) {
-    coachAdvanceEl.removeEventListener(coachAdvanceType, coachAdvanceHandler);
-  }
-  coachAdvanceEl = null; coachAdvanceType = null; coachAdvanceHandler = null;
-}
-
-function showCoachStep(){
-  const step = coachSteps[coachIndex];
-  clearCoachAdvanceListener();
-  if (!step) { stopCoachmark(); return; }
-  if (!activeScreenEl || activeScreenEl.id !== step.screen) { setCoachOverlayVisible(false); return; }
-
-  const el = document.querySelector(step.target);
-  if (!el) { setCoachOverlayVisible(false); return; }
-
-  el.scrollIntoView({ block: 'center' });
-  positionCoachStep(el, step);
-  setCoachOverlayVisible(true);
-  speak(t('coach.' + step.key + '.voice'), currentTtsLang());
-  setTimeout(() => { if (activeScreenEl && activeScreenEl.id === step.screen) positionCoachStep(el, step); }, 350);
-
-  if (step.advance) {
-    const handler = () => {
-      if (document.activeElement && document.activeElement !== document.body && typeof document.activeElement.blur === 'function') {
-        document.activeElement.blur();
-      }
-      clearCoachAdvanceListener();
-      coachIndex++;
-      setTimeout(showCoachStep, 450);
-    };
-    el.addEventListener(step.advance, handler, { once: true });
-    coachAdvanceEl = el; coachAdvanceType = step.advance; coachAdvanceHandler = handler;
-  }
-}
-
-/** 선택 사항인 단계(글자 크기·음성 속도·보호자 정보 등)에서 값을 바꾸지 않고도 다음으로 넘어갈 수 있게 해주는 버튼 */
-function advanceCoachStep(){
-  if (!coachActive) return;
-  clearCoachAdvanceListener();
-  if (document.activeElement && document.activeElement !== document.body && typeof document.activeElement.blur === 'function') {
-    document.activeElement.blur();
-  }
-  coachIndex++;
-  setTimeout(showCoachStep, 200);
-}
-
-/** 코치마크가 켜져 있는 동안 화면 크기/뷰포트가 바뀌면(회전, 모바일 키보드 열림·닫힘 등) 스포트라이트 위치를 다시 계산한다 */
-function repositionCurrentCoachStep(){
-  if (!coachActive) return;
-  const overlay = document.getElementById('coachOverlay');
-  if (!overlay || overlay.style.display === 'none') return;
-  const step = coachSteps[coachIndex];
-  if (!step) return;
-  const el = document.querySelector(step.target);
-  if (el) positionCoachStep(el, step);
-}
-window.addEventListener('resize', repositionCurrentCoachStep);
-if (window.visualViewport) window.visualViewport.addEventListener('resize', repositionCurrentCoachStep);
-
-function positionCoachStep(el, step){
-  const rect = el.getBoundingClientRect();
-  const pad = 8;
-  const hole = document.getElementById('coachHole');
-  hole.style.top = (rect.top - pad) + 'px';
-  hole.style.left = (rect.left - pad) + 'px';
-  hole.style.width = (rect.width + pad * 2) + 'px';
-  hole.style.height = (rect.height + pad * 2) + 'px';
-
-  document.getElementById('coachTipStep').textContent = `${coachIndex + 1} / ${coachSteps.length}`;
-  document.getElementById('coachTipTitle').textContent = t('coach.' + step.key + '.title');
-  document.getElementById('coachTipDesc').textContent = t('coach.' + step.key + '.desc');
-  const nextButton = document.getElementById('coachTipNext');
-  nextButton.style.display = step.skippable ? 'block' : 'none';
-  nextButton.textContent = coachIndex === coachSteps.length - 1 ? '안내 끝내기' : '다음 기능 보기';
-
-  const tip = document.getElementById('coachTip');
-  const spaceBelow = window.innerHeight - rect.bottom;
-  const putBelow = spaceBelow > 180 || rect.top < 180;
-  tip.style.top = putBelow ? (rect.bottom + pad + 10) + 'px' : '';
-  tip.style.bottom = putBelow ? '' : (window.innerHeight - rect.top + pad + 10) + 'px';
-  const tipWidth = Math.min(380, window.innerWidth - 32);
-  tip.style.left = Math.max(16, Math.min(rect.left, window.innerWidth - tipWidth - 16)) + 'px';
+/** localStorage(appState + deviceId)를 지우고 새로고침한다.
+ *  reload를 쓰는 이유: appState의 모든 필드를 일일이 기본값으로 되돌리는 대신,
+ *  스크립트 로드 시 정의된 기본값(appState 리터럴)과 window.load의 onboardingDone 분기를
+ *  그대로 재사용해 화면 전환·네비바 표시 등을 빠짐없이 초기 상태로 맞추기 위함이다. */
+function acceptResetConfirm(){
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(DEVICE_ID_KEY);
+  location.reload();
 }
 
 /** AI 분석 대기 화면의 진행바: 실제로 언제 끝날지 모르니 90%까지만 천천히 채워두고,
@@ -664,6 +452,10 @@ function formatNow(){
 
 function renderHomeDashboard(){
   renderTodayTasks();
+  renderUpcomingSchedule();
+  renderHomeDueCard();
+  renderHomeInfoCard();
+  renderHomeGreet();
 }
 
 /** 프로필의 성별 값("남성"/"여성", 항상 한국어로 저장됨)을 현재 화면 언어로 번역한다 */
@@ -673,34 +465,34 @@ function homeGenderWord(gender){
   return '';
 }
 
-/** 더보기 화면 상단 프로필 요약 카드(이름/나이/성별/지역)를 appState.profile로 채운다.
- *  값을 입력한 적 없으면 지어내지 않고 '-'로 둔다. */
-function renderMoreProfileSummary(){
-  const p = appState.profile;
-  const nameEl = document.getElementById('moreProfileName');
-  if (nameEl) nameEl.textContent = p.name || '-';
-  const ageEl = document.getElementById('moreProfileAge');
-  if (ageEl) ageEl.textContent = p.age ? `${p.age}${t('home.moreAgeUnit')}` : '-';
-  const genderEl = document.getElementById('moreProfileGender');
-  if (genderEl) genderEl.textContent = homeGenderWord(p.gender) || '-';
-  const regionEl = document.getElementById('moreProfileRegion');
-  if (regionEl) regionEl.textContent = p.region || '-';
+/** 홈 인사 카드의 이름 부분("OOO님" / "70대 어르신" / 기본값). 언어를 바꾸면 이 문구도 같이 바뀌도록 t()로 가져온다. */
+function homeGreetName(){
+  const { name, gender, age } = appState.profile;
+  if (name) return name + t('home.greetNameSuffix');
+  if (age) {
+    const genderWord = homeGenderWord(gender);
+    const template = genderWord ? t('home.greetAgeGender') : t('home.greetAge');
+    return template.replace('{age}', toAgeBand(age)).replace('{gender}', genderWord);
+  }
+  return t('home.greetDefault');
 }
 
+function renderHomeGreet(){
+  const el = document.getElementById('homeGreetName');
+  if (el) el.textContent = homeGreetName();
+}
 
 /** 정보 탭: 홈에 있던 읽을거리를 이쪽으로 옮겼다.
- *  세 카드 모두 조건에 안 맞아 숨겨지면(지역 미입력 등) 빈 화면이 되므로 안내 문구를 대신 띄운다. */
+ *  두 카드 모두 조건에 안 맞아 숨겨지면(지역 미입력 등) 빈 화면이 되므로 안내 문구를 대신 띄운다. */
 async function renderInfoTab(){
   renderPublicInfoCard();
-  await Promise.all([renderRegionInfoCard(), renderLocalWelfareCard()]);
+  await renderRegionInfoCard();
   const publicCard = document.getElementById('publicInfoCard');
   const regionCard = document.getElementById('regionInfoCard');
-  const welfareCard = document.getElementById('localWelfareCard');
   const empty = document.getElementById('infoEmptyState');
   if (!empty) return;
   const anyVisible = (publicCard && publicCard.style.display !== 'none') ||
-                     (regionCard && regionCard.style.display !== 'none') ||
-                     (welfareCard && welfareCard.style.display !== 'none');
+                     (regionCard && regionCard.style.display !== 'none');
   empty.style.display = anyVisible ? 'none' : 'block';
 }
 
@@ -741,48 +533,6 @@ async function renderRegionInfoCard(){
   document.getElementById('regionInfoTitle').innerHTML =
     `<svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-pin"></use></svg>${escapeHtml(data.city)} 근처 경로당`;
   document.getElementById('regionInfoList').innerHTML = data.centers.map(regionCenterRowHtml).join('');
-  card.style.display = 'block';
-}
-
-/** 지역 복지 서비스(한국사회보장정보원 지자체복지서비스 실제 공공데이터, 전국 대상).
- *  프로필의 지역 텍스트에서 시/도가 인식될 때만 조회하고, 매칭 안 되면 지어내지 않고 카드를 숨긴다. */
-let localWelfareCache = {};
-async function fetchLocalWelfare(region, age){
-  if (!region || !AI_WORKER_URL) return { matched: false };
-  const cacheKey = region + '|' + (age || '');
-  if (!(cacheKey in localWelfareCache)) {
-    try {
-      const params = new URLSearchParams({ region });
-      if (age) params.set('age', String(age));
-      const res = await fetch(AI_WORKER_URL + '/local-welfare?' + params.toString());
-      localWelfareCache[cacheKey] = res.ok ? await res.json() : { matched: false };
-    } catch (err) {
-      localWelfareCache[cacheKey] = { matched: false };
-    }
-  }
-  return localWelfareCache[cacheKey];
-}
-
-function localWelfareRowHtml(item){
-  return `
-    <div class="row" ${item.link ? `onclick="window.open('${escapeHtml(item.link).replace(/'/g, "\\'")}', '_blank')" role="button" tabindex="0"` : ''}>
-      <div class="icon-chip accent"><svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg></div>
-      <div class="text"><div class="t1">${escapeHtml(item.name)}</div><div class="t2">${escapeHtml(item.summary || item.dept || '')}</div></div>
-      ${item.link ? `<svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>` : ''}
-    </div>
-  `;
-}
-
-async function renderLocalWelfareCard(){
-  const card = document.getElementById('localWelfareCard');
-  if (!card) return;
-  const region = (appState.profile.region || '').trim();
-  const data = await fetchLocalWelfare(region, appState.profile.age);
-  if (!data || !data.matched || !data.items || data.items.length === 0) { card.style.display = 'none'; return; }
-
-  document.getElementById('localWelfareTitle').innerHTML =
-    `<svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-pin"></use></svg>${escapeHtml(data.region)} 복지 서비스`;
-  document.getElementById('localWelfareList').innerHTML = data.items.map(localWelfareRowHtml).join('');
   card.style.display = 'block';
 }
 
@@ -879,7 +629,6 @@ async function openWelfareRoute(mode){
 /** 오늘 해야 할 일: 날짜가 오늘이거나 날짜가 없는(항상 표시) 미완료/완료 항목 */
 function renderTodayTasks(){
   const el = document.getElementById('todayTaskList');
-  if (!el) return; // screen-more가 프로필 요약+메뉴 화면으로 바뀌면서 이 목록은 더 이상 없다
   const today = todayStr();
   const items = appState.schedule.filter(s => !s.date || s.date === today);
   if (items.length === 0) {
@@ -1075,7 +824,6 @@ function renderWelfareMap(el, lat, lon, places){
 /** 다가오는 일정: 날짜가 지정된 항목을 오늘/내일/그 이후로 그룹핑 */
 function renderUpcomingSchedule(){
   const wrap = document.getElementById('upcomingSchedule');
-  if (!wrap) return; // screen-more가 프로필 요약+메뉴 화면으로 바뀌면서 이 섹션은 더 이상 없다
   const dated = appState.schedule.filter(s => s.date);
   if (dated.length === 0) { wrap.style.display = 'none'; return; }
 
@@ -1124,7 +872,7 @@ const HISTORY_LIMIT = 100;
 /** 분석 결과 중 다시 열어볼 때 필요한 것만 골라 기록에 저장한다.
  *  사진 자체는 저장하지 않는다 - 기록을 최대 100건까지 쌓는데 사진(수백 KB씩)을 다 넣으면
  *  localStorage 용량을 금방 넘긴다. 다시 볼 때는 "사진은 다시 보여드릴 수 없어요"로 안내한다. */
-const ANALYSIS_STORE_KEYS = ['status', 'headline', 'summary', 'checklist', 'phone', 'website', 'mapQuery', 'category', 'amount', 'dueDate', 'issuer'];
+const ANALYSIS_STORE_KEYS = ['status', 'headline', 'summary', 'checklist', 'phone', 'website', 'mapQuery', 'category', 'amount', 'dueDate', 'issuer', 'originalText'];
 
 /** 분석 기록 추가.
  *  extra 에 AI 분석 결과 전체(status/headline/summary/checklist/...)를 넘기면
@@ -1147,6 +895,9 @@ function addHistory(title, result, extra){
     if (/^\d{4}-\d{2}-\d{2}$/.test(String(extra.dueDate || ''))) entry.dueDate = extra.dueDate;
     if (extra.category) entry.category = String(extra.category);
     if (extra.issuer) entry.issuer = String(extra.issuer);
+    if (typeof extra.photoPreview === 'string' && extra.photoPreview.startsWith('data:image/')) {
+      entry.photoPreview = extra.photoPreview;
+    }
   }
   appState.history.unshift(entry);
   if (appState.history.length > HISTORY_LIMIT) appState.history.length = HISTORY_LIMIT;
@@ -1169,6 +920,7 @@ function openHistoryEntry(index){
     goTo('screen-result-text');
   } else {
     lastDocAnalysis = h.analysis;
+    lastDocAnalysis.photoPreview = h.photoPreview || '';
     docAnalyses = [h.analysis];
     docAnalysisIndex = 0;
     historyPreviewMode = true; // applyDocPreview()가 사진 대신 안내 문구를 보여주도록
@@ -1327,7 +1079,11 @@ function finishDocResult(){
 }
 
 function finishSmsResult(){
-  if (lastSmsAnalysis) {
+  // 코치마크 튜토리얼(coachActive) 중에는 문자 분석 결과를 기록에 남기지 않는다.
+  // 튜토리얼에서 문자를 붙여넣는 건 사용법을 익히려는 연습이지 실제로 확인한 문자가 아니어서,
+  // 기록 화면이 연습 내역으로 채워지면 어르신이 진짜 확인 기록과 구분하기 어렵기 때문이다.
+  // (사진 분석 finishDocResult()는 실제 문서를 찍은 것이므로 튜토리얼 중에도 그대로 기록한다.)
+  if (lastSmsAnalysis && !coachActive) {
     const badge = statusBadgeMap[lastSmsAnalysis.status] || statusBadgeMap.normal;
     // lastSmsAnalysis를 함께 넘겨야 기록에서 다시 열어볼 수 있다(예전에는 제목만 남기고 버렸다)
     addHistory('💬 ' + (lastSmsAnalysis.headline || '문자 분석'), badge.text, lastSmsAnalysis);
@@ -1342,16 +1098,268 @@ function finishSmsResult(){
 }
 
 /* ---------------------------------------------------------
+   7-0. 코치마크 튜토리얼: 가짜 미리보기 화면 대신, 실제 화면 위에 스포트라이트 + 말풍선을 띄워
+   사용자가 진짜 버튼을 직접 눌러보며 실제 플로우(문서 촬영, 문자 복사→붙여넣기)를 체험하게 한다.
+   각 단계는 { screen, target(실제 화면 안의 CSS 선택자), title, desc, voice, advance? } 로 구성되고,
+   화면 전환은 goTo()가 실제로 호출될 때만 다음 단계로 넘어간다(가짜 onclick으로 흉내내지 않음).
+   ponytail: AI 분석 결과(체크리스트/최종 판별 화면)는 크레딧 등 이유로 실패할 수 있어 튜토리얼 진행을
+   막지 않도록, 촬영 버튼과 문자 확인 버튼은 클릭 즉시(advance:'click') 다음 단계로 넘어간다 —
+   분석이 실제로 성공하면 그 결과 화면은 평소처럼 정상 동작하되, 코치 강조만 건너뛴다.
+   --------------------------------------------------------- */
+/** title/desc/voice는 더 이상 문구를 직접 담지 않고, key(coach.<key>.title/desc/voice)로 t()를 통해 언어 설정에 맞는 문구를 가져온다.
+ *  cat은 왼쪽 카테고리 사이드바에서 어느 카테고리를 강조할지 표시하는 데 쓰인다. */
+const fullCoachSteps = [
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-doc-choice"]', cat: 'doc', key: 'doc1' },
+  { screen: 'screen-doc-choice', target: '#screen-doc-choice .feature-card[onclick*="screen-doc-capture"]', cat: 'doc', key: 'doc2' },
+  { screen: 'screen-doc-capture', target: '#screen-doc-capture .camera-shutter', cat: 'doc', key: 'doc3', advance: 'click' },
+  // 2026-07-29: 문자 확인이 복사/붙여넣기 대신 최근 문자 목록에서 바로 고르는 방식으로 바뀌면서
+  // 입구도 screen-doc-choice가 아니라 홈의 "문자 내용 요약" 카드(openSmsCheck())로 옮겨졌다.
+  // 권한이 이미 있으면 smsPermission 단계 자체가 통째로 건너뛰어진다(coachOnNavigate의 2단계 lookahead가 처리).
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="openSmsCheck"]', cat: 'sms', key: 'sms1' },
+  { screen: 'screen-sms-permission-needed', target: '#smsPermissionRetryBtn', cat: 'sms', key: 'smsPermission', skippable: true },
+  { screen: 'screen-sms-recent', target: '#screen-sms-recent .row:first-child', cat: 'sms', key: 'sms2' },
+  { screen: 'screen-home', target: '#bottomNav [data-tab="screen-history"]', cat: 'history', key: 'history1' },
+  { screen: 'screen-history', target: '#screen-history .nav-btn', cat: 'history', key: 'history2' },
+  { screen: 'screen-info', target: '#publicInfoList .row:first-child', cat: 'info', key: 'info1' },
+  { screen: 'screen-info-pension', target: '#screen-info-pension .primary-btn', cat: 'info', key: 'info2' },
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-welfare-nearby"]', cat: 'welfare', key: 'welfare1' },
+  { screen: 'screen-welfare-nearby', target: '#screen-welfare-nearby .secondary-btn[onclick*="screen-home"]', cat: 'welfare', key: 'welfare2' },
+  { screen: 'screen-home', target: '#screen-home .topbar [data-replay]', cat: 'voice', key: 'voice1', advance: 'click' },
+  { screen: 'screen-home', target: '#emergencyFab', cat: 'emergency', key: 'emergency1', skippable: true },
+  { screen: 'screen-home', target: '#bottomNav [data-tab="screen-settings"]', cat: 'settings', key: 'settingsIntro' },
+  { screen: 'screen-settings', target: '#fontScaleGroup', cat: 'settings', key: 'fontsize', skippable: true },
+  { screen: 'screen-settings', target: '#voiceRateGroup', cat: 'settings', key: 'rate', skippable: true },
+  { screen: 'screen-settings', target: '#guardianName', cat: 'settings', key: 'guardian', skippable: true },
+  { screen: 'screen-settings', target: '#screen-settings .settings-link-row[onclick*="screen-help"]', cat: 'settings', key: 'helplink' },
+  { screen: 'screen-help', target: '#screen-help .nav-btn', cat: 'settings', key: 'helpback' },
+  { screen: 'screen-settings', target: '#screen-settings .topbar .nav-btn', cat: 'settings', key: 'finish', advance: 'click' }
+];
+
+/** "사용 방법 안내"의 각 항목별 "체험해보기": 전체 투어(fullCoachSteps)에서 해당 구간만 골라 재사용한다.
+ *  아래 slice/인덱스는 fullCoachSteps의 순서에 의존하므로, 그 배열의 항목을 지우거나 순서를 바꾸지 말 것. */
+const docMiniCoachSteps = fullCoachSteps.slice(0, 3);
+const smsMiniCoachSteps = fullCoachSteps.slice(3, 6);
+const historyMiniCoachSteps = fullCoachSteps.slice(6, 8);
+const publicInfoMiniCoachSteps = fullCoachSteps.slice(8, 10);
+const welfareMiniCoachSteps = fullCoachSteps.slice(10, 12);
+const homeFeatureCoachSteps = [
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-doc-choice"]', cat: 'doc', key: 'doc1', skippable: true },
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="openSmsCheck"]', cat: 'sms', key: 'sms1', skippable: true },
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-welfare-nearby"]', cat: 'welfare', key: 'welfare1', skippable: true }
+];
+const voiceMiniCoachSteps = [fullCoachSteps[12]];
+const emergencyMiniCoachSteps = [fullCoachSteps[13]];
+const settingsMiniCoachSteps = [
+  { screen: 'screen-settings', target: '#moreDisplayMenu', cat: 'settings', key: 'fontsize', skippable: true },
+  { screen: 'screen-settings', target: '#moreProfileMenu', cat: 'settings', key: 'settingsIntro', skippable: true },
+  { screen: 'screen-settings', target: '#moreGuardianMenu', cat: 'settings', key: 'guardian', skippable: true },
+  { screen: 'screen-settings', target: '#moreLanguageMenu', cat: 'settings', key: 'language', skippable: true }
+];
+
+/** 홈 카드의 "사용 방법 보기": 선택한 기능의 실제 이용 순서만 큰 안내로 보여준다. */
+function startHomeFeatureTutorial(feature){
+  const tutorials = {
+    doc: docMiniCoachSteps,
+    sms: smsMiniCoachSteps,
+    welfare: welfareMiniCoachSteps
+  };
+  startCoachmark(tutorials[feature] || homeFeatureCoachSteps);
+}
+
+/** 첫 실행 안내: 앱의 핵심인 문서 촬영·문자 확인만 다루고 마지막에 "나머지는 여기서 볼 수 있어요"로 마무리한다.
+ *  예전에는 8개 분류 25단계를 첫 실행에 한 번에 보여줬는데, 처음 쓰는 어르신에게는 부담이 컸다.
+ *  빠진 기능(기록·정보·복지·음성·긴급·설정)은 설정 → 사용 방법 안내의 항목별 "체험해보기"로 언제든 볼 수 있다. */
+const firstRunHelpStep = {
+  screen: 'screen-home',
+  target: '#bottomNav',
+  cat: 'help', key: 'moreHelp', skippable: true
+};
+
+// 촬영(doc3) 다음 단계(sms1)는 이제 screen-home을 기다린다. 촬영 후 실제 흐름은
+// screen-doc-collect(찍은 사진 모아보기) → 분석하거나 취소 → 결국 screen-home으로 돌아오므로,
+// 예전처럼 screen-doc-choice로 돌아오길 기다리다 끊기는 다리(bridge) 단계가 더 이상 필요 없다.
+const firstRunCoachSteps = [...fullCoachSteps.slice(0, 6), firstRunHelpStep];
+
+let coachSteps = firstRunCoachSteps;
+let coachIndex = -1;
+let coachActive = false;
+
+/** steps를 생략하면 첫 실행 안내(firstRunCoachSteps), 넘기면 "사용 방법 안내"의 항목별 미니 투어를 시작한다 */
+function startCoachmark(steps){
+  coachSteps = steps || firstRunCoachSteps;
+  coachActive = true;
+  coachIndex = 0;
+  goTo(coachSteps[0].screen); // goTo가 coachOnNavigate를 호출해 1단계를 띄워줌
+}
+
+/** 코치마크 오버레이(스포트라이트+말풍선)를 한꺼번에 켜고 끈다 */
+function setCoachOverlayVisible(visible){
+  const overlay = document.getElementById('coachOverlay');
+  if (overlay) overlay.style.display = visible ? 'block' : 'none';
+}
+
+function stopCoachmark(silent){
+  coachActive = false;
+  coachIndex = -1;
+  clearCoachAdvanceListener();
+  setCoachOverlayVisible(false);
+  if (activeScreenEl) document.body.classList.toggle('in-onboarding', onboardScreens.has(activeScreenEl.id));
+  if (!silent) {
+    speak('안내가 끝났습니다. 이제 실제로 사용해보세요.');
+    showGlobalToast('튜토리얼이 끝났습니다.');
+  }
+}
+
+/** 진행 중인 코치마크의 "튜토리얼 건너뛰기": 첫 화면 건너뛰기와 같은 문구로 한 번 더 확인 */
+function confirmSkipCoachmark(){
+  openSkipConfirm(() => { stopCoachmark(true); goTo('screen-home'); });
+}
+
+/** goTo()가 호출될 때마다 실행됨: 코치마크가 기다리던 다음 화면이면 다음 단계를 보여주고,
+ *  같은 화면으로 되돌아온 것이면 같은 단계를 다시 보여주고, 그 외(다른 곳을 눌러본 경우)에는 오버레이만 숨긴다.
+ *  마지막 단계의 화면을 벗어나면 튜토리얼을 종료한다. */
+/** 이 화면에 들어가면 코치마크가 곧바로 안내 음성을 읽어줄지 미리 판단(goTo의 기본 음성과 겹쳐 잘리는 것을 막기 위함) */
+function coachWillNarrate(id){
+  if (!coachActive) return false;
+  const step = coachSteps[coachIndex];
+  if (!step) return false;
+  const nextStep = coachSteps[coachIndex + 1];
+  return id === step.screen || (nextStep && id === nextStep.screen);
+}
+
+function coachOnNavigate(id){
+  if (!coachActive) return;
+  const step = coachSteps[coachIndex];
+  if (!step) return;
+  const nextStep = coachSteps[coachIndex + 1];
+  const nextNextStep = coachSteps[coachIndex + 2];
+  // 현재 단계와 다음 단계가 같은 화면일 수 있으므로(예: 설정 화면 안에서 이어지는 단계들), "지금 단계가 기다리는 화면"인지 먼저 확인해야
+  // 이제 막 시작한 단계를 건너뛰지 않는다. 다른 화면으로 실제로 넘어갔을 때만 다음 단계로 진행한다.
+  if (id === step.screen) {
+    setTimeout(showCoachStep, 200);
+  } else if (nextStep && id === nextStep.screen) {
+    coachIndex++;
+    setTimeout(showCoachStep, 200);
+  } else if (nextNextStep && id === nextNextStep.screen) {
+    // 조건에 따라 중간 단계가 통째로 생략될 수 있는 경우(예: 문자 읽기 권한이 이미 있어 권한 안내 화면을 거치지 않음) —
+    // 그 단계는 건너뛰고 실제로 도착한 화면부터 바로 이어받는다
+    coachIndex += 2;
+    setTimeout(showCoachStep, 200);
+  } else if (!nextStep) {
+    // advance 없이 마지막 단계를 벗어난 경우(예: 미니 투어에서 재사용한 단계의 원래 다음 단계가 없음): 더 기다릴 단계가 없으므로 투어를 종료한다
+    stopCoachmark();
+  } else {
+    // ponytail: 분석 중/결과 화면처럼 성공·실패로 갈라지는 중간 화면은 그냥 지나쳐 보내고(오버레이만 숨김),
+    // 다음 단계가 기다리는 화면(예: 홈)으로 실제로 돌아왔을 때 위 분기에서 자연스럽게 이어받는다
+    setCoachOverlayVisible(false);
+  }
+}
+
+/** 다음 단계로 넘어갈 때 기다리고 있던 이전 단계의 advance 리스너가 뒤늦게 중복으로 발동하지 않도록 정리해둔다 */
+let coachAdvanceEl = null;
+let coachAdvanceType = null;
+let coachAdvanceHandler = null;
+function clearCoachAdvanceListener(){
+  if (coachAdvanceEl && coachAdvanceType && coachAdvanceHandler) {
+    coachAdvanceEl.removeEventListener(coachAdvanceType, coachAdvanceHandler);
+  }
+  coachAdvanceEl = null; coachAdvanceType = null; coachAdvanceHandler = null;
+}
+
+function showCoachStep(){
+  const step = coachSteps[coachIndex];
+  clearCoachAdvanceListener();
+  if (!step) { stopCoachmark(); return; }
+  if (!activeScreenEl || activeScreenEl.id !== step.screen) { setCoachOverlayVisible(false); return; }
+
+  const el = document.querySelector(step.target);
+  if (!el) { setCoachOverlayVisible(false); return; }
+
+  // 화면이 길어 대상 버튼이 화면 아래에 있으면 구멍이 뷰포트 밖에 생겨 화면 전체가 어둡게 보이므로, 강조하기 전에 보이는 위치로 스크롤한다
+  el.scrollIntoView({ block: 'center' });
+  positionCoachStep(el, step);
+  setCoachOverlayVisible(true);
+  speak(t('coach.' + step.key + '.voice'), currentTtsLang());
+  // 모바일에서 직전 단계가 입력창이었다면 키보드가 늦게 닫히며 레이아웃이 뒤늦게 안정될 수 있어 한 번 더 보정한다
+  setTimeout(() => { if (activeScreenEl && activeScreenEl.id === step.screen) positionCoachStep(el, step); }, 350);
+
+  if (step.advance) {
+    const handler = () => {
+      // 입력창/버튼에 포커스가 남아있으면 모바일 키보드가 열린 채로 다음 단계 위치를 계산해 스포트라이트가 어긋나므로, 미리 포커스를 해제해 키보드를 닫는다
+      if (document.activeElement && document.activeElement !== document.body && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+      }
+      clearCoachAdvanceListener();
+      coachIndex++;
+      setTimeout(showCoachStep, 450);
+    };
+    el.addEventListener(step.advance, handler, { once: true });
+    coachAdvanceEl = el; coachAdvanceType = step.advance; coachAdvanceHandler = handler;
+  }
+}
+
+/** 선택 사항인 단계(글자 크기·음성 속도·보호자 정보 등)에서 값을 바꾸지 않고도 다음으로 넘어갈 수 있게 해주는 버튼 */
+function advanceCoachStep(){
+  if (!coachActive) return;
+  clearCoachAdvanceListener();
+  if (document.activeElement && document.activeElement !== document.body && typeof document.activeElement.blur === 'function') {
+    document.activeElement.blur();
+  }
+  coachIndex++;
+  setTimeout(showCoachStep, 200);
+}
+
+/** 코치마크가 켜져 있는 동안 화면 크기/뷰포트가 바뀌면(회전, 모바일 키보드 열림·닫힘 등) 스포트라이트 위치를 다시 계산한다 */
+function repositionCurrentCoachStep(){
+  if (!coachActive) return;
+  const overlay = document.getElementById('coachOverlay');
+  if (!overlay || overlay.style.display === 'none') return;
+  const step = coachSteps[coachIndex];
+  if (!step) return;
+  const el = document.querySelector(step.target);
+  if (el) positionCoachStep(el, step);
+}
+window.addEventListener('resize', repositionCurrentCoachStep);
+// 모바일 브라우저는 가상 키보드가 열리고 닫힐 때 window의 resize 대신 visualViewport의 resize만 발생시키는 경우가 많다
+if (window.visualViewport) window.visualViewport.addEventListener('resize', repositionCurrentCoachStep);
+
+function positionCoachStep(el, step){
+  const rect = el.getBoundingClientRect();
+  const pad = 8;
+  const hole = document.getElementById('coachHole');
+  hole.style.top = (rect.top - pad) + 'px';
+  hole.style.left = (rect.left - pad) + 'px';
+  hole.style.width = (rect.width + pad * 2) + 'px';
+  hole.style.height = (rect.height + pad * 2) + 'px';
+
+  document.getElementById('coachTipStep').textContent = `${coachIndex + 1} / ${coachSteps.length}`;
+  document.getElementById('coachTipTitle').textContent = t('coach.' + step.key + '.title');
+  document.getElementById('coachTipDesc').textContent = t('coach.' + step.key + '.desc');
+  // 값을 안 바꾸거나 입력을 건너뛰어도 다음 단계로 넘어갈 수 있도록, 선택 사항인 단계에만 "다음으로" 버튼을 보여준다
+  const nextButton = document.getElementById('coachTipNext');
+  nextButton.style.display = step.skippable ? 'block' : 'none';
+  nextButton.textContent = coachIndex === coachSteps.length - 1 ? '안내 끝내기' : '다음 기능 보기';
+
+  const tip = document.getElementById('coachTip');
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const putBelow = spaceBelow > 180 || rect.top < 180;
+  tip.style.top = putBelow ? (rect.bottom + pad + 10) + 'px' : '';
+  tip.style.bottom = putBelow ? '' : (window.innerHeight - rect.top + pad + 10) + 'px';
+  const tipWidth = Math.min(380, window.innerWidth - 32);
+  tip.style.left = Math.max(16, Math.min(rect.left, window.innerWidth - tipWidth - 16)) + 'px';
+}
+
+/* ---------------------------------------------------------
    7-1. 실제 카메라 / 갤러리 연동 (Capacitor)
    --------------------------------------------------------- */
 const AI_WORKER_URL = 'https://ondam-ai.kke88084.workers.dev';
 
 let lastCapturedPhoto = null;
 let lastDocAnalysis = null;
-let lastDocChecklistRows = [];
 let docPreviewDefaultHTML = '';
 /** openHistoryEntry()가 켜두는 1회용 플래그. applyDocPreview()가 다음 한 번 읽고 스스로 끈다. */
 let historyPreviewMode = false;
+let historyPreviewPhoto = '';
 
 /** 네이티브 앱(APK)에서만 Camera 플러그인이 존재. 웹/PWA에서는 null. */
 function getCameraPlugin(){
@@ -1512,7 +1520,8 @@ function applyDocPreview(){
   const el = document.getElementById('docPreviewContent');
   const isHistoryPreview = historyPreviewMode;
   historyPreviewMode = false; // 다음 화면 진입에 영향이 남지 않도록 한 번 읽고 바로 끈다
-  const photo = docPreviewPhotoForCurrent();
+  const photo = docPreviewPhotoForCurrent() || historyPreviewPhoto || (lastDocAnalysis && lastDocAnalysis.photoPreview);
+  historyPreviewPhoto = '';
   if (photo) {
     el.innerHTML = `<img src="${photo}" style="width:100%;display:block;">`;
   } else if (isHistoryPreview) {
@@ -1527,9 +1536,9 @@ function applyDocPreview(){
    7-2. AI 문서 분석 (Cloudflare Worker /analyze-doc 연동)
    --------------------------------------------------------- */
 const statusBadgeMap = {
-  danger: { cls: 'badge-red', text: '🔴 위험', cardClass: 'danger', seal: 'ic-alert', eyebrow: '주의 · 응답하지 않는 게 안전해요' },
+  danger: { cls: 'badge-red', text: '🔴 위험', cardClass: 'danger', seal: 'ic-alert', eyebrow: '위험 · 응답하지 마세요' },
   info:   { cls: 'badge-gray', text: '⚪ 정보', cardClass: 'info', seal: 'ic-info', eyebrow: '정보 · 참고만 하세요' },
-  normal: { cls: 'badge-green', text: '🟢 정상', cardClass: 'success', seal: 'ic-check', eyebrow: '확인 완료 · 이렇게 해보세요' }
+  normal: { cls: 'badge-green', text: '🟢 정상', cardClass: 'success', seal: 'ic-check', eyebrow: '정상 · 조치가 필요해요' }
 };
 
 /** 체크리스트를 대표하는 일러스트 카드를 채우거나 숨긴다. Worker가 생성에 실패하면(키 없음 등) illustration이
@@ -1573,6 +1582,31 @@ function dataUrlToBase64(dataUrl){
    보내기 전에 줄이고 JPEG로 다시 인코딩한다. 원본 화면 미리보기에는 영향을 주지 않는다. */
 const UPLOAD_MAX_SIDE = 1600;
 const UPLOAD_JPEG_QUALITY = 0.82;
+const HISTORY_PHOTO_MAX_SIDE = 480;
+const HISTORY_PHOTO_QUALITY = 0.62;
+
+/** 분석 기록과 보호자 화면에서 볼 수 있도록 원본보다 작은 문서 미리보기를 만든다. */
+function prepareHistoryPhoto(src){
+  return new Promise((resolve) => {
+    if (!src) { resolve(null); return; }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, HISTORY_PHOTO_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', HISTORY_PHOTO_QUALITY));
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
 
 function preparePhotoForUpload(src){
   return new Promise((resolve) => {
@@ -1602,13 +1636,14 @@ let aiErrorRetryScreen = 'screen-home';
 function goToAiError(retryScreen, isOffline){
   aiErrorRetryScreen = retryScreen;
   finishAllProgress();
+  if (coachActive) { goTo('screen-tutorial-ai-notice'); return; }
 
   document.getElementById('aiErrorTitle').textContent = isOffline
     ? '인터넷 연결을 확인해주세요.'
     : '지금은 분석이 어려워요.';
   document.getElementById('aiErrorDesc').textContent = isOffline
     ? '와이파이나 데이터가 꺼져있는 것 같아요. 연결을 확인한 후 다시 시도해주세요.'
-    : '잠시 후 다시 시도해주세요.';
+    : '서버 연결이 잠시 원활하지 않아요. 아래 다시 시도 버튼을 눌러주세요.';
   goTo('screen-ai-error');
 }
 
@@ -1648,6 +1683,11 @@ async function analyzeDocument(input){
     if (!res.ok || data.error) { goToAiError('screen-doc-choice'); return; }
     // 새 형식은 documents 배열, 예전 형식은 단일 객체. 둘 다 받아들인다.
     docAnalyses = Array.isArray(data.documents) && data.documents.length ? data.documents : [data];
+    await Promise.all(docAnalyses.map(async (doc, index) => {
+      const pages = Array.isArray(doc.pages) ? doc.pages : [];
+      const photoIndex = pages.length && pages[0] >= 1 ? pages[0] - 1 : index;
+      doc.photoPreview = await prepareHistoryPhoto(dataUrls[photoIndex] || dataUrls[0]);
+    }));
     docAnalysisIndex = 0;
     lastDocAnalysis = docAnalyses[0];
     finishAllProgress();
@@ -1668,6 +1708,7 @@ function showDocAnalysis(index){
   docAnalysisIndex = index;
   lastDocAnalysis = docAnalyses[index];
   renderDocResult();
+  setDocView('easy');
   applyDocPreview();
   renderDocPager();
 }
@@ -1774,17 +1815,16 @@ function renderDocResult(){
 
   document.querySelector('#docEasyView p').textContent = data.summary || '';
 
+  // ponytail: API가 사진 속 원문 텍스트를 따로 반환하지 않음. 위 "사진 보기"로 대체. 백엔드가 원문 OCR도 반환하게 되면 여기 채우기
+  document.querySelector('#docOriginalView p').textContent = '원문 텍스트는 위 사진을 참고해주세요.';
+
   const checklistEl = document.querySelector('#screen-result-doc .checklist');
   checklistEl.innerHTML = '';
   const checklist = data.checklist || [];
-  // 번역이 나중에 도착했을 때 라벨/체크박스/알림버튼을 함께 갱신할 수 있도록 참조를 모아둔다(아래 applyDocResultTranslation 참고)
-  const checklistRows = [];
   if (checklist.length === 0) {
     checklistEl.innerHTML = '<div class="empty-hint">특별히 하실 일은 없어요.</div>';
   } else {
     checklist.forEach(item => {
-      // state.text를 통해 참조해야 번역 도착 후 알림 버튼(openReminderModal)에도 번역된 문구가 전달된다
-      const state = { text: item };
       const row = document.createElement('div');
       row.className = 'checklist-row';
 
@@ -1792,31 +1832,46 @@ function renderDocResult(){
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.className = 'schedule-check';
-      checkbox.dataset.schedule = state.text;
+      checkbox.dataset.schedule = item;
       checkbox.dataset.source = '문서 분석';
       label.appendChild(checkbox);
-      const textNode = document.createTextNode(' ' + state.text);
-      label.appendChild(textNode);
+      label.appendChild(document.createTextNode(' ' + item));
 
       const btn = document.createElement('button');
       btn.className = 'reminder-btn';
       btn.innerHTML = '<svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-bell"></use></svg>알림 설정';
-      btn.addEventListener('click', () => openReminderModal(state.text, '문서 분석'));
+      btn.addEventListener('click', () => openReminderModal(item, '문서 분석'));
 
       row.appendChild(label);
       row.appendChild(btn);
       checklistEl.appendChild(row);
       bindScheduleCheckbox(checkbox);
-      checklistRows.push({ state, checkbox, textNode });
     });
   }
 
-  // 표시 언어가 한국어가 아니면 위에서 그린 한국어 결과 위에 번역을 덧입힌다(비동기, 실패해도 한국어 그대로 유지).
-  // analyzeDocument()가 goTo('screen-result-doc')를 부를 때 이미 appState.settings.language가 반영돼 있으므로
-  // 언어를 바꾼 뒤 분석한 경우든, 이미 다른 언어에서 분석한 경우든 여기서 자연스럽게 처리된다.
-  // retryDocTranslation()이 체크박스 상태를 잃지 않고 재시도할 수 있도록 rows 참조를 기억해둔다.
-  lastDocChecklistRows = checklistRows;
-  applyDocResultTranslation(data, checklistRows);
+  // AI가 문서에서 실제로 찾은 전화번호/홈페이지/방문 장소가 있을 때만 해당 버튼을 보여준다(지어내지 않음)
+  const autoActions = document.getElementById('docAutoActions');
+  const phoneBtn = document.getElementById('docActionPhone');
+  const webBtn = document.getElementById('docActionWebsite');
+  const mapBtn = document.getElementById('docActionMap');
+  let anyAction = false;
+
+  if (data.phone) { phoneBtn.href = 'tel:' + data.phone; phoneBtn.style.display = 'flex'; anyAction = true; }
+  else phoneBtn.style.display = 'none';
+
+  if (data.website) { webBtn.onclick = () => window.open(data.website, '_blank'); webBtn.style.display = 'flex'; anyAction = true; }
+  else webBtn.style.display = 'none';
+
+  if (data.mapQuery) { mapBtn.onclick = () => openMap(data.mapQuery); mapBtn.style.display = 'flex'; anyAction = true; }
+  else mapBtn.style.display = 'none';
+
+  autoActions.style.display = anyAction ? 'grid' : 'none';
+}
+
+/** 공유 버튼(문자/카카오톡/복사)이 사용할 현재 분석 결과 텍스트 */
+function currentDocShareText(){
+  if (!lastDocAnalysis) return '';
+  return `${lastDocAnalysis.headline}: ${lastDocAnalysis.summary}`;
 }
 
 /* ---------------------------------------------------------
@@ -1824,7 +1879,6 @@ function renderDocResult(){
    --------------------------------------------------------- */
 let pendingSmsText = '';
 let lastSmsAnalysis = null;
-let lastSmsChecklistRows = [];
 
 function getSmsReaderPlugin(){
   return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SmsReader) || null;
@@ -1834,7 +1888,7 @@ function getSmsReaderPlugin(){
  *  (플러그인 자체가 없는 웹/iOS라면) 권한 필요 화면으로 보낸다. 복사/붙여넣기로는 폴백하지 않는다. */
 async function openSmsCheck(){
   const SmsReader = getSmsReaderPlugin();
-  if (!SmsReader) { showSmsPermissionNeeded('unsupported'); return; }
+  if (!SmsReader) { goTo('screen-sms-paste'); return; }
   try {
     const status = await SmsReader.checkPermissions();
     if (status.sms === 'granted') { await loadAndShowRecentSms(SmsReader); return; }
@@ -1874,18 +1928,6 @@ async function loadAndShowRecentSms(SmsReader){
   }
 }
 
-/** SmsReader가 넘겨주는 epoch ms를 "오늘 14:32" / "7월 30일 14:32" 형태로 보여준다.
- *  재난안전문자처럼 문구가 거의 같은 문자가 반복 수신될 때, 시각이 없으면 화면에서 완전히
- *  같은 문자가 중복된 것처럼 보인다 — 실제로는 서로 다른 시각에 온 별개 문자일 수 있으므로 구분해준다. */
-function formatSmsReceivedAt(epochMs){
-  const d = new Date(epochMs);
-  if (isNaN(d.getTime())) return '';
-  const now = new Date();
-  const isToday = d.toDateString() === now.toDateString();
-  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  return isToday ? `오늘 ${time}` : `${d.getMonth() + 1}월 ${d.getDate()}일 ${time}`;
-}
-
 /** 문자 미리보기 한 줄(50자)만 보여주고, 발신번호·받은 시각은 그대로 표시한다.
  *  AI가 만든 텍스트가 아니라 기기 문자 원문이므로 XSS 방지를 위해 항상 textContent로만 채운다. */
 function renderSmsRecentList(messages){
@@ -1923,14 +1965,6 @@ function renderSmsRecentList(messages){
     t2.textContent = preview.length > 50 ? preview.slice(0, 50) + '…' : preview;
     text.appendChild(t1);
     text.appendChild(t2);
-    // 받은 시각을 보여줘야 "완전히 같아 보이는" 반복 재난안전문자 등을 서로 다른 문자로 구분할 수 있다
-    // (미리보기만으로는 몇 시에 온 문자인지 알 수 없어 중복처럼 보이는 문제가 있었다).
-    if (msg.date) {
-      const t3 = document.createElement('div');
-      t3.style.cssText = 'font-size:12px;font-weight:500;color:var(--ink-faint);margin-top:2px;';
-      t3.textContent = formatSmsReceivedAt(msg.date);
-      text.appendChild(t3);
-    }
 
     row.appendChild(iconChip);
     row.appendChild(text);
@@ -1959,6 +1993,8 @@ async function analyzeSmsText(text){
     });
     const data = await res.json();
     if (!res.ok || data.error) { goToAiError('screen-sms-recent'); return; }
+    // 보호자 받은 연락과 분석 기록에서 AI 요약뿐 아니라 사용자가 붙여넣은 문자 원문도 확인할 수 있게 보관한다.
+    data.originalText = String(text || '').slice(0, 5000);
     lastSmsAnalysis = data;
     finishAllProgress();
     goTo('screen-result-text');
@@ -1989,25 +2025,14 @@ function renderSmsResult(){
 
   applyResultHero(document.querySelector('#screen-result-text .result-card'), data);
   applyIllustration('smsIllustration', 'smsIllustrationImg', data.illustration);
-
-  // 위험(danger) 판정일 때만 "위험 문자 요소" 카드로 이유를 보여주고, result-card 안의 이유 문장은 숨긴다
-  // (같은 내용 중복 방지, Figma 시안 반영). 정상/정보 판정은 기존처럼 result-card 안에만 보여준다.
-  const isDanger = data.status === 'danger';
-  const reasonLabelEl = document.querySelector('#screen-result-text .reason-label');
-  const subtextEl = document.querySelector('#screen-result-text .result-card .subtext');
-  if (reasonLabelEl) reasonLabelEl.style.display = isDanger ? 'none' : '';
-  if (subtextEl) subtextEl.style.display = isDanger ? 'none' : '';
-  const riskCard = document.getElementById('smsRiskCard');
-  if (riskCard) {
-    riskCard.style.display = isDanger ? 'block' : 'none';
-    const riskItem = document.getElementById('smsRiskSummaryItem');
-    if (riskItem) riskItem.textContent = data.summary || '';
-  }
+  const details = document.getElementById('smsResultDetails');
+  const toggle = document.getElementById('smsDetailToggle');
+  if (details) details.hidden = true;
+  if (toggle) toggle.textContent = '자세히 보기 ↓';
 
   // "지금 바로 대처하세요" — 예전에는 HTML에 고정된 두 문장이라 분석 결과가 바뀌어도 그대로였다.
   // AI가 이 문자에 맞춰 알려준 checklist로 채우고, 비어있을 때만 일반 안전 수칙으로 대신한다.
   const todoEl = document.getElementById('smsTodoList');
-  const todoRows = [];
   if (todoEl) {
     const items = (Array.isArray(data.checklist) && data.checklist.length) ? data.checklist : SMS_DEFAULT_TIPS;
     todoEl.innerHTML = '';
@@ -2019,14 +2044,8 @@ function renderSmsResult(){
       label.textContent = item;
       row.appendChild(label);
       todoEl.appendChild(row);
-      todoRows.push({ label, item });
     });
   }
-
-  // 표시 언어가 한국어가 아니면 위 한국어 결과 위에 번역을 덧입힌다(비동기, 실패해도 한국어 그대로 유지).
-  // SMS_DEFAULT_TIPS로 채워진 경우에도 화면에 실제로 보이는 문구를 그대로 번역 대상에 넣는다.
-  lastSmsChecklistRows = todoRows;
-  applySmsResultTranslation(data, todoRows);
 }
 
 /* ---------------------------------------------------------
@@ -2056,12 +2075,6 @@ function closeEmergencySheet(){
    이제는 시트를 닫지 않고 그 자리에서 번호를 받아, 저장과 동시에 전화를 건다. */
 function guardianPhoneDigits(value){
   return String(value || '').replace(/\D/g, '');
-}
-/** 회원가입/PIN 재설정처럼 본인 명의 휴대폰 번호가 실제로 필요한 곳에서 쓰는 엄격한 검증.
- *  010으로 시작하는 10~11자리 국내 휴대폰 번호 형식만 통과시킨다(자릿수만 세던 기존 방식은
- *  010이 아닌 임의의 숫자로도 가입이 되는 문제가 있었다). */
-function isValidKoreanMobilePhone(value){
-  return /^010\d{7,8}$/.test(guardianPhoneDigits(value));
 }
 /** 번호를 저장한 뒤에 할 일: 'call'(전화 걸기) 또는 'sms'(보호자에게 알리는 문자 앱 열기) */
 let guardianPhonePromptMode = 'call';
@@ -2126,6 +2139,29 @@ function callGuardianFromSheet(){
 }
 
 /* ---------------------------------------------------------
+   11. 보호자 공유 (문자 / 카카오톡 / 복사)
+   --------------------------------------------------------- */
+function shareViaCopy(text){
+  navigator.clipboard.writeText(text)
+    .then(() => showGlobalToast('복사되었습니다.'))
+    .catch(() => showGlobalToast('복사에 실패했어요.'));
+}
+
+function shareViaSms(text){
+  const phone = appState.guardian.phone || '';
+  window.open(`sms:${phone}?body=${encodeURIComponent(text)}`);
+}
+
+function shareViaKakao(text){
+  if (navigator.share) {
+    navigator.share({ title: 'AI 디지털 도우미', text }).catch(() => {});
+  } else {
+    shareViaCopy(text);
+    showGlobalToast('카카오톡 공유는 모바일 앱에서 지원돼요. 대신 내용을 복사했어요.');
+  }
+}
+
+/* ---------------------------------------------------------
    12. 설정 (글자 크기 / 음성 속도 / 보호자 정보)
    --------------------------------------------------------- */
 /** 설정 화면의 세그먼트 버튼 그룹(글자 크기/음성 속도)에서 현재 값에 맞는 버튼만 active로 표시 */
@@ -2139,25 +2175,14 @@ function setFontScale(value){
   appState.settings.fontScale = value;
   document.documentElement.style.setProperty('--scale', value);
   syncToggleGroup('fontScaleGroup', 'scale', value);
-  syncToggleGroup('fontScaleGroupOnboard', 'scale', value);
   saveState();
 }
 
 function setVoiceRate(value){
   appState.settings.voiceRate = value;
   syncToggleGroup('voiceRateGroup', 'rate', value);
-  syncToggleGroup('voiceRateGroupOnboard', 'rate', value);
   saveState();
   speak('이 정도 속도로 읽어드릴게요.');
-}
-
-/** 회원가입 직후 접근성 설정 화면(screen-onboard-access) 진입 시, screen-settings와 같은
- *  세그먼트/토글 컨트롤을 현재 appState.settings 값에 맞춰 미리 표시한다. */
-function syncAccessibilityOnboardUI(){
-  syncToggleGroup('fontScaleGroupOnboard', 'scale', appState.settings.fontScale);
-  syncToggleGroup('voiceRateGroupOnboard', 'rate', appState.settings.voiceRate);
-  syncVoiceEnabledToggles();
-  syncToggleGroupString('languageGroupOnboard', appState.settings.language);
 }
 
 /** 보호자(자녀) 정보: 설정 화면과 온보딩의 "자녀 정보" 화면 두 곳에 같은 값을 반영한다(내 정보와 같은 방식). */
@@ -2183,7 +2208,7 @@ function setGuardianField(field, value){
 const I18N = {
   ko: {
     'home.sectionTitle': '무엇을 도와드릴까요?',
-    'home.assistantActive': '온담 비서가 활성화되었습니다', 'home.assistantInactive': '온담 비서가 비활성화되었습니다',
+    'home.assistantActive': '온담 비서가 활성화되었습니다',
     'home.greetDefault': '어르신',
     'home.greetNameSuffix': '님', 'home.greetAge': '{age}대 어르신', 'home.greetAgeGender': '{age}대 {gender} 어르신',
     'home.docCaptureTitle': '문서 촬영',
@@ -2192,8 +2217,6 @@ const I18N = {
     'home.smsCheckDesc': '받은 문자가 안전한지 AI가 확인해드려요',
     'home.welfareTitle': '주변 복지센터·경로당 찾기',
     'home.moreMenu': '더보기',
-    'home.moreNameLabel': '이름 :', 'home.moreAgeLabel': '나이', 'home.moreGenderLabel': '성별', 'home.moreRegionLabel': '지역', 'home.moreAgeUnit': '세',
-    'home.moreMyInfo': '내 정보', 'home.moreHistory': '분석 기록', 'home.moreStats': '통계',
     'home.welfareDesc': '내 위치 주변 복지센터·경로당 위치를 알려드려요',
     'home.todayTasks': '오늘 해야 할 일',
     'home.viewAll': '전체 보기',
@@ -2241,17 +2264,10 @@ const I18N = {
     'settings.fontSize': '화면 글자 크기',
     'settings.fontNormal': '보통', 'settings.fontLarge': '크게', 'settings.fontXLarge': '아주 크게',
     'settings.voiceSpeed': '음성 읽기 속도',
-    'settings.rate05': '0.5배속', 'settings.rate1': '1배속', 'settings.rate15': '1.5배속', 'settings.rate2': '2배속',
+    'settings.rate1': '1배속', 'settings.rate15': '1.5배속', 'settings.rate2': '2배속',
     'settings.replay': '다시 읽기', 'settings.stop': '멈추기',
     'settings.voiceEnable': '음성 안내 사용하기',
     'settings.accountTitle': '계정', 'settings.logout': '로그아웃',
-    'settings.deleteAccount': '회원 탈퇴',
-    'deleteAccount.title': '정말 탈퇴하시겠어요?',
-    'deleteAccount.desc': '기록·일정·설정 등 저장된 모든 정보가 즉시 삭제되고, 되돌릴 수 없어요.',
-    'deleteAccount.pinLabel': '본인 확인을 위해 비밀번호를 입력해주세요',
-    'deleteAccount.confirm': '탈퇴하기',
-    'deleteAccount.errorPin': '비밀번호가 올바르지 않아요.',
-    'deleteAccount.errorGeneric': '탈퇴 처리에 실패했어요. 잠시 후 다시 시도해주세요.',
     'settings.myInfo': '내 정보 (맞춤 안내용, 선택 사항)',
     'settings.nameLabel': '이름', 'settings.namePlaceholder': '예: 홍길동',
     'settings.male': '남성', 'settings.female': '여성',
@@ -2281,49 +2297,51 @@ const I18N = {
     'settings.supportHelp': '사용 방법 안내',
     'settings.supportOnboarding': '화면 안내(첫 실행 안내) 다시 보기',
     'settings.supportCenter': '고객센터 연결',
-    'settings.privacyPolicy': '개인정보는 어떻게 보관되나요?',
-    'privacy.title': '개인정보 보관 안내',
-    'privacy.pinTitle': '비밀번호(PIN)',
-    'privacy.pinDesc': '원래 비밀번호는 저장하지 않아요. 알아볼 수 없게 암호화된 값만 저장해서, 온담 직원도 회원님의 실제 비밀번호를 볼 수 없어요.',
-    'privacy.photoTitle': '촬영한 문서 사진',
-    'privacy.photoDesc': '사진은 AI가 그 자리에서 분석하는 데만 사용되고, 분석이 끝나면 서버에 남기지 않아요. 서버에는 분석된 글자 내용(요약·확인할 일)만 저장돼요.',
-    'privacy.syncTitle': '기기 간 동기화',
-    'privacy.syncDesc': '기록·일정·설정 정보는 다른 기기에서도 이어서 쓸 수 있도록 안전한 서버에 저장돼요. 이 정보는 온담 서비스 운영 목적으로만 사용돼요.',
-    'privacy.guardianTitle': '보호자에게 보이는 정보',
-    'privacy.guardianDesc': '보호자 앱에는 위험 문자 확인이나 돌봄에 필요한 요약 정보만 전달돼요. 회원님의 비밀번호나 그 밖의 설정 정보는 보호자에게 전달되지 않아요.',
-    'privacy.deleteTitle': '저장된 정보 삭제',
-    'privacy.deleteDesc': '설정 화면의 "회원 탈퇴"를 누르면 계정과 함께 저장된 모든 정보가 서버에서 즉시 삭제돼요.',
+    'settings.account': '계정',
+    'settings.accountLogout': '로그아웃 (이 기기 데이터 초기화)',
+    'settings.accountLogoutNote': "이 앱은 별도 로그인이 없어요. '로그아웃'을 누르면 이 기기에 저장된 기록·일정·설정·내 정보가 모두 지워지고, 처음 사용하는 것처럼 다시 시작돼요.",
+    'resetConfirm.title': '기기 데이터를 모두 지울까요?',
+    'resetConfirm.body': '기록·일정·설정·내 정보가 모두 지워지고 되돌릴 수 없어요. 처음 사용하는 것처럼 다시 시작돼요.',
+    'resetConfirm.confirm': '초기화', 'resetConfirm.cancel': '취소',
     'onboard.replay': '다시 듣기', 'onboard.skip': '건너뛰기',
-    'onboard.greet.title': '안녕하세요!<br>AI 디지털 도우미 <span class="accent-ink">온담(OnDam)</span>입니다.',
-    'onboard.greet.desc': '복잡한 공문서와 납부 고지서를 대신 읽고<br>꼭 하셔야 할 일을 쉽게 정리해 드립니다.',
-    'onboard.greet.start': '온담 시작하기',
+    'onboard.greet.title': '안녕하세요.<br>AI 디지털 도우미입니다.',
+    'onboard.greet.desc': '문서를 쉽게 이해하고<br>해야 할 일을 알려드리겠습니다.',
+    'onboard.greet.start': '시작하기',
     'onboard.greet.voice': '안녕하세요. AI 디지털 도우미입니다. 실제 화면을 보여드리며 사용 방법을 간단히 안내해드릴게요.',
-    'onboard.signup.title': '로그인 또는<br>회원가입하기', 'onboard.signup.backHome': '← 홈으로',
-    'onboard.signup.desc': '전화번호와 비밀번호를 입력해주세요.<br>계정이 없으면 자동으로 새로 만들어드려요.',
+    'onboard.signup.title': '회원가입', 'onboard.signup.desc': '전화번호와 비밀번호로 계정을 만들어요.<br>이 계정으로 다른 기기에서도 내 정보를 이어서 쓸 수 있어요.',
     'onboard.signup.phoneLabel': '전화번호',
-    'onboard.signup.pinLabel': '비밀번호', 'onboard.signup.pinPlaceholder': '비밀번호 입력', 'onboard.signup.pinConfirmPlaceholder': '비밀번호 다시 입력',
-    'onboard.signup.submit': '로그인 · 회원가입',
+    'onboard.signup.pinLabel': '비밀번호 (숫자 4자리)', 'onboard.signup.pinConfirmPlaceholder': '비밀번호 다시 입력',
+    'onboard.signup.submit': '가입하기', 'onboard.signup.toLogin': '이미 계정이 있으신가요? 로그인하기',
     'onboard.signup.errorPhone': '전화번호를 다시 확인해주세요', 'onboard.signup.errorPinFormat': '비밀번호는 숫자 4자리로 입력해주세요',
-    'onboard.signup.errorPinMismatch': '입력하신 비밀번호가 서로 달라요',
-    'onboard.signup.errorGeneric': '처리에 실패했어요. 잠시 후 다시 시도해주세요',
-    'onboard.signup.or': '또는', 'onboard.signup.google': '구글 로그인', 'onboard.signup.naver': '네이버 로그인', 'onboard.signup.kakao': '카카오 로그인',
+    'onboard.signup.errorPinMismatch': '입력하신 비밀번호가 서로 달라요', 'onboard.signup.errorPhoneExists': '이미 가입된 전화번호예요. 로그인해주세요',
+    'onboard.signup.errorGeneric': '가입에 실패했어요. 잠시 후 다시 시도해주세요',
+    'onboard.login.title': '로그인', 'onboard.login.desc': '가입할 때 쓴 전화번호와 비밀번호를 입력해주세요.',
+    'onboard.login.submit': '로그인', 'onboard.login.toSignup': '계정이 없으신가요? 회원가입', 'onboard.login.forgotPin': '비밀번호를 잊으셨나요?',
     'onboard.login.errorInvalid': '전화번호 또는 비밀번호가 올바르지 않습니다', 'onboard.login.errorLocked': '너무 여러 번 틀렸어요. 15분 후 다시 시도해주세요',
-    'onboard.login.forgotPin': '비밀번호를 잊으셨나요?',
-    'onboard.signup.voice': '전화번호와 비밀번호를 입력해주세요. 계정이 없으면 자동으로 새로 만들어드려요.',
     'onboard.resetPin.title': '비밀번호 재설정', 'onboard.resetPin.desc': '가입할 때 쓴 이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요.',
     'onboard.resetPin.requestOtp': '인증번호 받기', 'onboard.resetPin.otpLabel': '인증번호 (6자리)', 'onboard.resetPin.submit': '재설정하기',
     'onboard.resetPin.otpSentNotice': '인증번호를 보냈습니다', 'onboard.resetPin.errorSmsFailed': '문자 발송에 실패했어요. 잠시 후 다시 시도해주세요',
     'onboard.resetPin.errorOtpExpired': '인증번호가 만료됐어요. 다시 받아주세요', 'onboard.resetPin.errorOtpLocked': '너무 여러 번 틀렸어요. 처음부터 다시 시도해주세요',
     'onboard.resetPin.errorOtpInvalid': '인증번호가 올바르지 않습니다 ({n}회 남음)',
-    'onboard.resetPin.successNotice': '비밀번호가 재설정됐어요. 새 비밀번호로 로그인해주세요.',
+    'onboard.signup.voice': '이름과 전화번호, 4자리 숫자 비밀번호를 입력해서 가입해주세요.',
+    'onboard.login.voice': '전화번호와 비밀번호를 입력해서 로그인해주세요.',
     'onboard.resetPin.voice': '이름과 전화번호를 입력하면 인증번호를 문자로 보내드려요.',
     'onboard.profile.title': '몇 가지만<br>알려주시겠어요?',
-    'onboard.access.title': '몇 가지만<br>알려주시겠어요?', 'onboard.access.desc': '원하지 않으면 건너뛰어도 됩니다.',
-    'onboard.access.voice': '화면 글자 크기와 음성 읽기 속도, 언어를 미리 맞춰두실 수 있어요. 원하지 않으면 건너뛰어도 됩니다.',
-    'onboard.profile.desc': '입력하신 정보는 이 기기와 안전한 서버에만 저장되고,<br>더 알맞은 설명을 드리는 데만 사용돼요.',
+    'onboard.profile.desc': '입력하신 정보는 이 기기와 안전한 서버에만 저장되고,<br>더 알맞은 설명을 드리는 데만 사용돼요.<br>원하지 않으면 건너뛰어도 됩니다.',
     'onboard.profile.genderLabel': '성별', 'onboard.profile.ageLabel': '나이',
     'onboard.profile.agePlaceholder': '예: 73', 'onboard.profile.ageNote': '만 나이를 숫자로 적어주세요. 나이에 따라 받을 수 있는 혜택이 달라요.',
     'skipConfirm.title': '튜토리얼을 건너뛸까요?', 'skipConfirm.keep': '계속 보기',
+    'onboard.profile.useLocation': '내 현재 위치 입력하기',
+    'onboard.profile.regionNote': '시/군/구까지 자세히 적어주시면 더 알맞은 정보를 드릴 수 있어요.',
+    'onboard.profile.next': '다음',
+    'onboard.profile.voice': '이름과 성별, 연령대, 사시는 지역을 알려주시면 더 맞춤형으로 도와드릴 수 있어요. 원하지 않으면 건너뛰어도 됩니다.',
+    'onboard.guardian.title': '자녀(보호자) 정보도<br>알려주시겠어요?',
+    'onboard.guardian.desc': '위험한 문자를 받았을 때 자녀에게 바로 알리거나,<br>긴급 도움 버튼으로 전화를 걸 때 사용돼요.<br>원하지 않으면 건너뛰어도 됩니다.',
+    'onboard.guardian.voice': '급한 일이 있을 때 알릴 자녀나 보호자의 이름과 전화번호를 알려주시겠어요? 원하지 않으면 건너뛰어도 됩니다.',
+    'onboard.notice.title': '지금은 분석이 어려워요.',
+    'onboard.notice.desc': '지금은 체험판(튜토리얼)이라<br>실제 분석은 제공되지 않을 수 있어요.<br>궁금한 점은 관리자에게 문의하세요.',
+    'onboard.notice.next': '다음으로 계속하기',
+    'onboard.notice.voice': '지금은 분석이 어려워요. 체험판이라 실제 분석은 제공되지 않을 수 있어요. 궁금한 점은 관리자에게 문의하세요.',
     'coach.moreHelp.title': '여기서 다른 기능도 볼 수 있어요', 'coach.moreHelp.desc': '아래 정보·기록·설정을 눌러 보세요.', 'coach.moreHelp.voice': '아래쪽 메뉴에서 다른 기능도 볼 수 있어요.',
     'coach.next': '다음으로 넘어가기', 'coach.skipTutorial': '튜토리얼 건너뛰기',
     'coach.doc1.title': '문서 찍어서 확인하기', 'coach.doc1.desc': '고지서나 안내문을 찍으면 중요한 내용과 해야 할 일을 쉽게 알려드려요.', 'coach.doc1.voice': '문서 찍어서 확인하기는 고지서나 안내문의 중요한 내용을 쉽게 알려드리는 기능입니다.',
@@ -2340,8 +2358,7 @@ const I18N = {
     'coach.welfare2.title': '홈 화면으로 돌아가볼게요', 'coach.welfare2.desc': '홈 화면으로 돌아가기 버튼을 눌러주세요.', 'coach.welfare2.voice': '홈 화면으로 돌아가기 버튼을 눌러주세요.',
     'coach.voice1.title': '음성으로 안내받을 수도 있어요', 'coach.voice1.desc': '이 버튼을 누르면 화면 안내를 다시 들을 수 있어요.', 'coach.voice1.voice': '음성으로 안내받기 버튼을 눌러보세요.',
     'coach.emergency1.title': '긴급할 땐 이 버튼을 누르세요', 'coach.emergency1.desc': '보호자나 119·112·118로 바로 연락할 수 있어요. 눌러서 직접 확인해보시고, 다 보셨으면 다음으로 넘어가세요.', 'coach.emergency1.voice': '도움 버튼을 눌러보세요. 확인하셨으면 다음으로 눌러 넘어가세요.',
-    'coach.settingsIntro.title': '더보기도 살펴볼게요', 'coach.settingsIntro.desc': '내 정보, 기록, 설정을 여기서 볼 수 있어요.', 'coach.settingsIntro.voice': '아래 더보기 버튼을 눌러보세요.',
-    'coach.moreToSettings.title': '설정을 눌러볼게요', 'coach.moreToSettings.desc': '글자 크기, 음성 속도, 보호자 정보를 바꿀 수 있어요.', 'coach.moreToSettings.voice': '설정을 눌러보세요.',
+    'coach.settingsIntro.title': '설정도 살펴볼게요', 'coach.settingsIntro.desc': '글자 크기, 음성 속도, 보호자 정보를 바꿀 수 있어요.', 'coach.settingsIntro.voice': '아래 설정 버튼을 눌러보세요.',
     'coach.fontsize.title': '글자 크기를 바꿔보세요', 'coach.fontsize.desc': '보통, 크게, 아주 크게 중에서 골라보세요. 다 고르셨으면 다음으로 넘어가세요.', 'coach.fontsize.voice': '글자 크기를 눌러보세요. 다 고르셨으면 다음으로 눌러 넘어가세요.',
     'coach.rate.title': '음성 속도도 바꿀 수 있어요', 'coach.rate.desc': '읽어주는 속도를 편한 대로 골라보세요. 다 고르셨으면 다음으로 넘어가세요.', 'coach.rate.voice': '음성 읽기 속도를 눌러보세요. 다 고르셨으면 다음으로 눌러 넘어가세요.',
     'coach.guardian.title': '보호자 정보를 등록해보세요', 'coach.guardian.desc': '위험한 문자를 발견하면 보호자에게 바로 알릴 수 있어요. 선택 사항이니 원하지 않으면 다음으로 넘어가도 돼요.', 'coach.guardian.voice': '보호자 이름을 입력해보세요. 원하지 않으면 다음으로 눌러 넘어가도 됩니다.',
@@ -2349,19 +2366,12 @@ const I18N = {
     'coach.helpback.title': '뒤로 가서 마무리할게요', 'coach.helpback.desc': '← 뒤로 버튼을 눌러주세요.', 'coach.helpback.voice': '뒤로 버튼을 눌러주세요.',
     'coach.finish.title': '이제 홈으로 돌아가면 끝이에요', 'coach.finish.desc': '← 홈으로 버튼을 눌러 안내를 마쳐요.', 'coach.finish.voice': '홈으로 버튼을 눌러 안내를 마쳐요.',
     'coach.language.title': '언어도 바꿀 수 있어요', 'coach.language.desc': '중국어·베트남어·태국어·우즈베크어 중에서 골라보세요. 다 고르셨으면 다음으로 넘어가세요.', 'coach.language.voice': '언어 설정을 눌러보세요. 다 고르셨으면 다음으로 눌러 넘어가세요.',
-    'onboard.profile.useLocation': '내 현재 위치 입력하기',
-    'onboard.profile.regionNote': '시/군/구까지 자세히 적어주시면 더 알맞은 정보를 드릴 수 있어요.',
-    'onboard.profile.next': '다음',
-    'onboard.profile.voice': '이름과 성별, 연령대, 사시는 지역을 알려주시면 더 맞춤형으로 도와드릴 수 있어요.',
-    'onboard.guardian.title': '자녀(보호자) 정보도<br>알려주시겠어요?',
-    'onboard.guardian.desc': '위험한 문자를 받았을 때 자녀에게 바로 알리거나,<br>긴급 도움 버튼으로 전화를 걸 때 사용돼요.',
-    'onboard.guardian.voice': '급한 일이 있을 때 알릴 자녀나 보호자의 이름과 전화번호를 알려주시겠어요? 원하지 않으면 건너뛰어도 됩니다.',
     'common.home': '← 홈으로', 'common.back': '← 뒤로',
     'docChoice.title': 'AI 분석하기',
     'docChoice.desc': '분석하고 싶은 문서를 촬영하거나 사진첩에서 불러오세요.',
     'docChoice.voicePill': '음성 안내 다시 듣기',
-    'docChoice.cameraTitle': '사진 촬영하기', 'docChoice.cameraDesc': '카메라로 문서를 찍습니다',
-    'docChoice.galleryTitle': '사진 불러오기', 'docChoice.galleryDesc': '저장된 사진을 불러옵니다',
+    'docChoice.cameraTitle': '사진 촬영하기',
+    'docChoice.galleryTitle': '사진 불러오기',
     'docChoice.tipTitle': '꼭 확인해 주세요!',
     'docChoice.tip1': '문서의 글자가 선명하게 보이도록 촬영해 주세요.',
     'docChoice.tip2': '빛 반사가 적은 밝은 곳에서 촬영하면 더 정확합니다.',
@@ -2371,22 +2381,19 @@ const I18N = {
     'docCapture.caption': '👆 촬영 버튼을 눌러주세요',
     'docCapture.blurExample': '사진이 흐릿하게 나왔다면? (예시 보기)',
     'docCapture.voice': '문서가 화면 가운데 오도록 맞춘 다음, 아래 버튼을 눌러 촬영해주세요.',
-    'loadingDoc.headline': 'AI가 문서를 읽고,<br />그림도 함께 준비하고 있습니다',
-    'loadingText.headline': 'AI가 문자를 확인하고,<br />그림도 함께 준비하고 있습니다',
     'result.docTitle': '분석 결과', 'result.readAloud': '큰 소리로 읽어주기',
-    'result.translateFailNotice': '번역을 실패했습니다. 다시 시도하시겠습니까?', 'result.translateFailRetry': '다시 시도',
     'result.docKind': '문서 종류', 'result.viewPhoto': '사진 보기',
     'result.amountLabel': '납부할 금액', 'result.dueLabel': '납부 기한',
-    'result.aiSummaryTitle': '⚪ AI가 정리한 내용',
+    'result.viewEasy': '쉬운 설명', 'result.viewOriginal': '원문 보기',
+    'result.aiSummaryTitle': '⚪ AI가 정리한 내용', 'result.originalTitle': '원문',
     'result.todoLabel': '해야 할 일',
     'result.actionPhone': '전화하기', 'result.actionWebsite': '홈페이지', 'result.actionMap': '길찾기',
     'result.shareTitle': '공유하기', 'result.shareSms': '문자', 'result.shareKakao': '💛 카카오톡', 'result.shareCopy': '복사하기',
     'result.docConfirm': '확인 완료',
-    'result.textTitle': '확인 결과', 'result.dangerPill': '⚠ 확인이 필요해요', 'result.listenVoice': '음성으로 듣기',
-    'result.reasonLabel': '이런 점을 확인해보세요',
+    'result.textTitle': '진위 판별 결과', 'result.dangerPill': '⚠ 위험 감지', 'result.listenVoice': '음성으로 듣기',
+    'result.reasonLabel': '왜 위험한가요?',
     'result.notifyGuardian': '보호자에게 문자 전달하기',
     'result.checkAnotherSms': '다른 문자 확인하기',
-    'result.riskFactorsTitle': '🔴 위험 문자 요소', 'result.report118': '118 신고(경찰청 신고)', 'result.askSms': '이 문자에 대해 물어보기',
     'result.legalNote': '본 판별은 인공지능 분석 결과이므로 법적 효력이 없습니다.<br>의심스러운 경우 반드시 관계 기관에 직접 문의하세요.',
     'result.textConfirm': '확인했습니다', 'result.practiceAgain': '연습 다시 하기',
     'sms.permission.voice': '문자 확인을 하려면 문자 읽기 권한이 필요해요.',
@@ -2414,7 +2421,7 @@ const I18N = {
   },
   zh: {
     'home.sectionTitle': '需要什么帮助？',
-    'home.assistantActive': '온담 助手已启用', 'home.assistantInactive': '온담 助手已停用',
+    'home.assistantActive': '온담 助手已启用',
     'home.greetDefault': '您好',
     'home.greetNameSuffix': '', 'home.greetAge': '{age}多岁的您', 'home.greetAgeGender': '{age}多岁的{gender}士',
     'home.docCaptureTitle': '文件拍摄',
@@ -2423,8 +2430,6 @@ const I18N = {
     'home.smsCheckDesc': 'AI帮您确认收到的短信是否安全',
     'home.welfareTitle': '附近福利中心·老人活动中心',
     'home.moreMenu': '更多',
-    'home.moreNameLabel': '姓名 :', 'home.moreAgeLabel': '年龄', 'home.moreGenderLabel': '性别', 'home.moreRegionLabel': '地区', 'home.moreAgeUnit': '岁',
-    'home.moreMyInfo': '我的信息', 'home.moreHistory': '分析记录', 'home.moreStats': '统计',
     'home.welfareDesc': '为您查找所在位置附近的福利中心、老人活动中心',
     'home.todayTasks': '今天要做的事',
     'home.viewAll': '查看全部',
@@ -2472,7 +2477,7 @@ const I18N = {
     'settings.fontSize': '屏幕字体大小',
     'settings.fontNormal': '普通', 'settings.fontLarge': '大', 'settings.fontXLarge': '特大',
     'settings.voiceSpeed': '语音朗读速度',
-    'settings.rate05': '0.5倍速', 'settings.rate1': '1倍速', 'settings.rate15': '1.5倍速', 'settings.rate2': '2倍速',
+    'settings.rate1': '1倍速', 'settings.rate15': '1.5倍速', 'settings.rate2': '2倍速',
     'settings.replay': '重新播放', 'settings.stop': '停止',
     'settings.voiceEnable': '使用语音讲解',
     'settings.myInfo': '我的信息（用于个性化说明，可选）',
@@ -2504,18 +2509,30 @@ const I18N = {
     'settings.supportHelp': '使用方法说明',
     'settings.supportOnboarding': '重新查看画面指南（首次使用指南）',
     'settings.supportCenter': '联系客服中心',
+    'settings.account': '账户',
+    'settings.accountLogout': '登出（清除本设备数据）',
+    'settings.accountLogoutNote': '本应用没有单独的登录账户。点击"登出"会清除本设备保存的记录·日程·设置·个人信息，并像首次使用一样重新开始。',
+    'resetConfirm.title': '要清除全部设备数据吗？',
+    'resetConfirm.body': '记录·日程·设置·个人信息将全部清除且无法恢复，将像首次使用一样重新开始。',
+    'resetConfirm.confirm': '初始化', 'resetConfirm.cancel': '取消',
     'onboard.replay': '再听一次', 'onboard.skip': '跳过',
-    'onboard.greet.title': '您好！<br>AI数字助手 <span class="accent-ink">온담(OnDam)</span>。',
-    'onboard.greet.desc': '帮您读懂复杂的公文和缴费通知单，<br>并把必须要做的事整理得清清楚楚。',
-    'onboard.greet.start': '开始使用 OnDam',
+    'onboard.greet.title': '您好。<br>我是AI数字助手。',
+    'onboard.greet.desc': '帮您轻松理解文件，<br>并告诉您需要做的事。',
+    'onboard.greet.start': '开始',
     'onboard.greet.voice': '您好。我是AI数字助手。我会通过实际画面简单介绍使用方法。',
     'onboard.profile.title': '请告诉我<br>几项信息好吗？',
-    'onboard.access.title': '请告诉我<br>几项信息好吗？', 'onboard.access.desc': '如果不需要,可以跳过。',
-    'onboard.access.voice': '您可以先设置好屏幕字体大小、语音朗读速度和语言。如果不需要,可以跳过。',
-    'onboard.profile.desc': '您输入的信息只保存在本设备和安全的服务器中，<br>仅用于提供更合适的说明。',
+    'onboard.profile.desc': '您输入的信息只保存在本设备和安全的服务器中，<br>仅用于提供更合适的说明。<br>不想输入的话也可以跳过。',
     'onboard.profile.genderLabel': '性别', 'onboard.profile.ageLabel': '年龄',
     'onboard.profile.agePlaceholder': '例: 73', 'onboard.profile.ageNote': '请填写周岁数字。可享受的福利会因年龄而异。',
     'skipConfirm.title': '要跳过教程吗？', 'skipConfirm.keep': '继续观看',
+    'onboard.profile.useLocation': '输入我的当前位置',
+    'onboard.profile.regionNote': '详细填写到市/郡/区，可以为您提供更合适的信息。',
+    'onboard.profile.next': '下一步',
+    'onboard.profile.voice': '请告诉我姓名、性别、年龄段、居住地区，我可以为您提供更贴心的帮助。不想输入的话也可以跳过。',
+    'onboard.notice.title': '现在暂时无法分析。',
+    'onboard.notice.desc': '现在是体验版（教程），<br>可能无法提供实际分析。<br>如有疑问请联系管理员。',
+    'onboard.notice.next': '下一步继续',
+    'onboard.notice.voice': '现在暂时无法分析。因为是体验版，可能无法提供实际分析。如有疑问请联系管理员。',
     'coach.moreHelp.title': '在这里还能看到其他功能', 'coach.moreHelp.desc': '请点击下方的信息、记录、设置。', 'coach.moreHelp.voice': '在下方菜单中还能看到其他功能。',
     'coach.next': '继续下一步', 'coach.skipTutorial': '跳过教程',
     'coach.doc1.title': '拍摄文件试试看', 'coach.doc1.desc': '点击此卡片可以拍摄文件并交给AI分析。', 'coach.doc1.voice': '请点击拍摄文件卡片。',
@@ -2532,8 +2549,7 @@ const I18N = {
     'coach.welfare2.title': '我们再回到首页', 'coach.welfare2.desc': '请点击返回首页按钮。', 'coach.welfare2.voice': '请点击返回首页按钮。',
     'coach.voice1.title': '也可以用语音获得指引', 'coach.voice1.desc': '点击此按钮可以再次听取画面指引。', 'coach.voice1.voice': '请点击语音指引按钮。',
     'coach.emergency1.title': '紧急情况请按此按钮', 'coach.emergency1.desc': '可以直接联系监护人或119·112·118。请点击直接确认，确认完毕后点击下一步。', 'coach.emergency1.voice': '请点击求助按钮。确认后请点击下一步继续。',
-    'coach.settingsIntro.title': '我们也看看更多菜单', 'coach.settingsIntro.desc': '可以在这里查看我的信息、记录和设置。', 'coach.settingsIntro.voice': '请点击下方的更多按钮。',
-    'coach.moreToSettings.title': '点击设置试试', 'coach.moreToSettings.desc': '可以更改字体大小、语音速度、监护人信息。', 'coach.moreToSettings.voice': '请点击设置。',
+    'coach.settingsIntro.title': '我们也看看设置', 'coach.settingsIntro.desc': '可以更改字体大小、语音速度、监护人信息。', 'coach.settingsIntro.voice': '请点击下方的设置按钮。',
     'coach.fontsize.title': '试试更改字体大小', 'coach.fontsize.desc': '可以在普通、大、特大中选择。选好后请点击下一步。', 'coach.fontsize.voice': '请点击字体大小。选好后请点击下一步继续。',
     'coach.rate.title': '语音速度也可以更改', 'coach.rate.desc': '请选择您喜欢的朗读速度。选好后请点击下一步。', 'coach.rate.voice': '请点击语音朗读速度。选好后请点击下一步继续。',
     'coach.guardian.title': '试试登记监护人信息', 'coach.guardian.desc': '发现危险短信时可以立即通知监护人。这是可选项，不需要的话可以直接下一步。', 'coach.guardian.voice': '请输入监护人姓名。不需要的话可以点击下一步跳过。',
@@ -2541,16 +2557,12 @@ const I18N = {
     'coach.helpback.title': '我们返回并结束吧', 'coach.helpback.desc': '请点击←返回按钮。', 'coach.helpback.voice': '请点击返回按钮。',
     'coach.finish.title': '现在回到首页就结束了', 'coach.finish.desc': '请点击←返回首页按钮结束指引。', 'coach.finish.voice': '请点击返回首页按钮结束指引。',
     'coach.language.title': '语言也可以更改', 'coach.language.desc': '请在中文·越南语·泰语·乌兹别克语中选择。选好后请点击下一步。', 'coach.language.voice': '请点击语言设置。选好后请点击下一步继续。',
-    'onboard.profile.useLocation': '输入我的当前位置',
-    'onboard.profile.regionNote': '详细填写到市/郡/区，可以为您提供更合适的信息。',
-    'onboard.profile.next': '下一步',
-    'onboard.profile.voice': '请告诉我姓名、性别、年龄段、居住地区，我可以为您提供更贴心的帮助。',
     'common.home': '← 返回主页', 'common.back': '← 返回',
     'docChoice.title': 'AI分析',
     'docChoice.desc': '请拍摄想要分析的文件，或从相册中选择。',
     'docChoice.voicePill': '重新收听语音讲解',
-    'docChoice.cameraTitle': '拍摄照片', 'docChoice.cameraDesc': '用相机拍摄文件',
-    'docChoice.galleryTitle': '导入照片', 'docChoice.galleryDesc': '载入已保存的照片',
+    'docChoice.cameraTitle': '拍摄照片',
+    'docChoice.galleryTitle': '导入照片',
     'docChoice.tipTitle': '请务必确认！',
     'docChoice.tip1': '请拍摄时让文件上的字清晰可见。',
     'docChoice.tip2': '在反光少的明亮处拍摄会更准确。',
@@ -2560,13 +2572,11 @@ const I18N = {
     'docCapture.caption': '👆 请按拍摄按钮',
     'docCapture.blurExample': '照片拍模糊了怎么办？（查看示例）',
     'docCapture.voice': '请将文件对准屏幕中央，然后按下方按钮拍摄。',
-    'loadingDoc.headline': 'AI正在阅读文件，<br />同时也在准备插图',
-    'loadingText.headline': 'AI正在确认短信，<br />同时也在准备插图',
     'result.docTitle': '分析结果', 'result.readAloud': '大声朗读',
-    'result.translateFailNotice': '翻译失败了。要重试吗?', 'result.translateFailRetry': '重试',
     'result.docKind': '文件种类', 'result.viewPhoto': '查看照片',
     'result.amountLabel': '应缴金额', 'result.dueLabel': '缴纳期限',
-    'result.aiSummaryTitle': '⚪ AI整理的内容',
+    'result.viewEasy': '简单说明', 'result.viewOriginal': '查看原文',
+    'result.aiSummaryTitle': '⚪ AI整理的内容', 'result.originalTitle': '原文',
     'result.todoLabel': '要做的事',
     'result.actionPhone': '拨打电话', 'result.actionWebsite': '官方网站', 'result.actionMap': '查找路线',
     'result.shareTitle': '分享', 'result.shareSms': '短信', 'result.shareKakao': '💛 KakaoTalk', 'result.shareCopy': '复制',
@@ -2575,7 +2585,6 @@ const I18N = {
     'result.reasonLabel': '为什么危险？',
     'result.notifyGuardian': '转发短信给监护人',
     'result.checkAnotherSms': '确认其他短信',
-    'result.riskFactorsTitle': '🔴 危险短信要素', 'result.report118': '118举报(向警察厅举报)', 'result.askSms': '询问这条短信',
     'result.legalNote': '本判别为人工智能分析结果，不具有法律效力。<br>如有可疑之处，请务必直接向相关机构咨询。',
     'result.textConfirm': '我知道了', 'result.practiceAgain': '重新练习',
     'sms.permission.voice': '要确认短信，需要短信读取权限。',
@@ -2603,7 +2612,7 @@ const I18N = {
   },
   vi: {
     'home.sectionTitle': 'Bạn cần giúp gì?',
-    'home.assistantActive': 'Trợ lý 온담 đã được kích hoạt', 'home.assistantInactive': 'Trợ lý 온담 đã bị tắt',
+    'home.assistantActive': 'Trợ lý 온담 đã được kích hoạt',
     'home.greetDefault': 'Cô/Chú',
     'home.greetNameSuffix': '', 'home.greetAge': 'Cô/Chú khoảng {age} tuổi', 'home.greetAgeGender': '{gender} khoảng {age} tuổi',
     'home.docCaptureTitle': 'Chụp tài liệu',
@@ -2612,8 +2621,6 @@ const I18N = {
     'home.smsCheckDesc': 'AI sẽ xác nhận giúp bạn tin nhắn nhận được có an toàn không',
     'home.welfareTitle': 'Tìm trung tâm phúc lợi và nhà sinh hoạt người cao tuổi',
     'home.moreMenu': 'Xem thêm',
-    'home.moreNameLabel': 'Tên :', 'home.moreAgeLabel': 'Tuổi', 'home.moreGenderLabel': 'Giới tính', 'home.moreRegionLabel': 'Khu vực', 'home.moreAgeUnit': ' tuổi',
-    'home.moreMyInfo': 'Thông tin của tôi', 'home.moreHistory': 'Lịch sử phân tích', 'home.moreStats': 'Thống kê',
     'home.welfareDesc': 'Tìm trung tâm phúc lợi, nhà sinh hoạt người cao tuổi gần vị trí của bạn',
     'home.todayTasks': 'Việc cần làm hôm nay',
     'home.viewAll': 'Xem tất cả',
@@ -2661,7 +2668,7 @@ const I18N = {
     'settings.fontSize': 'Cỡ chữ màn hình',
     'settings.fontNormal': 'Vừa', 'settings.fontLarge': 'Lớn', 'settings.fontXLarge': 'Rất lớn',
     'settings.voiceSpeed': 'Tốc độ đọc giọng nói',
-    'settings.rate05': 'Tốc độ 0.5x', 'settings.rate1': 'Tốc độ 1x', 'settings.rate15': 'Tốc độ 1.5x', 'settings.rate2': 'Tốc độ 2x',
+    'settings.rate1': 'Tốc độ 1x', 'settings.rate15': 'Tốc độ 1.5x', 'settings.rate2': 'Tốc độ 2x',
     'settings.replay': 'Nghe lại', 'settings.stop': 'Dừng lại',
     'settings.voiceEnable': 'Sử dụng hướng dẫn bằng giọng nói',
     'settings.myInfo': 'Thông tin của tôi (dùng để cá nhân hóa, không bắt buộc)',
@@ -2693,28 +2700,60 @@ const I18N = {
     'settings.supportHelp': 'Hướng dẫn sử dụng',
     'settings.supportOnboarding': 'Xem lại hướng dẫn màn hình (hướng dẫn lần đầu)',
     'settings.supportCenter': 'Kết nối trung tâm hỗ trợ',
+    'settings.account': 'Tài khoản',
+    'settings.accountLogout': 'Đăng xuất (xóa dữ liệu trên thiết bị này)',
+    'settings.accountLogoutNote': 'Ứng dụng này không có tài khoản đăng nhập riêng. Nhấn "Đăng xuất" sẽ xóa toàn bộ lịch sử·lịch trình·cài đặt·thông tin cá nhân đã lưu trên thiết bị này, và bắt đầu lại như lần đầu sử dụng.',
+    'resetConfirm.title': 'Xóa toàn bộ dữ liệu thiết bị?',
+    'resetConfirm.body': 'Lịch sử·lịch trình·cài đặt·thông tin cá nhân sẽ bị xóa hết và không thể khôi phục. Sẽ bắt đầu lại như lần đầu sử dụng.',
+    'resetConfirm.confirm': 'Khởi tạo lại', 'resetConfirm.cancel': 'Hủy',
     'onboard.replay': 'Nghe lại', 'onboard.skip': 'Bỏ qua',
-    'onboard.greet.title': 'Xin chào!<br>Tôi là trợ lý số AI <span class="accent-ink">온담(OnDam)</span>.',
-    'onboard.greet.desc': 'Tôi đọc giúp bạn các công văn, hóa đơn phức tạp<br>và sắp xếp gọn gàng những việc bạn cần làm.',
-    'onboard.greet.start': 'Bắt đầu với OnDam',
+    'onboard.greet.title': 'Xin chào.<br>Tôi là trợ lý số AI.',
+    'onboard.greet.desc': 'Tôi sẽ giúp bạn dễ dàng hiểu tài liệu<br>và biết việc cần làm.',
+    'onboard.greet.start': 'Bắt đầu',
     'onboard.greet.voice': 'Xin chào. Tôi là trợ lý số AI. Tôi sẽ hướng dẫn cách sử dụng đơn giản qua màn hình thực tế.',
     'onboard.profile.title': 'Cho tôi biết<br>một vài thông tin nhé?',
-    'onboard.access.title': 'Cho tôi biết<br>một vài thông tin nhé?', 'onboard.access.desc': 'Nếu không muốn, bạn có thể bỏ qua.',
-    'onboard.access.voice': 'Bạn có thể chỉnh trước cỡ chữ màn hình, tốc độ đọc bằng giọng nói và ngôn ngữ. Nếu không muốn, bạn có thể bỏ qua.',
-    'onboard.profile.desc': 'Thông tin bạn nhập chỉ được lưu trên thiết bị này và máy chủ an toàn,<br>chỉ dùng để đưa ra giải thích phù hợp hơn.',
+    'onboard.profile.desc': 'Thông tin bạn nhập chỉ được lưu trên thiết bị này và máy chủ an toàn,<br>chỉ dùng để đưa ra giải thích phù hợp hơn.<br>Nếu không muốn, bạn có thể bỏ qua.',
     'onboard.profile.genderLabel': 'Giới tính', 'onboard.profile.ageLabel': 'Tuổi',
     'onboard.profile.agePlaceholder': 'VD: 73', 'onboard.profile.ageNote': 'Hãy nhập tuổi bằng số. Quyền lợi được hưởng khác nhau tùy theo tuổi.',
     'skipConfirm.title': 'Bỏ qua hướng dẫn?', 'skipConfirm.keep': 'Tiếp tục xem',
     'onboard.profile.useLocation': 'Nhập vị trí hiện tại của tôi',
     'onboard.profile.regionNote': 'Nếu ghi rõ đến quận/huyện, chúng tôi có thể cung cấp thông tin phù hợp hơn.',
     'onboard.profile.next': 'Tiếp theo',
-    'onboard.profile.voice': 'Cho tôi biết tên, giới tính, độ tuổi, nơi ở để tôi giúp bạn phù hợp hơn.',
+    'onboard.profile.voice': 'Cho tôi biết tên, giới tính, độ tuổi, nơi ở để tôi giúp bạn phù hợp hơn. Nếu không muốn, bạn có thể bỏ qua.',
+    'onboard.notice.title': 'Hiện tại chưa thể phân tích.',
+    'onboard.notice.desc': 'Đây là bản dùng thử (hướng dẫn),<br>nên có thể chưa cung cấp phân tích thực tế.<br>Nếu có thắc mắc, hãy liên hệ quản trị viên.',
+    'onboard.notice.next': 'Tiếp tục',
+    'onboard.notice.voice': 'Hiện tại chưa thể phân tích. Vì đây là bản dùng thử nên có thể chưa cung cấp phân tích thực tế. Nếu có thắc mắc, hãy liên hệ quản trị viên.',
+    'coach.moreHelp.title': 'Bạn có thể xem các chức năng khác ở đây', 'coach.moreHelp.desc': 'Hãy nhấn vào Thông tin, Lịch sử, Cài đặt ở bên dưới.', 'coach.moreHelp.voice': 'Bạn có thể xem các chức năng khác ở menu bên dưới.',
+    'coach.next': 'Chuyển sang bước tiếp theo', 'coach.skipTutorial': 'Bỏ qua hướng dẫn',
+    'coach.doc1.title': 'Hãy thử chụp tài liệu', 'coach.doc1.desc': 'Nhấn vào thẻ này để chụp tài liệu và nhờ AI phân tích.', 'coach.doc1.voice': 'Hãy nhấn vào thẻ chụp tài liệu.',
+    'coach.doc2.title': 'Chúng ta chụp trực tiếp nhé', 'coach.doc2.desc': 'Hãy chụp tài liệu bằng camera.', 'coach.doc2.voice': 'Hãy nhấn chụp trực tiếp.',
+    'coach.doc3.title': 'Hãy nhấn nút chụp', 'coach.doc3.desc': 'Canh tài liệu vào giữa màn hình rồi nhấn nút.', 'coach.doc3.voice': 'Hãy nhấn nút chụp.',
+    'coach.sms1.title': 'Cũng có thể kiểm tra tin nhắn', 'coach.sms1.desc': 'Bạn cũng có thể kiểm tra ở đây xem tin nhắn nhận được có an toàn không.', 'coach.sms1.voice': 'Hãy nhấn vào thẻ tải nội dung tin nhắn.',
+    'coach.smsPermission.title': 'Hãy cho phép đọc tin nhắn', 'coach.smsPermission.desc': 'Cho phép thì sẽ hiện tin nhắn gần đây ngay.', 'coach.smsPermission.voice': 'Hãy nhấn cho phép.',
+    'coach.sms2.title': 'Nhấn vào tin nhắn này để kiểm tra', 'coach.sms2.desc': 'Chỉ cần chạm một lần là kiểm tra được ngay.', 'coach.sms2.voice': 'Hãy nhấn vào tin nhắn để kiểm tra.',
+    'coach.history1.title': 'Cũng có thể xem lịch sử', 'coach.history1.desc': 'Bạn có thể xem lại các tài liệu và tin nhắn đã kiểm tra.', 'coach.history1.voice': 'Hãy nhấn nút Lịch sử ở bên dưới.',
+    'coach.history2.title': 'Chúng ta quay lại trang chủ nhé', 'coach.history2.desc': 'Nhấn nút ← Về trang chủ để quay lại bất cứ lúc nào.', 'coach.history2.voice': 'Hãy nhấn nút về trang chủ.',
+    'coach.info1.title': 'Cũng có thông tin nên biết', 'coach.info1.desc': 'Chúng tôi cung cấp thông tin hữu ích như lương hưu cơ bản, khám sức khỏe.', 'coach.info1.voice': 'Hãy nhấn vào thông tin nên biết.',
+    'coach.info2.title': 'Xem xong thì quay lại trang chủ nhé', 'coach.info2.desc': 'Hãy nhấn nút về trang chủ.', 'coach.info2.voice': 'Hãy nhấn nút về trang chủ.',
+    'coach.welfare1.title': 'Cũng tìm giúp trung tâm phúc lợi·nhà sinh hoạt người cao tuổi gần đây', 'coach.welfare1.desc': 'Chúng tôi cho biết vị trí trung tâm phúc lợi và nhà sinh hoạt người cao tuổi gần vị trí của bạn.', 'coach.welfare1.voice': 'Hãy nhấn vào tìm trung tâm phúc lợi·người cao tuổi gần đây.',
+    'coach.welfare2.title': 'Chúng ta quay lại trang chủ nhé', 'coach.welfare2.desc': 'Hãy nhấn nút về trang chủ.', 'coach.welfare2.voice': 'Hãy nhấn nút về trang chủ.',
+    'coach.voice1.title': 'Cũng có thể nghe hướng dẫn bằng giọng nói', 'coach.voice1.desc': 'Nhấn nút này để nghe lại hướng dẫn màn hình.', 'coach.voice1.voice': 'Hãy nhấn nút nghe hướng dẫn bằng giọng nói.',
+    'coach.emergency1.title': 'Khẩn cấp thì nhấn nút này', 'coach.emergency1.desc': 'Bạn có thể liên hệ ngay với người giám hộ hoặc 119·112·118. Hãy nhấn thử để kiểm tra, xem xong thì nhấn tiếp theo.', 'coach.emergency1.voice': 'Hãy nhấn nút trợ giúp. Sau khi xem xong hãy nhấn tiếp theo.',
+    'coach.settingsIntro.title': 'Chúng ta xem cài đặt nhé', 'coach.settingsIntro.desc': 'Bạn có thể thay đổi cỡ chữ, tốc độ giọng nói, thông tin người giám hộ.', 'coach.settingsIntro.voice': 'Hãy nhấn nút Cài đặt ở bên dưới.',
+    'coach.fontsize.title': 'Hãy thử đổi cỡ chữ', 'coach.fontsize.desc': 'Chọn giữa vừa, lớn, rất lớn. Chọn xong hãy nhấn tiếp theo.', 'coach.fontsize.voice': 'Hãy nhấn cỡ chữ. Chọn xong hãy nhấn tiếp theo.',
+    'coach.rate.title': 'Cũng có thể đổi tốc độ giọng nói', 'coach.rate.desc': 'Hãy chọn tốc độ đọc phù hợp với bạn. Chọn xong hãy nhấn tiếp theo.', 'coach.rate.voice': 'Hãy nhấn tốc độ đọc giọng nói. Chọn xong hãy nhấn tiếp theo.',
+    'coach.guardian.title': 'Hãy thử đăng ký thông tin người giám hộ', 'coach.guardian.desc': 'Khi phát hiện tin nhắn nguy hiểm, có thể báo ngay cho người giám hộ. Đây là mục tùy chọn, nếu không muốn có thể nhấn tiếp theo.', 'coach.guardian.voice': 'Hãy nhập tên người giám hộ. Nếu không muốn, hãy nhấn tiếp theo để bỏ qua.',
+    'coach.helplink.title': 'Cũng có hướng dẫn sử dụng', 'coach.helplink.desc': 'Khi bối rối, bạn có thể xem lại bất cứ lúc nào.', 'coach.helplink.voice': 'Hãy nhấn vào hướng dẫn sử dụng.',
+    'coach.helpback.title': 'Chúng ta quay lại để kết thúc nhé', 'coach.helpback.desc': 'Hãy nhấn nút ← Quay lại.', 'coach.helpback.voice': 'Hãy nhấn nút quay lại.',
+    'coach.finish.title': 'Giờ quay lại trang chủ là xong', 'coach.finish.desc': 'Hãy nhấn nút ← Về trang chủ để kết thúc hướng dẫn.', 'coach.finish.voice': 'Hãy nhấn nút về trang chủ để kết thúc hướng dẫn.',
+    'coach.language.title': 'Cũng có thể đổi ngôn ngữ', 'coach.language.desc': 'Hãy chọn giữa tiếng Trung·Việt·Thái·Uzbek. Chọn xong hãy nhấn tiếp theo.', 'coach.language.voice': 'Hãy nhấn cài đặt ngôn ngữ. Chọn xong hãy nhấn tiếp theo.',
     'common.home': '← Trang chủ', 'common.back': '← Quay lại',
     'docChoice.title': 'Phân tích AI',
     'docChoice.desc': 'Hãy chụp tài liệu bạn muốn phân tích hoặc chọn từ thư viện ảnh.',
     'docChoice.voicePill': 'Nghe lại hướng dẫn bằng giọng nói',
-    'docChoice.cameraTitle': 'Chụp ảnh', 'docChoice.cameraDesc': 'Chụp tài liệu bằng máy ảnh',
-    'docChoice.galleryTitle': 'Tải ảnh lên', 'docChoice.galleryDesc': 'Mở ảnh đã lưu',
+    'docChoice.cameraTitle': 'Chụp ảnh',
+    'docChoice.galleryTitle': 'Tải ảnh lên',
     'docChoice.tipTitle': 'Hãy kiểm tra nhé!',
     'docChoice.tip1': 'Hãy chụp sao cho chữ trên tài liệu hiện rõ.',
     'docChoice.tip2': 'Chụp ở nơi sáng và ít bị phản chiếu ánh sáng sẽ chính xác hơn.',
@@ -2724,13 +2763,11 @@ const I18N = {
     'docCapture.caption': '👆 Hãy nhấn nút chụp',
     'docCapture.blurExample': 'Nếu ảnh bị mờ thì sao? (Xem ví dụ)',
     'docCapture.voice': 'Hãy căn tài liệu vào giữa màn hình rồi nhấn nút bên dưới để chụp.',
-    'loadingDoc.headline': 'AI đang đọc tài liệu,<br />đồng thời chuẩn bị hình minh họa',
-    'loadingText.headline': 'AI đang kiểm tra tin nhắn,<br />đồng thời chuẩn bị hình minh họa',
     'result.docTitle': 'Kết quả phân tích', 'result.readAloud': 'Đọc to lên',
-    'result.translateFailNotice': 'Dịch thất bại. Bạn có muốn thử lại không?', 'result.translateFailRetry': 'Thử lại',
     'result.docKind': 'Loại tài liệu', 'result.viewPhoto': 'Xem ảnh',
     'result.amountLabel': 'Số tiền phải nộp', 'result.dueLabel': 'Hạn nộp',
-    'result.aiSummaryTitle': '⚪ Nội dung AI đã tóm tắt',
+    'result.viewEasy': 'Giải thích dễ hiểu', 'result.viewOriginal': 'Xem nguyên văn',
+    'result.aiSummaryTitle': '⚪ Nội dung AI đã tóm tắt', 'result.originalTitle': 'Nguyên văn',
     'result.todoLabel': 'Việc cần làm',
     'result.actionPhone': 'Gọi điện', 'result.actionWebsite': 'Trang chủ', 'result.actionMap': 'Tìm đường',
     'result.shareTitle': 'Chia sẻ', 'result.shareSms': 'Tin nhắn', 'result.shareKakao': '💛 KakaoTalk', 'result.shareCopy': 'Sao chép',
@@ -2739,7 +2776,6 @@ const I18N = {
     'result.reasonLabel': 'Tại sao nguy hiểm?',
     'result.notifyGuardian': 'Chuyển tin nhắn cho người giám hộ',
     'result.checkAnotherSms': 'Kiểm tra tin nhắn khác',
-    'result.riskFactorsTitle': '🔴 Yếu tố tin nhắn nguy hiểm', 'result.report118': 'Báo cáo 118 (báo cảnh sát)', 'result.askSms': 'Hỏi về tin nhắn này',
     'result.legalNote': 'Kết quả này là phân tích của trí tuệ nhân tạo nên không có hiệu lực pháp lý.<br>Nếu thấy đáng ngờ, hãy trực tiếp hỏi cơ quan liên quan.',
     'result.textConfirm': 'Tôi đã xem', 'result.practiceAgain': 'Luyện tập lại',
     'sms.permission.voice': 'Để kiểm tra tin nhắn, cần quyền đọc tin nhắn.',
@@ -2767,7 +2803,7 @@ const I18N = {
   },
   th: {
     'home.sectionTitle': 'ต้องการความช่วยเหลือเรื่องอะไร?',
-    'home.assistantActive': 'ผู้ช่วย 온담 เปิดใช้งานแล้ว', 'home.assistantInactive': 'ผู้ช่วย 온담 ปิดใช้งานแล้ว',
+    'home.assistantActive': 'ผู้ช่วย 온담 เปิดใช้งานแล้ว',
     'home.greetDefault': 'คุณลูกค้า',
     'home.greetNameSuffix': '', 'home.greetAge': 'ผู้สูงอายุวัย {age} ปีขึ้นไป', 'home.greetAgeGender': 'ผู้สูงอายุเพศ{gender} วัย {age} ปีขึ้นไป',
     'home.docCaptureTitle': 'ถ่ายภาพเอกสาร',
@@ -2776,8 +2812,6 @@ const I18N = {
     'home.smsCheckDesc': 'AI จะช่วยตรวจสอบว่าข้อความที่ได้รับปลอดภัยหรือไม่',
     'home.welfareTitle': 'ค้นหาศูนย์สวัสดิการ·ศูนย์ผู้สูงอายุใกล้เคียง',
     'home.moreMenu': 'ดูเพิ่มเติม',
-    'home.moreNameLabel': 'ชื่อ :', 'home.moreAgeLabel': 'อายุ', 'home.moreGenderLabel': 'เพศ', 'home.moreRegionLabel': 'พื้นที่', 'home.moreAgeUnit': ' ปี',
-    'home.moreMyInfo': 'ข้อมูลของฉัน', 'home.moreHistory': 'ประวัติการวิเคราะห์', 'home.moreStats': 'สถิติ',
     'home.welfareDesc': 'แจ้งตำแหน่งศูนย์สวัสดิการ·ศูนย์ผู้สูงอายุใกล้ที่อยู่ของคุณ',
     'home.todayTasks': 'สิ่งที่ต้องทำวันนี้',
     'home.viewAll': 'ดูทั้งหมด',
@@ -2825,7 +2859,7 @@ const I18N = {
     'settings.fontSize': 'ขนาดตัวอักษรหน้าจอ',
     'settings.fontNormal': 'ปกติ', 'settings.fontLarge': 'ใหญ่', 'settings.fontXLarge': 'ใหญ่มาก',
     'settings.voiceSpeed': 'ความเร็วในการอ่านออกเสียง',
-    'settings.rate05': 'ความเร็ว 0.5 เท่า', 'settings.rate1': 'ความเร็ว 1 เท่า', 'settings.rate15': 'ความเร็ว 1.5 เท่า', 'settings.rate2': 'ความเร็ว 2 เท่า',
+    'settings.rate1': 'ความเร็ว 1 เท่า', 'settings.rate15': 'ความเร็ว 1.5 เท่า', 'settings.rate2': 'ความเร็ว 2 เท่า',
     'settings.replay': 'ฟังอีกครั้ง', 'settings.stop': 'หยุด',
     'settings.voiceEnable': 'ใช้คำแนะนำด้วยเสียง',
     'settings.myInfo': 'ข้อมูลของฉัน (สำหรับคำแนะนำเฉพาะบุคคล ไม่บังคับ)',
@@ -2857,28 +2891,60 @@ const I18N = {
     'settings.supportHelp': 'คำแนะนำการใช้งาน',
     'settings.supportOnboarding': 'ดูคำแนะนำหน้าจออีกครั้ง (คำแนะนำการใช้งานครั้งแรก)',
     'settings.supportCenter': 'ติดต่อศูนย์บริการลูกค้า',
+    'settings.account': 'บัญชี',
+    'settings.accountLogout': 'ออกจากระบบ (ล้างข้อมูลในเครื่องนี้)',
+    'settings.accountLogoutNote': 'แอปนี้ไม่มีบัญชีเข้าสู่ระบบแยกต่างหาก การกด "ออกจากระบบ" จะลบประวัติ·กำหนดการ·การตั้งค่า·ข้อมูลส่วนตัวที่บันทึกไว้ในเครื่องนี้ทั้งหมด และเริ่มต้นใหม่เหมือนใช้งานครั้งแรก',
+    'resetConfirm.title': 'ต้องการล้างข้อมูลอุปกรณ์ทั้งหมดหรือไม่?',
+    'resetConfirm.body': 'ประวัติ·กำหนดการ·การตั้งค่า·ข้อมูลส่วนตัวจะถูกลบทั้งหมดและกู้คืนไม่ได้ จะเริ่มต้นใหม่เหมือนใช้งานครั้งแรก',
+    'resetConfirm.confirm': 'ล้างข้อมูล', 'resetConfirm.cancel': 'ยกเลิก',
     'onboard.replay': 'ฟังอีกครั้ง', 'onboard.skip': 'ข้าม',
-    'onboard.greet.title': 'สวัสดีค่ะ!<br>ฉันคือผู้ช่วยดิจิทัล AI <span class="accent-ink">온담(OnDam)</span>',
-    'onboard.greet.desc': 'ช่วยอ่านเอกสารราชการและใบแจ้งชำระเงินที่ซับซ้อนแทนคุณ<br>และจัดสรุปสิ่งที่ต้องทำให้เข้าใจง่าย',
-    'onboard.greet.start': 'เริ่มต้นใช้ OnDam',
+    'onboard.greet.title': 'สวัสดีค่ะ.<br>ฉันคือผู้ช่วยดิจิทัล AI',
+    'onboard.greet.desc': 'ช่วยให้คุณเข้าใจเอกสารได้ง่าย<br>และแจ้งสิ่งที่ต้องทำให้ทราบ',
+    'onboard.greet.start': 'เริ่มต้น',
     'onboard.greet.voice': 'สวัสดีค่ะ ฉันคือผู้ช่วยดิจิทัล AI จะแนะนำวิธีใช้งานง่ายๆ ผ่านหน้าจอจริง',
     'onboard.profile.title': 'ขอข้อมูล<br>สักเล็กน้อยได้ไหมคะ?',
-    'onboard.access.title': 'ขอข้อมูล<br>สักเล็กน้อยได้ไหมคะ?', 'onboard.access.desc': 'หากไม่ต้องการ สามารถข้ามได้',
-    'onboard.access.voice': 'คุณสามารถตั้งค่าขนาดตัวอักษรหน้าจอ ความเร็วในการอ่านออกเสียง และภาษาไว้ล่วงหน้าได้ หากไม่ต้องการ สามารถข้ามได้',
-    'onboard.profile.desc': 'ข้อมูลที่กรอกจะถูกเก็บไว้ในเครื่องนี้และเซิร์ฟเวอร์ที่ปลอดภัยเท่านั้น<br>ใช้เพื่อให้คำอธิบายที่เหมาะสมยิ่งขึ้นเท่านั้น',
+    'onboard.profile.desc': 'ข้อมูลที่กรอกจะถูกเก็บไว้ในเครื่องนี้และเซิร์ฟเวอร์ที่ปลอดภัยเท่านั้น<br>ใช้เพื่อให้คำอธิบายที่เหมาะสมยิ่งขึ้นเท่านั้น<br>หากไม่ต้องการก็สามารถข้ามได้',
     'onboard.profile.genderLabel': 'เพศ', 'onboard.profile.ageLabel': 'อายุ',
     'onboard.profile.agePlaceholder': 'เช่น 73', 'onboard.profile.ageNote': 'กรุณากรอกอายุเป็นตัวเลข สิทธิประโยชน์ที่ได้รับจะต่างกันตามอายุ',
     'skipConfirm.title': 'ข้ามบทแนะนำหรือไม่?', 'skipConfirm.keep': 'ดูต่อ',
     'onboard.profile.useLocation': 'กรอกตำแหน่งปัจจุบันของฉัน',
     'onboard.profile.regionNote': 'หากระบุถึงระดับอำเภอ/เขต จะช่วยให้เราให้ข้อมูลที่เหมาะสมยิ่งขึ้น',
     'onboard.profile.next': 'ถัดไป',
-    'onboard.profile.voice': 'บอกชื่อ เพศ ช่วงอายุ และที่อยู่อาศัยให้ฉันทราบ เพื่อช่วยเหลือคุณได้เหมาะสมยิ่งขึ้น',
+    'onboard.profile.voice': 'บอกชื่อ เพศ ช่วงอายุ และที่อยู่อาศัยให้ฉันทราบ เพื่อช่วยเหลือคุณได้เหมาะสมยิ่งขึ้น หากไม่ต้องการก็สามารถข้ามได้',
+    'onboard.notice.title': 'ตอนนี้ยังไม่สามารถวิเคราะห์ได้',
+    'onboard.notice.desc': 'ตอนนี้เป็นเวอร์ชันทดลอง (บทเรียน)<br>อาจไม่มีการวิเคราะห์จริงให้<br>หากมีข้อสงสัยกรุณาติดต่อผู้ดูแลระบบ',
+    'onboard.notice.next': 'ดำเนินการต่อ',
+    'onboard.notice.voice': 'ตอนนี้ยังไม่สามารถวิเคราะห์ได้ เนื่องจากเป็นเวอร์ชันทดลอง อาจไม่มีการวิเคราะห์จริงให้ หากมีข้อสงสัยกรุณาติดต่อผู้ดูแลระบบ',
+    'coach.moreHelp.title': 'ดูฟังก์ชันอื่นได้ที่นี่', 'coach.moreHelp.desc': 'กดที่ข้อมูล ประวัติ ตั้งค่า ด้านล่างได้เลย', 'coach.moreHelp.voice': 'ดูฟังก์ชันอื่นได้จากเมนูด้านล่าง',
+    'coach.next': 'ไปขั้นตอนถัดไป', 'coach.skipTutorial': 'ข้ามบทเรียน',
+    'coach.doc1.title': 'ลองถ่ายภาพเอกสารดูสิ', 'coach.doc1.desc': 'กดการ์ดนี้เพื่อถ่ายภาพเอกสารและให้ AI วิเคราะห์', 'coach.doc1.voice': 'กรุณากดการ์ดถ่ายภาพเอกสาร',
+    'coach.doc2.title': 'ลองถ่ายภาพเองดูนะ', 'coach.doc2.desc': 'ถ่ายภาพเอกสารด้วยกล้อง', 'coach.doc2.voice': 'กรุณากดถ่ายภาพเอง',
+    'coach.doc3.title': 'กรุณากดปุ่มถ่ายภาพ', 'coach.doc3.desc': 'จัดเอกสารให้อยู่กลางจอแล้วกดปุ่ม', 'coach.doc3.voice': 'กรุณากดปุ่มถ่ายภาพ',
+    'coach.sms1.title': 'ตรวจสอบข้อความได้เช่นกัน', 'coach.sms1.desc': 'สามารถตรวจสอบที่นี่ได้ว่าข้อความที่ได้รับปลอดภัยหรือไม่', 'coach.sms1.voice': 'กรุณากดการ์ดนำเข้าข้อความ',
+    'coach.smsPermission.title': 'กรุณาอนุญาตให้อ่านข้อความ', 'coach.smsPermission.desc': 'หากอนุญาตจะแสดงข้อความล่าสุดทันที', 'coach.smsPermission.voice': 'กรุณากดอนุญาต',
+    'coach.sms2.title': 'กดข้อความนี้เพื่อตรวจสอบ', 'coach.sms2.desc': 'แตะเพียงครั้งเดียวก็ตรวจสอบได้ทันที', 'coach.sms2.voice': 'กรุณากดข้อความเพื่อตรวจสอบ',
+    'coach.history1.title': 'ดูประวัติได้เช่นกัน', 'coach.history1.desc': 'สามารถดูเอกสารและข้อความที่ตรวจสอบมาแล้วทั้งหมด', 'coach.history1.voice': 'กรุณากดปุ่มประวัติด้านล่าง',
+    'coach.history2.title': 'กลับไปหน้าหลักกันเถอะ', 'coach.history2.desc': 'กดปุ่ม ← กลับหน้าหลักเพื่อย้อนกลับได้ทุกเมื่อ', 'coach.history2.voice': 'กรุณากดปุ่มกลับหน้าหลัก',
+    'coach.info1.title': 'มีข้อมูลที่ควรรู้ด้วย', 'coach.info1.desc': 'แนะนำข้อมูลที่เป็นประโยชน์ เช่น เงินบำนาญพื้นฐาน การตรวจสุขภาพ', 'coach.info1.voice': 'กรุณากดข้อมูลที่ควรรู้',
+    'coach.info2.title': 'ดูเสร็จแล้วกลับหน้าหลักนะ', 'coach.info2.desc': 'กรุณากดปุ่มกลับหน้าหลัก', 'coach.info2.voice': 'กรุณากดปุ่มกลับหน้าหลัก',
+    'coach.welfare1.title': 'หาศูนย์สวัสดิการ·ศูนย์ผู้สูงอายุใกล้เคียงให้ด้วย', 'coach.welfare1.desc': 'แจ้งตำแหน่งศูนย์สวัสดิการและศูนย์ผู้สูงอายุใกล้ตำแหน่งของคุณ', 'coach.welfare1.voice': 'กรุณากดค้นหาศูนย์สวัสดิการ·ศูนย์ผู้สูงอายุใกล้เคียง',
+    'coach.welfare2.title': 'กลับไปหน้าหลักกันเถอะ', 'coach.welfare2.desc': 'กรุณากดปุ่มกลับหน้าหลัก', 'coach.welfare2.voice': 'กรุณากดปุ่มกลับหน้าหลัก',
+    'coach.voice1.title': 'รับคำแนะนำด้วยเสียงได้เช่นกัน', 'coach.voice1.desc': 'กดปุ่มนี้เพื่อฟังคำแนะนำหน้าจออีกครั้ง', 'coach.voice1.voice': 'กรุณากดปุ่มรับคำแนะนำด้วยเสียง',
+    'coach.emergency1.title': 'ฉุกเฉินให้กดปุ่มนี้', 'coach.emergency1.desc': 'สามารถติดต่อผู้ดูแลหรือ 119·112·118 ได้ทันที ลองกดตรวจสอบดู เสร็จแล้วกดถัดไป', 'coach.emergency1.voice': 'กรุณากดปุ่มขอความช่วยเหลือ ตรวจสอบเสร็จแล้วกรุณากดถัดไป',
+    'coach.settingsIntro.title': 'ดูการตั้งค่ากันด้วย', 'coach.settingsIntro.desc': 'สามารถเปลี่ยนขนาดตัวอักษร ความเร็วเสียง ข้อมูลผู้ดูแลได้', 'coach.settingsIntro.voice': 'กรุณากดปุ่มตั้งค่าด้านล่าง',
+    'coach.fontsize.title': 'ลองเปลี่ยนขนาดตัวอักษรดู', 'coach.fontsize.desc': 'เลือกระหว่างปกติ ใหญ่ ใหญ่มาก เลือกเสร็จแล้วกดถัดไป', 'coach.fontsize.voice': 'กรุณากดขนาดตัวอักษร เลือกเสร็จแล้วกรุณากดถัดไป',
+    'coach.rate.title': 'เปลี่ยนความเร็วเสียงได้เช่นกัน', 'coach.rate.desc': 'เลือกความเร็วในการอ่านที่สบายสำหรับคุณ เลือกเสร็จแล้วกดถัดไป', 'coach.rate.voice': 'กรุณากดความเร็วในการอ่านออกเสียง เลือกเสร็จแล้วกรุณากดถัดไป',
+    'coach.guardian.title': 'ลองลงทะเบียนข้อมูลผู้ดูแลดู', 'coach.guardian.desc': 'เมื่อพบข้อความอันตรายสามารถแจ้งผู้ดูแลได้ทันที เป็นตัวเลือก หากไม่ต้องการกดถัดไปได้เลย', 'coach.guardian.voice': 'กรุณากรอกชื่อผู้ดูแล หากไม่ต้องการกรุณากดถัดไปเพื่อข้าม',
+    'coach.helplink.title': 'มีคำแนะนำการใช้งานด้วย', 'coach.helplink.desc': 'เมื่อสับสนสามารถดูอีกครั้งได้ทุกเมื่อ', 'coach.helplink.voice': 'กรุณากดคำแนะนำการใช้งาน',
+    'coach.helpback.title': 'ย้อนกลับเพื่อจบกันนะ', 'coach.helpback.desc': 'กรุณากดปุ่ม ← ย้อนกลับ', 'coach.helpback.voice': 'กรุณากดปุ่มย้อนกลับ',
+    'coach.finish.title': 'ตอนนี้กลับหน้าหลักก็จบแล้ว', 'coach.finish.desc': 'กรุณากดปุ่ม ← กลับหน้าหลักเพื่อจบคำแนะนำ', 'coach.finish.voice': 'กรุณากดปุ่มกลับหน้าหลักเพื่อจบคำแนะนำ',
+    'coach.language.title': 'เปลี่ยนภาษาได้เช่นกัน', 'coach.language.desc': 'เลือกระหว่างจีน·เวียดนาม·ไทย·อุซเบก เลือกเสร็จแล้วกดถัดไป', 'coach.language.voice': 'กรุณากดตั้งค่าภาษา เลือกเสร็จแล้วกรุณากดถัดไป',
     'common.home': '← หน้าแรก', 'common.back': '← ย้อนกลับ',
     'docChoice.title': 'วิเคราะห์ด้วย AI',
     'docChoice.desc': 'กรุณาถ่ายภาพเอกสารที่ต้องการวิเคราะห์หรือเลือกจากคลังภาพ',
     'docChoice.voicePill': 'ฟังคำแนะนำเสียงอีกครั้ง',
-    'docChoice.cameraTitle': 'ถ่ายภาพ', 'docChoice.cameraDesc': 'ถ่ายเอกสารด้วยกล้อง',
-    'docChoice.galleryTitle': 'นำเข้ารูปภาพ', 'docChoice.galleryDesc': 'เปิดรูปภาพที่บันทึกไว้',
+    'docChoice.cameraTitle': 'ถ่ายภาพ',
+    'docChoice.galleryTitle': 'นำเข้ารูปภาพ',
     'docChoice.tipTitle': 'กรุณาตรวจสอบด้วยนะคะ!',
     'docChoice.tip1': 'กรุณาถ่ายให้ตัวอักษรในเอกสารชัดเจน',
     'docChoice.tip2': 'ถ่ายในที่สว่างและมีแสงสะท้อนน้อยจะแม่นยำกว่า',
@@ -2888,13 +2954,11 @@ const I18N = {
     'docCapture.caption': '👆 กรุณากดปุ่มถ่ายภาพ',
     'docCapture.blurExample': 'ถ้ารูปออกมาเบลอ? (ดูตัวอย่าง)',
     'docCapture.voice': 'กรุณาจัดเอกสารให้อยู่กลางหน้าจอ แล้วกดปุ่มด้านล่างเพื่อถ่ายภาพ',
-    'loadingDoc.headline': 'AI กำลังอ่านเอกสาร<br />และเตรียมภาพประกอบไปพร้อมกัน',
-    'loadingText.headline': 'AI กำลังตรวจสอบข้อความ<br />และเตรียมภาพประกอบไปพร้อมกัน',
     'result.docTitle': 'ผลการวิเคราะห์', 'result.readAloud': 'อ่านออกเสียงดัง',
-    'result.translateFailNotice': 'แปลไม่สำเร็จ ต้องการลองใหม่ไหม?', 'result.translateFailRetry': 'ลองอีกครั้ง',
     'result.docKind': 'ประเภทเอกสาร', 'result.viewPhoto': 'ดูรูปภาพ',
     'result.amountLabel': 'จำนวนเงินที่ต้องชำระ', 'result.dueLabel': 'กำหนดชำระ',
-    'result.aiSummaryTitle': '⚪ เนื้อหาที่ AI สรุปให้',
+    'result.viewEasy': 'คำอธิบายง่ายๆ', 'result.viewOriginal': 'ดูต้นฉบับ',
+    'result.aiSummaryTitle': '⚪ เนื้อหาที่ AI สรุปให้', 'result.originalTitle': 'ต้นฉบับ',
     'result.todoLabel': 'สิ่งที่ต้องทำ',
     'result.actionPhone': 'โทรออก', 'result.actionWebsite': 'เว็บไซต์', 'result.actionMap': 'ค้นหาเส้นทาง',
     'result.shareTitle': 'แชร์', 'result.shareSms': 'ข้อความ', 'result.shareKakao': '💛 KakaoTalk', 'result.shareCopy': 'คัดลอก',
@@ -2903,7 +2967,6 @@ const I18N = {
     'result.reasonLabel': 'ทำไมถึงอันตราย?',
     'result.notifyGuardian': 'ส่งต่อข้อความให้ผู้ดูแล',
     'result.checkAnotherSms': 'ตรวจสอบข้อความอื่น',
-    'result.riskFactorsTitle': '🔴 องค์ประกอบข้อความอันตราย', 'result.report118': 'แจ้ง 118 (แจ้งตำรวจ)', 'result.askSms': 'ถามเกี่ยวกับข้อความนี้',
     'result.legalNote': 'ผลการตัดสินนี้เป็นผลวิเคราะห์จากปัญญาประดิษฐ์ จึงไม่มีผลทางกฎหมาย<br>หากสงสัย กรุณาสอบถามหน่วยงานที่เกี่ยวข้องโดยตรง',
     'result.textConfirm': 'รับทราบแล้ว', 'result.practiceAgain': 'ฝึกอีกครั้ง',
     'sms.permission.voice': 'การตรวจสอบข้อความต้องได้รับสิทธิ์อ่านข้อความ',
@@ -2931,7 +2994,7 @@ const I18N = {
   },
   uz: {
     'home.sectionTitle': 'Sizga qanday yordam kerak?',
-    'home.assistantActive': "온담 yordamchisi faollashtirildi", 'home.assistantInactive': "온담 yordamchisi faolsizlantirildi",
+    'home.assistantActive': "온담 yordamchisi faollashtirildi",
     'home.greetDefault': 'Foydalanuvchi',
     'home.greetNameSuffix': '', 'home.greetAge': '{age} yoshli foydalanuvchi', 'home.greetAgeGender': '{age} yoshli {gender}',
     'home.docCaptureTitle': "Hujjat suratga olish",
@@ -2940,8 +3003,6 @@ const I18N = {
     'home.smsCheckDesc': "AI olingan xabar xavfsizligini tekshirib beradi",
     'home.welfareTitle': "Yaqin atrofdagi ijtimoiy ta'minot markazlari va keksalar markazini toping",
     'home.moreMenu': "Ko'proq",
-    'home.moreNameLabel': 'Ism :', 'home.moreAgeLabel': 'Yosh', 'home.moreGenderLabel': 'Jinsi', 'home.moreRegionLabel': 'Hudud', 'home.moreAgeUnit': ' yosh',
-    'home.moreMyInfo': 'Mening ma\'lumotim', 'home.moreHistory': 'Tahlil tarixi', 'home.moreStats': 'Statistika',
     'home.welfareDesc': "Joylashuvingiz yaqinidagi ijtimoiy ta'minot markazlari va keksalar markazini ko'rsatamiz",
     'home.todayTasks': 'Bugungi vazifalar',
     'home.viewAll': "Barchasini ko'rish",
@@ -2989,7 +3050,7 @@ const I18N = {
     'settings.fontSize': "Ekran shrift o'lchami",
     'settings.fontNormal': "Oddiy", 'settings.fontLarge': 'Katta', 'settings.fontXLarge': "Juda katta",
     'settings.voiceSpeed': "Ovozli o'qish tezligi",
-    'settings.rate05': '0.5x tezlik', 'settings.rate1': '1x tezlik', 'settings.rate15': '1.5x tezlik', 'settings.rate2': '2x tezlik',
+    'settings.rate1': '1x tezlik', 'settings.rate15': '1.5x tezlik', 'settings.rate2': '2x tezlik',
     'settings.replay': "Qayta o'qish", 'settings.stop': "To'xtatish",
     'settings.voiceEnable': "Ovozli qo'llanmadan foydalanish",
     'settings.myInfo': "Mening ma'lumotlarim (moslashtirilgan tavsiya uchun, ixtiyoriy)",
@@ -3021,28 +3082,60 @@ const I18N = {
     'settings.supportHelp': "Foydalanish bo'yicha qo'llanma",
     'settings.supportOnboarding': "Ekran qo'llanmasini qayta ko'rish (birinchi marta ishlatish qo'llanmasi)",
     'settings.supportCenter': "Mijozlarga xizmat ko'rsatish markazi bilan bog'lanish",
+    'settings.account': 'Hisob',
+    'settings.accountLogout': "Chiqish (bu qurilmadagi ma'lumotlarni tozalash)",
+    'settings.accountLogoutNote': "Bu ilovada alohida kirish hisobi yo'q. \"Chiqish\"ni bossangiz, bu qurilmada saqlangan tarix·jadval·sozlamalar·shaxsiy ma'lumotlar butunlay o'chiriladi va ilova birinchi marta ishlatilayotgandek qaytadan boshlanadi.",
+    'resetConfirm.title': "Qurilmadagi barcha ma'lumotlar tozalansinmi?",
+    'resetConfirm.body': "Tarix·jadval·sozlamalar·shaxsiy ma'lumotlar butunlay o'chiriladi va qaytarib bo'lmaydi. Ilova birinchi marta ishlatilayotgandek qaytadan boshlanadi.",
+    'resetConfirm.confirm': "Tozalash", 'resetConfirm.cancel': 'Bekor qilish',
     'onboard.replay': 'Qayta eshitish', 'onboard.skip': "O'tkazib yuborish",
-    'onboard.greet.title': "Salom!<br>Men AI raqamli yordamchi <span class=\"accent-ink\">온담(OnDam)</span>man.",
-    'onboard.greet.desc': "Murakkab rasmiy hujjatlar va to'lov kvitansiyalarini o'rningizga o'qib,<br>qilishingiz kerak bo'lgan ishlarni tushunarli qilib tartiblab beraman.",
-    'onboard.greet.start': "OnDam bilan boshlash",
+    'onboard.greet.title': 'Salom.<br>Men AI raqamli yordamchiman.',
+    'onboard.greet.desc': 'Hujjatlarni oson tushunishga<br>va nima qilish kerakligini aytishga yordam beraman.',
+    'onboard.greet.start': 'Boshlash',
     'onboard.greet.voice': 'Salom. Men AI raqamli yordamchiman. Haqiqiy ekranlar orqali foydalanish usulini qisqacha tushuntiraman.',
     'onboard.profile.title': "Bir nechta<br>ma'lumot bera olasizmi?",
-    'onboard.access.title': "Bir nechta<br>ma'lumot bera olasizmi?", 'onboard.access.desc': "Agar xohlamasangiz, o'tkazib yuborishingiz mumkin.",
-    'onboard.access.voice': "Ekran shrift o'lchami, ovozli o'qish tezligi va tilni oldindan sozlab qo'yishingiz mumkin. Agar xohlamasangiz, o'tkazib yuborishingiz mumkin.",
-    'onboard.profile.desc': "Kiritgan ma'lumotingiz faqat shu qurilma va xavfsiz serverda saqlanadi,<br>faqat sizga mos tushuntirish berish uchun ishlatiladi.",
+    'onboard.profile.desc': "Kiritgan ma'lumotingiz faqat shu qurilma va xavfsiz serverda saqlanadi,<br>faqat sizga mos tushuntirish berish uchun ishlatiladi.<br>Xohlamasangiz o'tkazib yuborishingiz mumkin.",
     'onboard.profile.genderLabel': 'Jinsi', 'onboard.profile.ageLabel': 'Yosh',
     'onboard.profile.agePlaceholder': 'Masalan: 73', 'onboard.profile.ageNote': "Yoshingizni raqam bilan kiriting. Yoshga qarab olinadigan imtiyozlar farq qiladi.",
     'skipConfirm.title': 'Qoʻllanma oʻtkazib yuborilsinmi?', 'skipConfirm.keep': 'Davom etish',
     'onboard.profile.useLocation': 'Joriy joylashuvimni kiritish',
     'onboard.profile.regionNote': "Tuman/shahargacha aniq yozsangiz, sizga mosroq ma'lumot bera olamiz.",
     'onboard.profile.next': 'Keyingi',
-    'onboard.profile.voice': "Ism, jins, yosh guruhi va yashash hududingizni ayting, sizga mosroq yordam bera olaman.",
+    'onboard.profile.voice': "Ism, jins, yosh guruhi va yashash hududingizni ayting, sizga mosroq yordam bera olaman. Xohlamasangiz o'tkazib yuborishingiz mumkin.",
+    'onboard.notice.title': 'Hozircha tahlil qilish qiyin.',
+    'onboard.notice.desc': "Hozir sinov versiyasi (qo'llanma) bo'lgani uchun,<br>haqiqiy tahlil taqdim etilmasligi mumkin.<br>Savollaringiz bo'lsa administratorga murojaat qiling.",
+    'onboard.notice.next': 'Davom etish',
+    'onboard.notice.voice': "Hozircha tahlil qilish qiyin. Sinov versiyasi bo'lgani uchun haqiqiy tahlil taqdim etilmasligi mumkin. Savollaringiz bo'lsa administratorga murojaat qiling.",
+    'coach.moreHelp.title': "Bu yerda boshqa funksiyalarni ham ko'rasiz", 'coach.moreHelp.desc': "Pastdagi Ma'lumot, Tarix, Sozlamalar tugmalarini bosing.", 'coach.moreHelp.voice': "Pastdagi menyudan boshqa funksiyalarni ham ko'rishingiz mumkin.",
+    'coach.next': "Keyingi bosqichga o'tish", 'coach.skipTutorial': "Qo'llanmani o'tkazib yuborish",
+    'coach.doc1.title': 'Hujjatni suratga olib ko\'ring', 'coach.doc1.desc': 'Ushbu kartani bosib hujjatni suratga olib AI tahliliga topshirishingiz mumkin.', 'coach.doc1.voice': 'Hujjat suratga olish kartasini bosing.',
+    'coach.doc2.title': 'Bevosita suratga olamiz', 'coach.doc2.desc': 'Kamera bilan hujjatni suratga oling.', 'coach.doc2.voice': 'Bevosita suratga olishni bosing.',
+    'coach.doc3.title': 'Suratga olish tugmasini bosing', 'coach.doc3.desc': "Hujjatni ekran markaziga to'g'rilab tugmani bosing.", 'coach.doc3.voice': 'Suratga olish tugmasini bosing.',
+    'coach.sms1.title': 'SMS xabarni ham tekshirish mumkin', 'coach.sms1.desc': 'Kelgan SMS xavfsizligini shu yerda ham tekshirish mumkin.', 'coach.sms1.voice': "SMS matnini yuklash kartasini bosing.",
+    'coach.smsPermission.title': "Xabar o'qishga ruxsat bering", 'coach.smsPermission.desc': "Ruxsat bersangiz so'nggi xabarlar darhol ko'rsatiladi.", 'coach.smsPermission.voice': "Ruxsat berishni bosing.",
+    'coach.sms2.title': 'Ushbu xabarni tekshirish uchun bosing', 'coach.sms2.desc': "Bir marta bosish bilan darhol tekshirish mumkin.", 'coach.sms2.voice': 'Xabarni tekshirish uchun bosing.',
+    'coach.history1.title': 'Tarixni ham ko\'rish mumkin', 'coach.history1.desc': 'Hozirgacha tekshirilgan hujjat va SMS tarixini birgalikda ko\'rish mumkin.', 'coach.history1.voice': 'Pastdagi Tarix tugmasini bosing.',
+    'coach.history2.title': 'Yana bosh sahifaga qaytamiz', 'coach.history2.desc': "← Bosh sahifaga tugmasini bosib istalgan vaqtda qaytish mumkin.", 'coach.history2.voice': 'Bosh sahifaga qaytish tugmasini bosing.',
+    'coach.info1.title': "Bilish foydali ma'lumotlar ham bor", 'coach.info1.desc': "Asosiy pensiya, sog'liqni tekshirish kabi foydali ma'lumotlarni taqdim etamiz.", 'coach.info1.voice': "Bilish foydali ma'lumotlarni bosing.",
+    'coach.info2.title': 'Ko\'rib bo\'lgach bosh sahifaga qayting', 'coach.info2.desc': 'Bosh sahifaga qaytish tugmasini bosing.', 'coach.info2.voice': 'Bosh sahifaga qaytish tugmasini bosing.',
+    'coach.welfare1.title': "Yaqin atrofdagi ijtimoiy ta'minot markazlari va keksalar markazini ham topib beramiz", 'coach.welfare1.desc': "Joylashuvingiz yaqinidagi ijtimoiy ta'minot markazi va keksalar markazi joylashuvini ko'rsatamiz.", 'coach.welfare1.voice': "Yaqin atrofdagi ijtimoiy ta'minot·keksalar markazini qidirishni bosing.",
+    'coach.welfare2.title': 'Yana bosh sahifaga qaytamiz', 'coach.welfare2.desc': 'Bosh sahifaga qaytish tugmasini bosing.', 'coach.welfare2.voice': 'Bosh sahifaga qaytish tugmasini bosing.',
+    'coach.voice1.title': 'Ovoz orqali ham yo\'riqnoma olish mumkin', 'coach.voice1.desc': 'Shu tugmani bosib ekran yo\'riqnomasini yana eshitishingiz mumkin.', 'coach.voice1.voice': 'Ovoz orqali yo\'riqnoma olish tugmasini bosing.',
+    'coach.emergency1.title': 'Favqulodda vaziyatda shu tugmani bosing', 'coach.emergency1.desc': "Vasiy yoki 119·112·118 ga to'g'ridan-to'g'ri bog'lanish mumkin. Bosib ko'ring, ko'rib bo'lgach keyingiga o'ting.", 'coach.emergency1.voice': 'Yordam tugmasini bosing. Tekshirib bo\'lgach keyingi tugmasini bosing.',
+    'coach.settingsIntro.title': 'Sozlamalarni ham ko\'ramiz', 'coach.settingsIntro.desc': "Shrift o'lchami, ovoz tezligi, vasiy ma'lumotlarini o'zgartirish mumkin.", 'coach.settingsIntro.voice': 'Pastdagi Sozlamalar tugmasini bosing.',
+    'coach.fontsize.title': "Shrift o'lchamini o'zgartirib ko'ring", 'coach.fontsize.desc': "Oddiy, katta, juda katta orasidan tanlang. Tanlab bo'lgach keyingiga o'ting.", 'coach.fontsize.voice': "Shrift o'lchamini bosing. Tanlab bo'lgach keyingi tugmasini bosing.",
+    'coach.rate.title': "Ovoz tezligini ham o'zgartirish mumkin", 'coach.rate.desc': "O'zingizga qulay o'qish tezligini tanlang. Tanlab bo'lgach keyingiga o'ting.", 'coach.rate.voice': "Ovoz o'qish tezligini bosing. Tanlab bo'lgach keyingi tugmasini bosing.",
+    'coach.guardian.title': "Vasiy ma'lumotlarini ro'yxatdan o'tkazib ko'ring", 'coach.guardian.desc': "Xavfli SMS aniqlansa vasiyga darhol xabar berish mumkin. Bu ixtiyoriy, xohlamasangiz keyingiga o'ting.", 'coach.guardian.voice': "Vasiy ismini kiriting. Xohlamasangiz keyingi tugmasini bosib o'tkazib yuboring.",
+    'coach.helplink.title': 'Foydalanish yo\'riqnomasi ham bor', 'coach.helplink.desc': 'Chalkashib qolganda istalgan vaqtda qayta ko\'rish mumkin.', 'coach.helplink.voice': 'Foydalanish yo\'riqnomasini bosing.',
+    'coach.helpback.title': 'Ortga qaytib yakunlaymiz', 'coach.helpback.desc': '← Ortga tugmasini bosing.', 'coach.helpback.voice': 'Ortga tugmasini bosing.',
+    'coach.finish.title': 'Endi bosh sahifaga qaytsangiz tugaydi', 'coach.finish.desc': "Yo'riqnomani yakunlash uchun ← Bosh sahifaga tugmasini bosing.", 'coach.finish.voice': "Yo'riqnomani yakunlash uchun bosh sahifaga tugmasini bosing.",
+    'coach.language.title': 'Tilni ham o\'zgartirish mumkin', 'coach.language.desc': "Xitoy·Vetnam·Tay·O'zbek orasidan tanlang. Tanlab bo'lgach keyingiga o'ting.", 'coach.language.voice': "Til sozlamasini bosing. Tanlab bo'lgach keyingi tugmasini bosing.",
     'common.home': '← Bosh sahifa', 'common.back': '← Orqaga',
     'docChoice.title': "AI bilan tahlil qilish",
     'docChoice.desc': "Tahlil qilmoqchi bo'lgan hujjatni suratga oling yoki galereyadan tanlang.",
     'docChoice.voicePill': "Ovozli yo'riqnomani qayta eshitish",
-    'docChoice.cameraTitle': "Surat olish", 'docChoice.cameraDesc': 'Kamera bilan hujjatni suratga olish',
-    'docChoice.galleryTitle': "Rasm yuklash", 'docChoice.galleryDesc': 'Saqlangan rasmni ochish',
+    'docChoice.cameraTitle': "Surat olish",
+    'docChoice.galleryTitle': "Rasm yuklash",
     'docChoice.tipTitle': 'Albatta tekshiring!',
     'docChoice.tip1': 'Hujjatdagi harflar aniq ko\'rinadigan qilib suratga oling.',
     'docChoice.tip2': "Yorug' va yorug'lik aks etmaydigan joyda suratga olsangiz aniqroq bo'ladi.",
@@ -3052,13 +3145,11 @@ const I18N = {
     'docCapture.caption': '👆 Suratga olish tugmasini bosing',
     'docCapture.blurExample': "Rasm xira chiqsa-chi? (Namunani ko'rish)",
     'docCapture.voice': "Hujjatni ekran o'rtasiga joylashtiring va pastdagi tugmani bosib suratga oling.",
-    'loadingDoc.headline': "AI hujjatni o'qimoqda,<br />shu bilan birga rasm ham tayyorlanmoqda",
-    'loadingText.headline': "AI xabarni tekshirmoqda,<br />shu bilan birga rasm ham tayyorlanmoqda",
     'result.docTitle': 'Tahlil natijasi', 'result.readAloud': "Baland ovozda o'qib berish",
-    'result.translateFailNotice': "Tarjima muvaffaqiyatsiz tugadi. Qayta urinib ko'rasizmi?", 'result.translateFailRetry': 'Qayta urinish',
     'result.docKind': 'Hujjat turi', 'result.viewPhoto': "Rasmni ko'rish",
     'result.amountLabel': "To'lanadigan summa", 'result.dueLabel': "To'lov muddati",
-    'result.aiSummaryTitle': '⚪ AI jamlagan mazmun',
+    'result.viewEasy': 'Sodda tushuntirish', 'result.viewOriginal': "Asl matnni ko'rish",
+    'result.aiSummaryTitle': '⚪ AI jamlagan mazmun', 'result.originalTitle': 'Asl matn',
     'result.todoLabel': "Bajarish kerak bo'lgan ishlar",
     'result.actionPhone': "Qo'ng'iroq qilish", 'result.actionWebsite': 'Veb-sayt', 'result.actionMap': "Yo'lni topish",
     'result.shareTitle': 'Ulashish', 'result.shareSms': 'SMS', 'result.shareKakao': '💛 KakaoTalk', 'result.shareCopy': 'Nusxa olish',
@@ -3067,7 +3158,6 @@ const I18N = {
     'result.reasonLabel': "Nega xavfli?",
     'result.notifyGuardian': 'Xabarni vasiyga yuborish',
     'result.checkAnotherSms': 'Boshqa SMS ni tekshirish',
-    'result.riskFactorsTitle': "🔴 Xavfli SMS unsurlari", 'result.report118': "118 ga xabar berish (politsiyaga)", 'result.askSms': 'Bu SMS haqida so\'rash',
     'result.legalNote': "Ushbu xulosa sun'iy intellekt tahlili bo'lgani uchun yuridik kuchga ega emas.<br>Shubha tug'ilsa, albatta tegishli idoraga o'zingiz murojaat qiling.",
     'result.textConfirm': 'Tanishib chiqdim', 'result.practiceAgain': 'Qaytadan mashq qilish',
     'sms.permission.voice': "Xabarni tekshirish uchun xabar o'qish ruxsati kerak.",
@@ -3145,160 +3235,6 @@ async function translateUiIfNeeded(lang){
   return translationInFlight[lang];
 }
 
-/* ---- 문서/문자 "AI 분석 결과" 표시 번역 ----
-   위 translateUiIfNeeded()는 화면 UI 문구(I18N.ko) 전체를 한 번 번역해 전역 캐시(dynamicTranslations)에
-   저장하는 것이고, 이건 별개다 — 분석 결과(headline/summary/checklist)는 매번 새로 생성되는 데이터라
-   전역 캐시에 넣지 않고 그 분석 객체(data._translated) 안에만 캐시해둔다. Worker의 분석 자체(worker/src/index.js)는
-   항상 한국어를 그대로 생성해 저장/알림(appState.schedule 등)의 원문으로 남기고, 여기서는 순수하게
-   "화면에 보여주는 문구"만 표시 언어로 덧입힌다. 실패해도 조용히 넘어가 한국어 원문을 계속 보여준다
-   (translateUiIfNeeded와 같은 폴백 철학 — 사용자에게 오류를 보여주지 않는다). */
-
-/** texts 배열을 lang으로 번역해 같은 순서/개수의 배열로 돌려준다. 실패(네트워크 오류, 형식 오류 등)하면 null. */
-async function translateAnalysisTexts(lang, texts){
-  if (!AI_WORKER_URL) return null;
-  try {
-    const res = await fetch(AI_WORKER_URL + '/translate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lang, texts }),
-    });
-    const data = await res.json();
-    if (!res.ok || !Array.isArray(data.translations) || data.translations.length !== texts.length) return null;
-    return data.translations;
-  } catch (err) {
-    return null;
-  }
-}
-
-/** renderDocResult()가 그린 한국어 결과 위에 번역을 덧입힌다.
- *  rows: [{ state:{text}, checkbox, textNode }, ...] — renderDocResult()의 체크리스트 행 참조.
- *  data._translated[lang]에 캐시해 같은 결과를 같은 언어로 다시 보여줄 때(뒤로가기 등) 재호출하지 않는다. */
-async function applyDocResultTranslation(data, rows){
-  const lang = appState.settings.language;
-  setTranslateFailNoticeVisible('docTranslateFailNotice', false);
-  if (!lang || lang === 'ko') return;
-
-  data._translated = data._translated || {};
-  let cached = data._translated[lang];
-  if (!cached) {
-    const texts = [data.headline || '', data.summary || '', ...(data.checklist || [])];
-    const translations = await translateAnalysisTexts(lang, texts);
-    if (!translations) {
-      // 실패: 한국어 원문을 그대로 유지하되, 아직 같은 결과/언어/화면을 보고 있으면 재시도 안내를 띄운다
-      if (lastDocAnalysis === data && appState.settings.language === lang) {
-        setTranslateFailNoticeVisible('docTranslateFailNotice', true);
-      }
-      return;
-    }
-    const items = data.checklist || [];
-    cached = {
-      headline: translations[0] || data.headline || '',
-      summary: translations[1] || data.summary || '',
-      checklist: items.map((item, i) => translations[2 + i] || item),
-    };
-    data._translated[lang] = cached;
-  }
-
-  // 번역이 도착하는 동안 사용자가 다른 문서로 넘겼거나(showDocAnalysis), 다른 화면/언어로 이동했으면 반영하지 않는다
-  if (lastDocAnalysis !== data) return;
-  if (appState.settings.language !== lang) return;
-  const activeScreen = document.querySelector('.screen.active');
-  if (!activeScreen || activeScreen.id !== 'screen-result-doc') return;
-
-  const card = document.querySelector('#screen-result-doc .result-card');
-  if (card) {
-    const headlineEl = card.querySelector('.headline');
-    if (headlineEl) headlineEl.textContent = cached.headline;
-    const subtextEl = card.querySelector('.subtext');
-    if (subtextEl) subtextEl.textContent = cached.summary;
-  }
-  const easyViewP = document.querySelector('#docEasyView p');
-  if (easyViewP) easyViewP.textContent = cached.summary;
-
-  // 다음 "다시 듣기"부터는 번역된 문구로 읽어준다. 지금 당장 speak()를 다시 호출하지는 않는다 —
-  // 사용자가 이미 다른 걸 하고 있을 수 있는 비동기 갱신이라 말을 걸어 방해하지 않는다.
-  document.getElementById('screen-result-doc').setAttribute(
-    'data-voice', [cached.headline, cached.summary].filter(Boolean).join('. ')
-  );
-
-  rows.forEach((row, i) => {
-    const translated = cached.checklist[i];
-    if (translated == null) return;
-    row.state.text = translated; // 알림 버튼(openReminderModal)이 다음 클릭부터 번역된 문구를 쓰도록
-    if (row.textNode) row.textNode.textContent = ' ' + translated;
-    if (row.checkbox) row.checkbox.dataset.schedule = translated; // 체크 시 저장되는 일정 문구도 화면과 일치시킴
-  });
-}
-
-/** renderSmsResult()가 그린 한국어 결과 위에 번역을 덧입힌다.
- *  rows: [{ label, item }, ...] — renderSmsResult()의 "지금 바로 대처하세요" 목록 행 참조
- *  (AI checklist든 SMS_DEFAULT_TIPS 폴백이든, 실제로 화면에 그려진 문구를 그대로 번역 대상으로 삼는다). */
-async function applySmsResultTranslation(data, rows){
-  const lang = appState.settings.language;
-  setTranslateFailNoticeVisible('smsTranslateFailNotice', false);
-  if (!lang || lang === 'ko') return;
-
-  data._translated = data._translated || {};
-  let cached = data._translated[lang];
-  if (!cached) {
-    const items = rows.map(r => r.item);
-    const texts = [data.headline || '', data.summary || '', ...items];
-    const translations = await translateAnalysisTexts(lang, texts);
-    if (!translations) {
-      // 실패: 한국어 원문을 그대로 유지하되, 아직 같은 결과/언어/화면을 보고 있으면 재시도 안내를 띄운다
-      if (lastSmsAnalysis === data && appState.settings.language === lang) {
-        setTranslateFailNoticeVisible('smsTranslateFailNotice', true);
-      }
-      return;
-    }
-    cached = {
-      headline: translations[0] || data.headline || '',
-      summary: translations[1] || data.summary || '',
-      items: items.map((item, i) => translations[2 + i] || item),
-    };
-    data._translated[lang] = cached;
-  }
-
-  // 번역이 도착하는 동안 사용자가 다른 화면/언어로 이동했으면 반영하지 않는다
-  if (lastSmsAnalysis !== data) return;
-  if (appState.settings.language !== lang) return;
-  const activeScreen = document.querySelector('.screen.active');
-  if (!activeScreen || activeScreen.id !== 'screen-result-text') return;
-
-  const card = document.querySelector('#screen-result-text .result-card');
-  if (card) {
-    const headlineEl = card.querySelector('.headline');
-    if (headlineEl) headlineEl.textContent = cached.headline;
-    const subtextEl = card.querySelector('.subtext');
-    if (subtextEl) subtextEl.textContent = cached.summary;
-  }
-  const riskItem = document.getElementById('smsRiskSummaryItem');
-  if (riskItem) riskItem.textContent = cached.summary;
-  document.getElementById('screen-result-text').setAttribute(
-    'data-voice', [cached.headline, cached.summary].filter(Boolean).join('. ')
-  );
-
-  rows.forEach((row, i) => {
-    const translated = cached.items[i];
-    if (translated != null && row.label) row.label.textContent = translated;
-  });
-}
-
-function setTranslateFailNoticeVisible(id, visible){
-  const el = document.getElementById(id);
-  if (el) el.style.display = visible ? 'flex' : 'none';
-}
-
-/** "다시 시도" 버튼 — 캐시된 실패는 없으므로(실패는 캐시하지 않음) 그냥 다시 호출하면 재시도된다 */
-function retryDocTranslation(){
-  if (!lastDocAnalysis) return;
-  applyDocResultTranslation(lastDocAnalysis, lastDocChecklistRows);
-}
-function retrySmsTranslation(){
-  if (!lastSmsAnalysis) return;
-  applySmsResultTranslation(lastSmsAnalysis, lastSmsChecklistRows);
-}
-
 function t(key){
   const lang = I18N[appState.settings.language] ? appState.settings.language : 'ko';
   const dyn = dynamicTranslations[lang];
@@ -3319,13 +3255,13 @@ function applyLanguage(){
     if (text) el.placeholder = text;
   });
   syncToggleGroupString('languageGroup', lang);
-  syncToggleGroupString('languageGroupOnboard', lang);
 }
 
 function setLanguage(lang){
   appState.settings.language = lang;
   saveState();
   applyLanguage();
+  speak(LANGUAGE_CHANGE_CONFIRMATION[lang] || LANGUAGE_CHANGE_CONFIRMATION.ko, currentTtsLang());
   translateUiIfNeeded(lang);
 }
 
@@ -3353,42 +3289,7 @@ function syncSettingsUI(){
 
 function handleLogout(){
   clearAuth();
-  goTo('screen-signup');
-}
-
-function openDeleteAccountSheet(){
-  document.getElementById('deleteAccountPin').value = '';
-  showFieldError('deleteAccountError', '');
-  document.getElementById('deleteAccountBackdrop').style.display = 'block';
-  document.getElementById('deleteAccountSheet').style.display = 'block';
-}
-function closeDeleteAccountSheet(){
-  document.getElementById('deleteAccountBackdrop').style.display = 'none';
-  document.getElementById('deleteAccountSheet').style.display = 'none';
-}
-
-async function handleDeleteAccount(){
-  const pin = document.getElementById('deleteAccountPin').value.trim();
-  if (!/^\d{4}$/.test(pin)) return showFieldError('deleteAccountError', t('onboard.signup.errorPinFormat'));
-
-  try {
-    const res = await fetch(AI_WORKER_URL + '/account/delete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ pin }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      if (data.error === 'invalid_pin') return showFieldError('deleteAccountError', t('deleteAccount.errorPin'));
-      return showFieldError('deleteAccountError', t('deleteAccount.errorGeneric'));
-    }
-    closeDeleteAccountSheet();
-    clearAuth();
-    localStorage.removeItem(STORAGE_KEY);
-    location.reload();
-  } catch (err) {
-    showFieldError('deleteAccountError', t('deleteAccount.errorGeneric'));
-  }
+  goTo('screen-login');
 }
 
 /* ---- 내 정보(성별/연령대/지역, 선택 사항): 첫 화면 안내와 설정 화면 두 곳에 같은 값을 반영 ---- */
@@ -3437,6 +3338,7 @@ function queueRegionInfoRefresh(){
 /* ---- 인증(회원가입/로그인) 상태: appState와 분리된 별도 localStorage 키에 저장한다.
    토큰이 서버로 동기화되는 appState JSON 안에 섞여 들어가면 안 되기 때문이다. ---- */
 const AUTH_KEY = 'ai_helper_auth_v1';
+const LOCAL_ACCOUNTS_KEY = 'ai_helper_local_accounts_v1';
 
 function getAuth(){
   try {
@@ -3456,9 +3358,143 @@ function authHeaders(){
   return { 'X-User-Id': String(auth.userId), 'X-Auth-Token': auth.token };
 }
 
-async function authRequest(phone, pin){
+function toggleSmsResultDetails(){
+  const details = document.getElementById('smsResultDetails');
+  const toggle = document.getElementById('smsDetailToggle');
+  if (!details || !toggle) return;
+  details.hidden = !details.hidden;
+  toggle.textContent = details.hidden ? '자세히 보기 ↓' : '간단히 보기 ↑';
+}
+
+async function pasteSmsFromClipboard(){
+  const input = document.getElementById('smsPasteInput');
+  const hint = document.getElementById('smsPasteHint');
   try {
-    const res = await fetch(AI_WORKER_URL + '/auth', {
+    const text = await navigator.clipboard.readText();
+    if (!text.trim()) throw new Error('empty');
+    input.value = text.trim();
+    hint.textContent = '문자를 붙여넣었어요. 아래 버튼을 눌러 확인해주세요.';
+  } catch (err) {
+    hint.textContent = '자동으로 붙여넣지 못했어요. 빈 칸을 길게 눌러 붙여넣기를 선택해주세요.';
+    input.focus();
+  }
+  syncSmsPasteButton();
+}
+
+function syncSmsPasteButton(){
+  const input = document.getElementById('smsPasteInput');
+  const button = document.getElementById('smsPasteAnalyzeButton');
+  if (button) button.disabled = !input || !input.value.trim();
+}
+
+function analyzePastedSms(){
+  const input = document.getElementById('smsPasteInput');
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+  pendingSmsText = text;
+  startSmsAnalysis();
+}
+
+const MORE_PANEL_TITLES = {
+  display: '글자와 음성',
+  profile: '내 정보',
+  guardian: '보호자 정보',
+  language: '언어'
+};
+
+function showMoreOverview(){
+  const menu = document.getElementById('moreMenu');
+  const back = document.getElementById('moreBackButton');
+  const title = document.getElementById('morePageTitle');
+  const version = document.getElementById('moreVersionNote');
+  if (menu) menu.hidden = false;
+  if (back) back.hidden = true;
+  if (title) title.textContent = '더보기';
+  if (version) version.hidden = false;
+  document.querySelectorAll('#screen-settings [data-more-panel]').forEach(section => { section.hidden = true; });
+  const screen = document.getElementById('screen-settings');
+  if (screen) screen.setAttribute('data-voice', '더보기 화면입니다. 바꾸고 싶은 항목을 골라주세요.');
+}
+
+function openMorePanel(panel){
+  const titleText = MORE_PANEL_TITLES[panel];
+  if (!titleText) return;
+  const menu = document.getElementById('moreMenu');
+  const back = document.getElementById('moreBackButton');
+  const title = document.getElementById('morePageTitle');
+  const version = document.getElementById('moreVersionNote');
+  if (menu) menu.hidden = true;
+  if (back) back.hidden = false;
+  if (title) title.textContent = titleText;
+  if (version) version.hidden = true;
+  document.querySelectorAll('#screen-settings [data-more-panel]').forEach(section => {
+    section.hidden = section.dataset.morePanel !== panel;
+  });
+  const screen = document.getElementById('screen-settings');
+  if (screen) {
+    screen.scrollTop = 0;
+    screen.setAttribute('data-voice', `${titleText} 화면입니다.`);
+  }
+  syncSettingsUI();
+}
+
+function getLocalAccounts(){
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_ACCOUNTS_KEY) || '{}');
+  } catch (err) { return {}; }
+}
+
+async function hashLocalPin(pin){
+  const bytes = new TextEncoder().encode(String(pin || ''));
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function localSignup(phone, pin, name){
+  const digits = String(phone || '').replace(/\D/g, '');
+  const accounts = getLocalAccounts();
+  if (accounts[digits]) return { ok: false, error: 'phone_exists' };
+  accounts[digits] = {
+    userId: `local-${Date.now()}`,
+    name: name || '',
+    pinHash: await hashLocalPin(pin)
+  };
+  localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(accounts));
+  setAuth({ userId: accounts[digits].userId, token: 'local-only', name: name || '', phone: digits, localOnly: true });
+  return { ok: true, localOnly: true };
+}
+
+async function localLogin(phone, pin){
+  const digits = String(phone || '').replace(/\D/g, '');
+  const account = getLocalAccounts()[digits];
+  if (!account) return null;
+  if (account.pinHash !== await hashLocalPin(pin)) return { ok: false, error: 'invalid' };
+  setAuth({ userId: account.userId, token: 'local-only', name: account.name || '', phone: digits, localOnly: true });
+  return { ok: true, localOnly: true };
+}
+
+async function signupRequest(phone, pin, name){
+  try {
+    const res = await fetch(AI_WORKER_URL + '/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, pin, name }),
+    });
+    if (res.status === 404) return localSignup(phone, pin, name);
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error || 'unknown' };
+    setAuth({ userId: data.userId, token: data.token, name: data.name, phone: phone.replace(/\D/g, '') });
+    return { ok: true };
+  } catch (err) {
+    return localSignup(phone, pin, name);
+  }
+}
+
+async function loginRequest(phone, pin){
+  const localResult = await localLogin(phone, pin);
+  if (localResult) return localResult;
+  try {
+    const res = await fetch(AI_WORKER_URL + '/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, pin }),
@@ -3466,7 +3502,7 @@ async function authRequest(phone, pin){
     const data = await res.json();
     if (!res.ok) return { ok: false, error: data.error || 'unknown' };
     setAuth({ userId: data.userId, token: data.token, name: data.name, phone: phone.replace(/\D/g, '') });
-    return { ok: true, isNewUser: !!data.isNewUser };
+    return { ok: true };
   } catch (err) {
     return { ok: false, error: 'network' };
   }
@@ -3509,73 +3545,46 @@ function showFieldError(id, message){
   el.style.display = message ? 'block' : 'none';
 }
 
-async function handleAuthSubmit(){
-  const phone = document.getElementById('authPhone').value.trim();
-  const pin = document.getElementById('authPin').value.trim();
+async function handleSignupSubmit(){
+  const name = document.getElementById('signupName').value.trim();
+  const phone = document.getElementById('signupPhone').value.trim();
+  const pin = document.getElementById('signupPin').value.trim();
+  const pinConfirm = document.getElementById('signupPinConfirm').value.trim();
 
-  if (!isValidKoreanMobilePhone(phone)) return showFieldError('authError', t('onboard.signup.errorPhone'));
-  if (!/^\d{4}$/.test(pin)) return showFieldError('authError', t('onboard.signup.errorPinFormat'));
+  if (guardianPhoneDigits(phone).length < 9) return showFieldError('signupError', t('onboard.signup.errorPhone'));
+  if (!/^\d{4}$/.test(pin)) return showFieldError('signupError', t('onboard.signup.errorPinFormat'));
+  if (pin !== pinConfirm) return showFieldError('signupError', t('onboard.signup.errorPinMismatch'));
 
-  showFieldError('authError', '');
-  const result = await authRequest(phone, pin);
+  showFieldError('signupError', '');
+  const result = await signupRequest(phone, pin, name);
   if (!result.ok) {
-    if (result.error === 'locked') return showFieldError('authError', t('onboard.login.errorLocked'));
-    if (result.error === 'invalid_pin') return showFieldError('authError', t('onboard.signup.errorPinFormat'));
-    return showFieldError('authError', t('onboard.login.errorInvalid'));
+    if (result.error === 'phone_exists') return showFieldError('signupError', t('onboard.signup.errorPhoneExists'));
+    return showFieldError('signupError', t('onboard.signup.errorGeneric'));
   }
-
-  if (result.isNewUser) {
-    resetLocalAccountData();
-    saveState();
-    goTo('screen-onboard-access');
-  } else {
-    await pullStateFromServer();
-    saveState();
-    syncSettingsUI();
-    goTo('screen-home');
-  }
+  appState.profile.name = name;
+  saveState();
+  goTo('screen-guardian-profile');
 }
 
-function showSocialComingSoon(providerName){
-  showGlobalToast(providerName + ' 로그인은 곧 지원할 예정이에요.');
-}
+async function handleLoginSubmit(){
+  const phone = document.getElementById('loginPhone').value.trim();
+  const pin = document.getElementById('loginPin').value.trim();
 
-/** 관리자 테스트 계정 빠른 로그인: 전화번호/PIN 없이 비밀번호(ADMIN_PASSWORD) 하나로 고정 데모 계정에 들어간다.
- *  경진대회 시연을 빠르게 하기 위한 용도 — 실제 서비스라면 위험한 우회 경로임을 인지하고 추가함. */
-function toggleAdminQuickLoginField(){
-  const row = document.getElementById('adminQuickLoginRow');
-  if (row) row.style.display = row.style.display === 'none' ? 'block' : 'none';
-}
-
-async function handleAdminQuickLogin(){
-  const passwordEl = document.getElementById('adminQuickLoginPw');
-  const password = (passwordEl && passwordEl.value || '').trim();
-  if (!password) return;
-
-  try {
-    const res = await fetch(AI_WORKER_URL + '/admin-quick-login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
-    });
-    const data = await res.json();
-    if (!res.ok) { showFieldError('authError', '비밀번호가 올바르지 않습니다.'); return; }
-
-    setAuth({ userId: data.userId, token: data.token, name: data.name, phone: '01000000000' });
-    await pullStateFromServer();
-    saveState();
-    syncSettingsUI();
-    goTo('screen-home');
-  } catch (err) {
-    showFieldError('authError', '접속에 실패했습니다.');
+  showFieldError('loginError', '');
+  const result = await loginRequest(phone, pin);
+  if (!result.ok) {
+    if (result.error === 'locked') return showFieldError('loginError', t('onboard.login.errorLocked'));
+    return showFieldError('loginError', t('onboard.login.errorInvalid'));
   }
+  await pullStateFromServer();
+  saveState();
+  syncSettingsUI();
+  goTo('screen-home');
 }
 
 async function handleRequestResetOtp(){
   const name = document.getElementById('resetPinName').value.trim();
   const phone = document.getElementById('resetPinPhone').value.trim();
-
-  if (!isValidKoreanMobilePhone(phone)) return showFieldError('resetPinError', t('onboard.signup.errorPhone'));
 
   showFieldError('resetPinError', '');
   const result = await requestPinResetOtp(phone, name);
@@ -3603,10 +3612,7 @@ async function handleVerifyResetOtp(){
     if (result.error === 'otp_locked') return showFieldError('resetPinError', t('onboard.resetPin.errorOtpLocked'));
     return showFieldError('resetPinError', t('onboard.resetPin.errorOtpInvalid').replace('{n}', result.attemptsLeft != null ? result.attemptsLeft : 0));
   }
-
-  showFieldError('resetPinError', '');
-  showGlobalToast(t('onboard.resetPin.successNotice'));
-  goTo('screen-signup');
+  goTo('screen-login');
 }
 
 /** 값이 다를 때만 반영해 입력 중인 커서 위치가 튀지 않게 한다 */
@@ -3617,43 +3623,53 @@ function setValueIfChanged(el, value){
 function syncProfileUI(){
   syncToggleGroupString('profileGenderGroup', appState.profile.gender);
   syncToggleGroupString('profileGenderGroupSettings', appState.profile.gender);
-  syncToggleGroupString('profileGenderGroupMyInfo', appState.profile.gender);
   const ageText = appState.profile.age ? String(appState.profile.age) : '';
   setValueIfChanged(document.getElementById('profileAge'), ageText);
   setValueIfChanged(document.getElementById('profileAgeSettings'), ageText);
-  setValueIfChanged(document.getElementById('profileAgeMyInfo'), ageText);
   setValueIfChanged(document.getElementById('profileName'), appState.profile.name);
   setValueIfChanged(document.getElementById('profileNameSettings'), appState.profile.name);
-  setValueIfChanged(document.getElementById('profileNameMyInfo'), appState.profile.name);
   setValueIfChanged(document.getElementById('profileRegion'), appState.profile.region);
   setValueIfChanged(document.getElementById('profileRegionSettings'), appState.profile.region);
-  setValueIfChanged(document.getElementById('profileRegionMyInfo'), appState.profile.region);
 }
 
-/** 홈 화면 "알아두면 좋은 정보" 카드: 전국 공통으로 실제 확인된 노인 복지·안전 정보를 성별·연령에 맞춰 추가/숨긴다.
- *  아래 조건은 전부 실제 국가건강검진·기초연금 제도의 대상 기준이다(지어낸 조건이 아님) — CLAUDE.md 5·6번.
- *  나이를 입력하지 않았으면 확실하지 않다고 숨기지 않고 지금까지처럼 기본 항목을 보여준다.
- *  지역별 실데이터는 이 카드가 아니라 별도 카드(localWelfareCard)가 담당한다.
+/** 홈 화면 "알아두면 좋은 정보" 카드: 전국 공통으로 실제 확인된 노인 복지·안전 정보만 안내(지역별 실제 데이터는 없어 인사말만 맞춤화).
  *  각 항목을 누르면 외부 사이트로 바로 나가는 대신, 앱 안의 설명 화면(screen-info-*)으로 이동한다. */
-function getPersonalizedInfoItems(profile){
-  const { gender, age } = profile || {};
-  const items = [];
-  if (!age || age >= 65) {
-    items.push({ id: 'pension', title: '기초연금 신청 안내', desc: '만 65세 이상, 소득 기준을 충족하면 매달 받을 수 있어요' });
-  }
-  items.push({ id: 'checkup', title: '무료 건강검진', desc: '만 40세 이상은 국민건강보험공단에서 정기 검진을 받을 수 있어요' });
-  if (gender === '여성' && (!age || age >= 40)) {
-    items.push({ id: 'breast-checkup', title: '유방암 검진 안내', desc: '만 40세 이상 여성은 2년마다 무료로 유방암 검진을 받을 수 있어요' });
-  }
-  if (gender === '여성' && (!age || age >= 20)) {
-    items.push({ id: 'cervical-checkup', title: '자궁경부암 검진 안내', desc: '만 20세 이상 여성은 2년마다 무료로 자궁경부암 검진을 받을 수 있어요' });
-  }
-  if (age === 66 || age === 70 || age === 80) {
-    items.push({ id: 'transition-checkup', title: '생애전환기 건강진단', desc: `만 ${age}세를 맞아 신체기능·인지기능 검사를 추가로 무료로 받을 수 있어요` });
-  }
-  items.push({ id: 'voicephishing', title: '보이스피싱 예방', desc: '의심스러운 전화나 문자는 118로 바로 신고할 수 있어요' });
-  return items;
-}
+const INFO_CATEGORIES = [
+  { id:'money', icon:'₩', title:'돈·일자리', desc:'연금, 일자리, 받을 수 있는 복지' },
+  { id:'health', icon:'+', title:'건강', desc:'검진, 치매, 장기요양, 치과' },
+  { id:'care', icon:'집', title:'돌봄·주거', desc:'혼자 지내실 때 받을 수 있는 도움' },
+  { id:'safety', icon:'!', title:'안전', desc:'사기 문자와 응급상황 대비' },
+  { id:'life', icon:'민원', title:'생활·민원', desc:'예방접종, 의료비, 민원, 법률상담' }
+];
+
+/* 금액·소득기준·신청기간은 자주 바뀌므로 고정하지 않는다.
+ * 상세 화면의 공식 사이트와 대표전화에서 현재 기준을 확인하도록 안내한다. */
+const PUBLIC_INFO_ITEMS = [
+  { id:'basic-pension', category:'money', icon:'연금', title:'기초연금', desc:'받을 수 있는지 확인하고 신청하는 방법', summary:'만 65세 이상 어르신 중 소득과 재산 기준에 맞으면 매달 기초연금을 받을 수 있어요.', steps:['가까운 주민센터에 신분증을 가지고 방문하세요.','또는 국민연금공단에 전화해 대상 여부를 물어보세요.','정확한 금액과 기준은 신청할 때 확인하세요.'], phone:'129', phoneLabel:'보건복지상담센터 129', source:'https://basicpension.mohw.go.kr/' },
+  { id:'national-pension', category:'money', icon:'연금', title:'국민연금 상담', desc:'내 연금액과 받는 시기 확인', summary:'국민연금에 가입한 기간이 있다면 언제부터 얼마를 받을 수 있는지 확인할 수 있어요.', steps:['국민연금공단 1355에 전화하세요.','본인 확인 후 예상 연금액과 받는 시기를 물어보세요.','신분증과 본인 명의 통장을 미리 준비하면 좋아요.'], phone:'1355', phoneLabel:'국민연금공단 1355', source:'https://www.nps.or.kr/' },
+  { id:'senior-job', category:'money', icon:'일', title:'노인 일자리', desc:'가까운 일자리 검색과 신청', summary:'지역에서 모집하는 어르신 일자리와 사회활동을 찾아 신청할 수 있어요.', steps:['노인일자리여기에서 사는 지역을 검색하세요.','인터넷이 어려우면 주민센터나 노인복지관에 문의하세요.','모집 시기와 조건은 일자리마다 다르니 확인하세요.'], phone:'1544-3388', phoneLabel:'노인일자리 상담 1544-3388', source:'https://www.seniorro.or.kr/' },
+  { id:'welfare-membership', category:'money', icon:'복지', title:'복지멤버십', desc:'내가 받을 수 있는 복지를 안내받기', summary:'한 번 신청하면 받을 가능성이 있는 복지서비스를 찾아서 알려주는 제도예요.', steps:['복지로에서 맞춤형급여안내를 신청하세요.','인터넷이 어려우면 주민센터에서 신청할 수 있어요.','안내를 받으면 실제 신청이 필요한지 확인하세요.'], phone:'129', phoneLabel:'보건복지상담센터 129', source:'https://www.bokjiro.go.kr/ssis-tbu/twatza/wmAplyMng/selectWmGdnc.do' },
+
+  { id:'health-screening', category:'health', icon:'검진', title:'국가건강검진', desc:'올해 검진 대상인지 확인', summary:'건강보험공단에서 정해진 시기에 국가건강검진을 받을 수 있어요.', steps:['건강보험공단 1577-1000에 대상 여부를 물어보세요.','검진 가능한 병원을 확인하고 예약하세요.','검사 전 금식 여부를 병원에 꼭 확인하세요.'], phone:'1577-1000', phoneLabel:'건강보험공단 1577-1000', source:'https://www.nhis.or.kr/' },
+  { id:'dementia-center', category:'health', icon:'기억', title:'치매안심센터', desc:'무료 상담과 기억력 검사', summary:'기억력이 걱정되면 지역 치매안심센터에서 상담과 검사를 받을 수 있어요.', steps:['치매상담콜센터 1899-9988로 전화하세요.','가까운 치매안심센터 위치를 물어보세요.','신분증을 가지고 예약한 날짜에 방문하세요.'], phone:'1899-9988', phoneLabel:'치매상담 1899-9988', source:'https://www.nid.or.kr/' },
+  { id:'long-term-care', category:'health', icon:'요양', title:'노인장기요양보험', desc:'혼자 일상생활이 어려울 때 받는 도움', summary:'고령이나 노인성 질병으로 혼자 생활하기 어려우면 방문요양이나 시설 이용 도움을 받을 수 있어요.', steps:['건강보험공단에 장기요양 인정 신청을 문의하세요.','공단 직원의 방문조사를 받으세요.','등급 결과에 따라 이용 가능한 서비스를 안내받으세요.'], phone:'1577-1000', phoneLabel:'장기요양 상담 1577-1000', source:'https://www.longtermcare.or.kr/' },
+  { id:'dental-benefit', category:'health', icon:'치아', title:'틀니·임플란트 건강보험', desc:'만 65세 이상 치과 비용 지원 확인', summary:'만 65세 이상이면 조건에 따라 틀니와 임플란트에 건강보험을 적용받을 수 있어요.', steps:['치과에서 건강보험 대상인지 먼저 확인하세요.','치료를 시작하기 전에 예상 본인부담금을 물어보세요.','진행 중 병원을 옮기기 어려울 수 있으니 충분히 설명을 들으세요.'], phone:'1577-1000', phoneLabel:'건강보험공단 1577-1000', source:'https://www.nhis.or.kr/static/html/wbma/c/wbmac0217.html' },
+
+  { id:'custom-care', category:'care', icon:'돌봄', title:'노인맞춤돌봄서비스', desc:'안부 확인과 일상생활 도움', summary:'혼자 지내거나 돌봄이 필요한 어르신에게 안부 확인, 생활교육, 외출 도움 등을 제공해요.', steps:['주민센터에 노인맞춤돌봄서비스를 문의하세요.','담당자가 생활 상황과 필요한 도움을 확인해요.','선정되면 필요한 서비스를 계획해 제공합니다.'], phone:'129', phoneLabel:'보건복지상담센터 129', source:'https://www.mohw.go.kr/menu.es?mid=a10712010400' },
+  { id:'emergency-care', category:'care', icon:'안심', title:'응급안전안심서비스', desc:'화재나 응급상황을 감지하는 장비', summary:'혼자 사는 어르신 등의 집에 응급호출기와 감지기를 설치해 위급할 때 빠르게 도움을 요청할 수 있어요.', steps:['주민센터나 지역 수행기관에 신청 가능 여부를 물어보세요.','집의 생활환경과 돌봄 필요 여부를 확인받으세요.','설치 후 응급호출기 사용법을 가족과 함께 익히세요.'], phone:'129', phoneLabel:'보건복지상담센터 129', source:'https://www.mohw.go.kr/integratedcare/' },
+  { id:'energy-voucher', category:'care', icon:'전기', title:'에너지바우처', desc:'전기·가스 등 에너지 비용 지원', summary:'소득 기준과 세대 조건에 맞으면 냉난방에 필요한 에너지 비용을 지원받을 수 있어요.', steps:['주민센터에서 올해 대상과 신청기간을 확인하세요.','최근 에너지 요금 고지서를 준비하세요.','복지로에서도 신청할 수 있는지 확인하세요.'], phone:'1600-3190', phoneLabel:'에너지바우처 1600-3190', source:'https://www.bokjiro.go.kr/ssis-tbu/cms/pc/main/popup/1309903_1245.html' },
+  { id:'housing-benefit', category:'care', icon:'집', title:'주거급여', desc:'월세와 집수리 비용 지원 확인', summary:'소득과 주거 형태에 따라 월세나 집수리 비용을 지원받을 수 있는 제도예요.', steps:['주민센터에 주거급여 대상 여부를 물어보세요.','임대차계약서 등 거주를 확인할 자료를 준비하세요.','마이홈 콜센터에서 필요한 서류를 확인하세요.'], phone:'1600-1004', phoneLabel:'마이홈 상담 1600-1004', source:'https://www.myhome.go.kr/' },
+
+  { id:'voice-phishing', category:'safety', icon:'전화', title:'보이스피싱 대처', desc:'돈이나 개인정보를 요구하는 전화', summary:'검찰, 경찰, 은행을 사칭하며 돈이나 비밀번호를 요구하면 전화를 끊고 공식 번호로 다시 확인하세요.', steps:['계좌번호, 비밀번호, 인증번호를 말하지 마세요.','상대가 알려준 번호가 아닌 112나 해당 기관 공식 번호로 전화하세요.','돈을 보냈다면 즉시 은행과 112에 신고하세요.'], phone:'112', phoneLabel:'경찰 신고 112', source:'https://www.kisa.or.kr/118/' },
+  { id:'smishing', category:'safety', icon:'문자', title:'스미싱 문자 대처', desc:'모르는 인터넷 주소가 들어 있는 문자', summary:'택배, 과태료, 청첩장 등을 가장한 문자 속 인터넷 주소는 누르지 않는 것이 안전해요.', steps:['모르는 인터넷 주소를 누르지 마세요.','앱 설치나 개인정보 입력을 요구하면 중단하세요.','이미 눌렀다면 118에 전화해 조치 방법을 안내받으세요.'], phone:'118', phoneLabel:'사이버 상담 118', source:'https://www.kisa.or.kr/118/' },
+  { id:'safe-call-119', category:'safety', icon:'119', title:'119 안심콜', desc:'질병과 보호자 정보를 미리 등록', summary:'내 질병, 복용약, 보호자 연락처를 미리 등록하면 119 신고 때 구급대가 정보를 확인할 수 있어요.', steps:['119안전신고센터에서 안심콜을 등록하세요.','질병, 복용약, 보호자 연락처를 정확히 입력하세요.','정보가 바뀌면 꼭 다시 수정하세요.'], phone:'119', phoneLabel:'응급신고 119', source:'https://www.119.go.kr/' },
+  { id:'wandering-safety', category:'safety', icon:'위치', title:'치매 배회 예방 도움', desc:'실종 위험에 대비하는 방법', summary:'치매 어르신의 실종을 예방하기 위해 인식표, 지문 사전등록, 배회감지기 등을 상담할 수 있어요.', steps:['가까운 치매안심센터에 예방 서비스를 문의하세요.','경찰 지문 사전등록 방법도 함께 물어보세요.','최근 사진과 보호자 연락처를 준비해두세요.'], phone:'1899-9988', phoneLabel:'치매상담 1899-9988', source:'https://www.nid.or.kr/' },
+
+  { id:'pneumococcal', category:'life', icon:'접종', title:'폐렴구균 예방접종', desc:'만 65세 이상 국가예방접종 확인', summary:'만 65세 이상 어르신은 폐렴구균 국가예방접종 대상인지 확인할 수 있어요.', steps:['보건소나 가까운 지정 의료기관에 전화하세요.','예전에 접종했는지 기억나지 않으면 먼저 기록을 확인하세요.','신분증을 가지고 안내받은 기관에 방문하세요.'], phone:'1339', phoneLabel:'질병관리청 1339', source:'https://nip.kdca.go.kr/' },
+  { id:'medical-cost', category:'life', icon:'병원비', title:'재난적의료비 지원', desc:'병원비 부담이 너무 클 때 상담', summary:'소득에 비해 병원비 부담이 큰 가구는 의료비 지원 대상인지 확인할 수 있어요.', steps:['퇴원 전 병원 원무과나 사회사업실에 먼저 문의하세요.','건강보험공단에 대상과 신청기한을 확인하세요.','진료비 영수증과 필요한 서류를 안내받으세요.'], phone:'1577-1000', phoneLabel:'건강보험공단 1577-1000', source:'https://www.nhis.or.kr/' },
+  { id:'government-service', category:'life', icon:'민원', title:'정부24와 주민센터', desc:'증명서 발급과 민원 처리', summary:'주민등록등본 같은 증명서는 정부24 또는 가까운 주민센터에서 발급받을 수 있어요.', steps:['인터넷이 익숙하지 않으면 주민센터를 방문하세요.','어떤 서류가 필요한지 먼저 담당 기관에 물어보세요.','방문할 때 신분증을 챙기세요.'], phone:'110', phoneLabel:'정부민원안내 110', source:'https://www.gov.kr/' },
+  { id:'legal-help', category:'life', icon:'법률', title:'무료 법률상담', desc:'임대차·상속·빚 문제 상담', summary:'임대차, 상속, 빚, 개인회생 같은 법률문제를 대한법률구조공단에 상담할 수 있어요.', steps:['국번 없이 132로 전화해 상담 방법을 물어보세요.','계약서나 관련 문서를 날짜순으로 준비하세요.','소송 지원은 별도 조건이 있으므로 상담 때 확인하세요.'], phone:'132', phoneLabel:'법률상담 132', source:'https://www.klac.or.kr/' }
+];
 
 /* ---- 납부 기한 통계 ----
    기록(appState.history)에 dueDate/amount 가 있는 항목만 대상으로 한다.
@@ -3809,6 +3825,54 @@ async function submitAsk(preset){
   }
 }
 
+/* ---- 분석 결과 공유하기 ----
+   특정 보호자 번호로 보내는 것(notifyGuardian)과 달리, 받는 사람을 정하지 않고
+   기기의 공유 시트를 열어 카카오톡·문자·메일 중에서 고르게 한다.
+   공유 시트를 지원하지 않는 브라우저에서는 문자 앱으로 대체한다. */
+
+/** 공유할 본문. AI가 만든 한국어 문장이 들어가므로 화면 UI와 달리 번역하지 않는다(CLAUDE.md 9번). */
+function buildShareText(kind){
+  const data = kind === 'sms' ? lastSmsAnalysis : lastDocAnalysis;
+  if (!data) return '';
+  const lines = [`[온담] ${kind === 'sms' ? '문자' : '문서'} 확인 결과입니다.`];
+  const label = GUARDIAN_STATUS_LABEL[data.status];
+  if (label) lines.push(`판정: ${label}`);
+  if (data.headline) lines.push(data.headline);
+  if (data.summary) lines.push(data.summary);
+
+  if (kind === 'doc') {
+    const amount = formatDocAmount(data.amount);
+    const due = formatDocDueDate(data.dueDate);
+    if (amount) lines.push(`납부할 금액: ${amount}`);
+    if (due) lines.push(`납부 기한: ${due}`);
+  }
+  if (Array.isArray(data.checklist) && data.checklist.length) {
+    lines.push('해야 할 일:');
+    data.checklist.forEach(item => lines.push(`- ${item}`));
+  }
+  return lines.join('\n');
+}
+
+async function shareResult(kind){
+  const text = buildShareText(kind);
+  if (!text) { speak(t('result.shareNothing')); return; }
+  saveGuardianInboxMessage(kind, kind === 'doc' ? lastDocAnalysis : lastSmsAnalysis, text, '자녀에게 보내기');
+
+  // navigator.share 는 HTTPS + 사용자 조작이 있어야 뜬다. 없거나 취소되면 문자 앱으로 대체.
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: '온담 확인 결과', text });
+      return;
+    } catch (err) {
+      // 사용자가 공유 시트를 닫은 경우(AbortError)는 실패가 아니므로 아무것도 하지 않는다
+      if (err && err.name === 'AbortError') return;
+    }
+  }
+  // 받는 사람을 비워 두면 문자 앱에서 직접 고르게 된다
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+  window.location.href = 'sms:' + (isIOS ? '&' : '?') + 'body=' + encodeURIComponent(text);
+}
+
 /* ---- 통계 화면 ----
    금액이 기록된 항목이 하나도 없으면 그래프·합계를 통째로 숨기고 안내만 보여준다.
    빈 그래프나 "0원"을 그럴듯하게 보여주지 않기 위함이다. */
@@ -3881,6 +3945,26 @@ function renderStats(){
   const dueItems = upcomingDueEntries();
   const hasAmount = buckets.length > 0;
 
+  // 0) 보호자용 안전 확인 현황: 전체 확인 건수와 그중 위험 판정 건수, 최근 위험 판정 목록
+  const safetySection = document.getElementById('statsSafetySection');
+  const dangerEntries = appState.history.filter(h => h.analysis && h.analysis.status === 'danger');
+  const hasHistory = appState.history.length > 0;
+  safetySection.style.display = hasHistory ? 'block' : 'none';
+  if (hasHistory) {
+    document.getElementById('statsSafetyDangerCount').textContent = `${dangerEntries.length}건`;
+    document.getElementById('statsSafetyTotalCount').textContent = `전체 확인 ${appState.history.length}건 중`;
+    const listEl = document.getElementById('statsSafetyList');
+    if (dangerEntries.length === 0) {
+      listEl.innerHTML = `<div class="empty-state" style="padding:14px;" data-i18n="stats.safetyNone">위험으로 판정된 문서·문자가 없어요.</div>`;
+    } else {
+      listEl.innerHTML = dangerEntries.slice(0, 5).map(h => `
+        <div class="row">
+          <div class="icon-chip" style="background:var(--danger-strong);"><svg viewBox="0 0 24 24"><use href="#ic-alert"></use></svg></div>
+          <div class="text"><div class="t1">${escapeHtml(h.title)}</div><div class="t2">${escapeHtml(h.time || '')}</div></div>
+        </div>`).join('');
+    }
+  }
+
   // 1) 이번 달 합계
   const now = new Date();
   const thisKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -3929,7 +4013,7 @@ function renderStats(){
     }).join('');
   }
 
-  document.getElementById('statsEmpty').style.display = (hasAmount || dueItems.length) ? 'none' : 'block';
+  document.getElementById('statsEmpty').style.display = (hasAmount || dueItems.length || hasHistory) ? 'none' : 'block';
 }
 
 /** 프로필이 있으면 "○○님을 위한 정보"처럼 인사말을 맞춰준다(지역별 실데이터가 아니라 호칭만 맞춤). */
@@ -3944,10 +4028,7 @@ function publicInfoGreeting(){
 const INFO_DETAIL_GREET_IDS = {
   'screen-info-pension': 'infoPensionGreet',
   'screen-info-checkup': 'infoCheckupGreet',
-  'screen-info-voicephishing': 'infoVoicephishingGreet',
-  'screen-info-breast-checkup': 'infoBreastCheckupGreet',
-  'screen-info-cervical-checkup': 'infoCervicalCheckupGreet',
-  'screen-info-transition-checkup': 'infoTransitionCheckupGreet'
+  'screen-info-voicephishing': 'infoVoicephishingGreet'
 };
 function renderInfoDetailGreet(screenId){
   const elId = INFO_DETAIL_GREET_IDS[screenId];
@@ -3957,21 +4038,87 @@ function renderInfoDetailGreet(screenId){
 
 function publicInfoRowsHtml(items){
   return items.map(item => `
-    <div class="row" onclick="goTo('screen-info-${item.id}')" role="button" tabindex="0">
-      <div class="icon-chip accent"><svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg></div>
-      <div class="text"><div class="t1">${escapeHtml(item.title)}</div><div class="t2">${escapeHtml(item.desc)}</div></div>
+    <div class="row" onclick="openSeniorInfo('${item.id}')" role="button" tabindex="0">
+      <div class="icon-chip accent info-item-icon">${escapeHtml(item.icon)}</div>
+      <div class="text"><div class="t1">${escapeHtml(item.title)}</div></div>
       <svg class="chev" viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
     </div>
   `).join('');
+}
+
+let activeInfoCategory = 'money';
+let activeSeniorInfoId = '';
+
+function infoCategoryButtonsHtml(){
+  return INFO_CATEGORIES.map(category => `
+    <button type="button" class="info-category-button" onclick="openInfoCategory('${category.id}')">
+      <span class="info-category-icon">${escapeHtml(category.icon)}</span>
+      <span><strong>${escapeHtml(category.title)}</strong></span>
+    </button>
+  `).join('');
+}
+
+function showInfoCategories(){
+  const categories = document.getElementById('infoCategoryList');
+  const items = document.getElementById('infoCategoryItems');
+  if (categories) categories.hidden = false;
+  if (items) items.hidden = true;
+  const title = document.getElementById('publicInfoTitle');
+  if (title) title.innerHTML = '<svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-info"></use></svg>어떤 정보가 필요하세요?';
+  const screen = document.getElementById('screen-info');
+  if (screen) screen.scrollTop = 0;
+}
+
+function openInfoCategory(categoryId){
+  const category = INFO_CATEGORIES.find(item => item.id === categoryId);
+  if (!category) return;
+  activeInfoCategory = categoryId;
+  const categories = document.getElementById('infoCategoryList');
+  const items = document.getElementById('infoCategoryItems');
+  if (categories) categories.hidden = true;
+  if (items) items.hidden = false;
+  const categoryTitle = document.getElementById('infoCategoryTitle');
+  if (categoryTitle) categoryTitle.textContent = `${category.icon} ${category.title}`;
+  const list = document.getElementById('publicInfoList');
+  if (list) list.innerHTML = publicInfoRowsHtml(PUBLIC_INFO_ITEMS.filter(item => item.category === categoryId));
+  const heading = document.getElementById('publicInfoTitle');
+  if (heading) heading.textContent = '필요한 정보를 눌러주세요';
+  const screen = document.getElementById('screen-info');
+  if (screen) screen.scrollTop = 0;
+}
+
+function openSeniorInfo(infoId){
+  const item = PUBLIC_INFO_ITEMS.find(entry => entry.id === infoId);
+  if (!item) return;
+  activeSeniorInfoId = infoId;
+  activeInfoCategory = item.category;
+  document.getElementById('seniorInfoIcon').textContent = item.icon;
+  document.getElementById('seniorInfoTitle').textContent = item.title;
+  document.getElementById('seniorInfoSummary').textContent = item.summary;
+  document.getElementById('seniorInfoSteps').innerHTML = item.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('');
+  const phone = document.getElementById('seniorInfoPhone');
+  phone.href = `tel:${item.phone}`;
+  phone.hidden = !item.phone;
+  document.getElementById('seniorInfoPhoneLabel').textContent = item.phoneLabel || '전화로 물어보기';
+  const source = document.getElementById('seniorInfoSource');
+  source.href = item.source;
+  goTo('screen-info-detail');
+  const detailScreen = document.getElementById('screen-info-detail');
+  detailScreen.setAttribute('data-voice', `${item.title}. ${item.summary}`);
+  speak(screenVoiceText(detailScreen), screenVoiceLang(detailScreen));
+}
+
+function backFromInfoDetail(){
+  goTo('screen-info');
+  openInfoCategory(activeInfoCategory);
 }
 
 /** 정보 탭(screen-info)의 전체 목록 */
 function renderPublicInfoCard(){
   const card = document.getElementById('publicInfoCard');
   if (!card) return;
-  document.getElementById('publicInfoTitle').innerHTML =
-    `<svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-info"></use></svg>${escapeHtml(publicInfoGreeting())}`;
-  document.getElementById('publicInfoList').innerHTML = publicInfoRowsHtml(getPersonalizedInfoItems(appState.profile));
+  document.getElementById('infoCategoryList').innerHTML = infoCategoryButtonsHtml();
+  showInfoCategories();
   card.style.display = 'block';
 }
 
@@ -3983,7 +4130,7 @@ function renderHomeInfoCard(){
   if (!card) return;
   document.getElementById('homeInfoTitle').innerHTML =
     `<svg class="inline-icon" viewBox="0 0 24 24"><use href="#ic-info"></use></svg>${escapeHtml(publicInfoGreeting())}`;
-  document.getElementById('homeInfoList').innerHTML = publicInfoRowsHtml(getPersonalizedInfoItems(appState.profile).slice(0, HOME_INFO_PREVIEW_COUNT));
+  document.getElementById('homeInfoList').innerHTML = publicInfoRowsHtml(PUBLIC_INFO_ITEMS.slice(0, HOME_INFO_PREVIEW_COUNT));
   card.style.display = 'block';
 }
 
@@ -3996,6 +4143,33 @@ function renderHomeInfoCard(){
  *  본문은 보호자가 받아보는 실제 문자 내용이고 AI가 만든 한국어 문장이 섞이므로, 화면 UI와 달리 번역하지 않는다
  *  (CLAUDE.md 9번 항목: AI 분석 결과는 오역 위험 때문에 항상 한국어로 유지). */
 const GUARDIAN_STATUS_LABEL = { danger: '위험', info: '정보', normal: '정상' };
+
+/** 보호자 웹의 받은 연락함에 분석 결과를 저장한다.
+ *  같은 브라우저에서는 즉시 보이고, 추후 서버 동기화 시에도 그대로 전송할 수 있는 형태로 유지한다. */
+function saveGuardianInboxMessage(kind, analysis, body, action){
+  if (!analysis || typeof analysis !== 'object') return;
+  const message = {
+    id: genId(),
+    kind: kind === 'doc' ? 'document' : 'message',
+    action: action || '보호자에게 알리기',
+    sentAt: Date.now(),
+    read: false,
+    body: String(body || ''),
+    analysis: {}
+  };
+  for (const key of ANALYSIS_STORE_KEYS) {
+    if (analysis[key] !== undefined && analysis[key] !== null && analysis[key] !== '') {
+      message.analysis[key] = analysis[key];
+    }
+  }
+  if (typeof analysis.photoPreview === 'string' && analysis.photoPreview.startsWith('data:image/')) {
+    message.image = analysis.photoPreview;
+  }
+  appState.guardianInbox.unshift(message);
+  if (appState.guardianInbox.length > 50) appState.guardianInbox.length = 50;
+  saveState();
+}
+
 function guardianSmsBody(){
   const lines = ['[온담] 방금 확인한 문자를 전달드려요.'];
   if (lastSmsAnalysis) {
@@ -4039,6 +4213,7 @@ function openGuardianSmsApp(){
   const note = document.getElementById('guardianNoteText');
   if (note) note.textContent = t('guardian.smsOpened');
   speak(t('guardian.smsOpened'));
+  saveGuardianInboxMessage('sms', lastSmsAnalysis, guardianSmsBody(), '보호자에게 알리기');
   addHistory(t('guardian.historySmsOpen'), '⚪ 완료');
   window.location.href = buildGuardianSmsHref(appState.guardian.phone, guardianSmsBody());
 }
@@ -4067,6 +4242,18 @@ function callGuardian(){
   }
   window.location.href = 'tel:' + appState.guardian.phone;
 }
+
+/* ---------------------------------------------------------
+   13. 쉬운 설명 ↔ 원문 토글
+   --------------------------------------------------------- */
+function setView(scopeSelector, view, easyId, originalId){
+  document.querySelectorAll(scopeSelector + ' .view-toggle button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === view);
+  });
+  document.getElementById(easyId).style.display = view === 'easy' ? 'block' : 'none';
+  document.getElementById(originalId).style.display = view === 'original' ? 'block' : 'none';
+}
+function setDocView(view){ setView('#screen-result-doc', view, 'docEasyView', 'docOriginalView'); }
 
 /* ---------------------------------------------------------
    14. 공통 유틸: 토스트 + 버튼 리플
@@ -4125,7 +4312,7 @@ window.addEventListener('load', async () => {
   let firstScreenId = 'screen-greet';
   if (getAuth()) {
     const stillValid = await pullStateFromServer();
-    firstScreenId = stillValid ? 'screen-home' : 'screen-signup';
+    firstScreenId = stillValid ? 'screen-home' : 'screen-login';
     if (!stillValid) clearAuth();
   }
   const first = document.getElementById(firstScreenId);
@@ -4137,7 +4324,6 @@ window.addEventListener('load', async () => {
   }
   document.body.classList.toggle('has-bottom-nav', TAB_SCREENS.has(first.id));
   syncBottomNav(first.id);
-  syncGreetVoiceToggleVisibility(first.id);
   first.scrollTop = 0;
   document.getElementById('liveRegion').textContent = screenVoiceText(first);
 

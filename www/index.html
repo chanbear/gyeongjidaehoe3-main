@@ -1229,12 +1229,8 @@
           </div>
         </div>
 
-        <button
-          class="primary-btn"
-          onclick="goTo('screen-home')"
-          data-i18n="onboard.profile.next"
-        >
-          다음
+        <button class="primary-btn" onclick="startFirstUseTutorial()">
+          저장하고 기능 설명 보기
         </button>
       </section>
 
@@ -1244,17 +1240,23 @@
         id="screen-home"
         data-voice="무엇을 도와드릴까요? 문서 촬영, 문자 내용 요약, 경로당 찾기 중에서 골라보세요."
       >
+        <!-- 쉬운 모드: 화면을 스크롤해도 항상 같은 자리에 보이도록 topbar 밖에서 position:fixed로 띄운다.
+             켜면 codex/guardian-app 앱(easy/app.html)으로 실제로 이동한다(toggleEasyMode(), js/script.js) —
+             같은 오리진이라 로그인·기록이 그대로 이어진다. 이 페이지에 있다는 것 자체가 "꺼짐" 상태라 항상 꺼짐으로 시작한다. -->
+        <div class="easy-mode-switch">
+          <span id="easyModeToggleLabel">쉬운 모드</span>
+          <label class="switch">
+            <input
+              type="checkbox"
+              id="easyModeToggleInput"
+              onchange="toggleEasyMode(this)"
+              aria-label="쉬운 모드로 전환"
+            />
+            <span class="track"></span>
+          </label>
+        </div>
+
         <div class="topbar">
-          <!-- 쉬운 모드: 홈 화면에서만 좌측 상단에 노출. 아이콘 없이 큰 글자·같은 색 계열 블록 버튼으로 바꾸는 토글(ATM 큰글씨 모드 참고) -->
-          <button
-            class="nav-btn"
-            id="easyModeToggleBtn"
-            onclick="toggleEasyMode()"
-            aria-label="쉬운 모드 켜기/끄기"
-            style="border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-weight: 700"
-          >
-            <span id="easyModeToggleLabel">쉬운 모드</span>
-          </button>
           <button
             class="gear-btn"
             data-replay
@@ -1275,70 +1277,85 @@
           무엇을 도와드릴까요?
         </div>
 
-        <!-- 홈은 가장 자주 쓰는 핵심 기능 3개 + 오늘 해야 할 일만 보여준다. 통계·정보 등 나머지는 "더보기" 사이드바 드로어(openMoreDrawer())로 옮겼다. -->
+        <!-- 홈은 가장 자주 쓰는 핵심 기능 3개 + 오늘 해야 할 일만 보여준다. 통계·정보 등 나머지는 "더보기"(screen-more)로 옮겼다. -->
         <div class="section">
-          <div
-            class="feature-card home-big-card"
-            onclick="goTo('screen-doc-choice')"
-            role="button"
-            tabindex="0"
-          >
-            <div class="fc-icon">
-              <svg viewBox="0 0 24 24"><use href="#ic-camera"></use></svg>
-            </div>
-            <div class="fc-text">
-              <div class="fc-title" data-i18n="home.docCaptureTitle">
-                문서 촬영
+          <div class="home-feature-item">
+            <div
+              class="feature-card home-big-card"
+              onclick="goTo('screen-doc-choice')"
+              role="button"
+              tabindex="0"
+            >
+              <div class="fc-icon">
+                <svg viewBox="0 0 24 24"><use href="#ic-camera"></use></svg>
               </div>
-              <div class="fc-desc" data-i18n="home.docCaptureDesc">
-                사진을 찍거나 불러오면 AI가 쉽게 설명해드려요
+              <div class="fc-text">
+                <div class="fc-title" data-i18n="home.docCaptureTitle" data-easy-text="문서 찍어서 확인하기">
+                  문서 촬영
+                </div>
+                <div class="fc-desc" data-i18n="home.docCaptureDesc">
+                  사진을 찍거나 불러오면 AI가 쉽게 설명해드려요
+                </div>
               </div>
+              <svg class="chev" viewBox="0 0 24 24">
+                <use href="#ic-chevron"></use>
+              </svg>
             </div>
-            <svg class="chev" viewBox="0 0 24 24">
-              <use href="#ic-chevron"></use>
-            </svg>
+            <button class="home-tutorial-btn" onclick="startHomeFeatureTutorial('doc')">
+              <svg viewBox="0 0 24 24"><use href="#ic-question"></use></svg> 문서 기능 사용 방법 보기
+            </button>
           </div>
-          <div
-            class="feature-card home-big-card"
-            onclick="openSmsCheck()"
-            role="button"
-            tabindex="0"
-          >
-            <div class="fc-icon" style="background: var(--accent-strong)">
-              <svg viewBox="0 0 24 24"><use href="#ic-chat"></use></svg>
-            </div>
-            <div class="fc-text">
-              <div class="fc-title" data-i18n="home.smsCheckTitle">
-                문자 내용 요약
+          <div class="home-feature-item">
+            <div
+              class="feature-card home-big-card"
+              onclick="openSmsCheck()"
+              role="button"
+              tabindex="0"
+            >
+              <div class="fc-icon" style="background: var(--accent-strong)">
+                <svg viewBox="0 0 24 24"><use href="#ic-chat"></use></svg>
               </div>
-              <div class="fc-desc" data-i18n="home.smsCheckDesc">
-                받은 문자가 안전한지 AI가 확인해드려요
+              <div class="fc-text">
+                <div class="fc-title" data-i18n="home.smsCheckTitle" data-easy-text="수상한 문자 확인하기">
+                  문자 내용 요약
+                </div>
+                <div class="fc-desc" data-i18n="home.smsCheckDesc">
+                  받은 문자가 안전한지 AI가 확인해드려요
+                </div>
               </div>
+              <svg class="chev" viewBox="0 0 24 24">
+                <use href="#ic-chevron"></use>
+              </svg>
             </div>
-            <svg class="chev" viewBox="0 0 24 24">
-              <use href="#ic-chevron"></use>
-            </svg>
+            <button class="home-tutorial-btn" onclick="startHomeFeatureTutorial('sms')">
+              <svg viewBox="0 0 24 24"><use href="#ic-question"></use></svg> 문자 기능 사용 방법 보기
+            </button>
           </div>
-          <div
-            class="feature-card home-big-card"
-            onclick="goTo('screen-welfare-nearby')"
-            role="button"
-            tabindex="0"
-          >
-            <div class="fc-icon" style="background: var(--success-strong)">
-              <svg viewBox="0 0 24 24"><use href="#ic-pin"></use></svg>
-            </div>
-            <div class="fc-text">
-              <div class="fc-title" data-i18n="home.welfareTitle">
-                주변 복지센터·경로당 찾기
+          <div class="home-feature-item">
+            <div
+              class="feature-card home-big-card"
+              onclick="goTo('screen-welfare-nearby')"
+              role="button"
+              tabindex="0"
+            >
+              <div class="fc-icon" style="background: var(--success-strong)">
+                <svg viewBox="0 0 24 24"><use href="#ic-pin"></use></svg>
               </div>
-              <div class="fc-desc" data-i18n="home.welfareDesc">
-                내 위치 주변 복지센터·경로당 위치를 알려드려요
+              <div class="fc-text">
+                <div class="fc-title" data-i18n="home.welfareTitle" data-easy-text="가까운 경로당 찾기">
+                  주변 복지센터·경로당 찾기
+                </div>
+                <div class="fc-desc" data-i18n="home.welfareDesc">
+                  내 위치 주변 복지센터·경로당 위치를 알려드려요
+                </div>
               </div>
+              <svg class="chev" viewBox="0 0 24 24">
+                <use href="#ic-chevron"></use>
+              </svg>
             </div>
-            <svg class="chev" viewBox="0 0 24 24">
-              <use href="#ic-chevron"></use>
-            </svg>
+            <button class="home-tutorial-btn" onclick="startHomeFeatureTutorial('welfare')">
+              <svg viewBox="0 0 24 24"><use href="#ic-question"></use></svg> 경로당 기능 사용 방법 보기
+            </button>
           </div>
         </div>
 
@@ -3746,6 +3763,51 @@
           </p>
         </div>
 
+        <!-- 더보기: 나머지 화면(내 정보/통계/고객 지원)은 더 이상 사이드바 드로어가 아니라
+             설정 화면(하단 네비 "더보기"의 도착점) 안의 링크 행으로 들어온다 -->
+        <div class="settings-section">
+          <h2><span data-i18n="home.moreMenu">더보기</span></h2>
+          <div
+            class="settings-link-row"
+            onclick="goTo('screen-my-info')"
+            role="button"
+            tabindex="0"
+          >
+            <span
+              ><svg class="inline-icon" viewBox="0 0 24 24">
+                <use href="#ic-user"></use></svg
+              ><span>내 정보</span></span
+            >
+            <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+          </div>
+          <div
+            class="settings-link-row"
+            onclick="goTo('screen-stats')"
+            role="button"
+            tabindex="0"
+          >
+            <span
+              ><svg class="inline-icon" viewBox="0 0 24 24">
+                <use href="#ic-calendar"></use></svg
+              ><span>고지서 통계</span></span
+            >
+            <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+          </div>
+          <div
+            class="settings-link-row"
+            onclick="goTo('screen-customer-support')"
+            role="button"
+            tabindex="0"
+          >
+            <span
+              ><svg class="inline-icon" viewBox="0 0 24 24">
+                <use href="#ic-question"></use></svg
+              ><span>고객 지원</span></span
+            >
+            <svg viewBox="0 0 24 24"><use href="#ic-chevron"></use></svg>
+          </div>
+        </div>
+
         <p class="settings-save-note" style="margin-top: 6px">
           앱 버전 1.0.0 · © 2026 온담
         </p>
@@ -3909,7 +3971,7 @@
           </div>
           <div
             class="settings-link-row"
-            onclick="goTo('screen-greet')"
+            onclick="startCoachmark()"
             role="button"
             tabindex="0"
           >
@@ -4001,6 +4063,127 @@
           </p>
         </div>
       </section>
+
+      <!-- 더보기: codex/guardian-app처럼 메뉴 목록 하나로 된 화면. 예전엔 오른쪽에서 슬라이드인하는
+           사이드바 드로어였지만(openMoreDrawer()), 하단 네비 "더보기" 탭의 정식 도착 화면으로 바꿨다 —
+           디자인(profile-summary-card, more-menu-row 등 기존 컴포넌트)은 그대로 재사용한다.
+           다른 .screen들과 함께 #screenStack 안에 있어야 position:absolute 배치가 올바르게 겹친다. -->
+      <section class="screen" id="screen-more" data-voice="더보기 화면입니다. 내 정보나 기록, 설정 중에서 골라주세요.">
+        <div class="topbar">
+          <button class="nav-btn" onclick="goTo('screen-home')" data-i18n="common.home">
+            ← 홈으로</button
+          ><span class="header-title"
+            ><span data-i18n="home.moreMenu">더보기</span></span
+          ><span></span>
+        </div>
+
+        <!-- 프로필 요약 카드: appState.profile(이름/나이/성별/지역)을 그대로 보여준다.
+             값이 비어있으면 '-'로 표시(지어내지 않음) — renderMoreProfileSummary()가 채운다. -->
+        <div class="profile-summary-card">
+          <div class="profile-summary-name">
+            <span data-i18n="home.moreNameLabel">이름 :</span>
+            <strong id="moreProfileName">-</strong>
+          </div>
+          <div class="profile-summary-stats">
+            <div class="profile-summary-stat">
+              <span class="pss-label" data-i18n="home.moreAgeLabel">나이</span>
+              <span class="pss-value" id="moreProfileAge">-</span>
+            </div>
+            <div class="profile-summary-stat">
+              <span class="pss-label" data-i18n="home.moreGenderLabel"
+                >성별</span
+              >
+              <span class="pss-value" id="moreProfileGender">-</span>
+            </div>
+            <div class="profile-summary-stat">
+              <span class="pss-label" data-i18n="home.moreRegionLabel"
+                >지역</span
+              >
+              <span class="pss-value" id="moreProfileRegion">-</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="more-menu-list">
+          <button class="more-menu-row" onclick="goTo('screen-my-info')">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-user"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="home.moreMyInfo"
+              >내 정보</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
+          </button>
+          <button class="more-menu-row" onclick="goTo('screen-history')">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="home.moreHistory"
+              >분석 기록</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
+          </button>
+          <button class="more-menu-row" onclick="goTo('screen-stats')">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-list"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="home.moreStats"
+              >통계</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
+          </button>
+          <button class="more-menu-row" onclick="goTo('screen-info')">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="home.publicInfoDefault"
+              >알아두면 좋은 정보</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
+          </button>
+          <button class="more-menu-row" onclick="startCoachmark()">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-question"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="settings.helpGuide"
+              >사용 방법 안내</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
+          </button>
+          <button class="more-menu-row" onclick="goTo('screen-settings')">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="settings.title"
+              >설정</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
+          </button>
+          <button class="more-menu-row" onclick="goTo('screen-customer-support')">
+            <span class="more-menu-icon"
+              ><svg viewBox="0 0 24 24"><use href="#ic-question"></use></svg
+            ></span>
+            <span class="more-menu-label" data-i18n="settings.support"
+              >고객 지원</span
+            >
+            <svg class="more-menu-chevron" viewBox="0 0 24 24">
+              <use href="#ic-chevron"></use>
+            </svg>
+          </button>
+        </div>
+      </section>
     </div>
 
     <!-- 음성 안내 켜기/끄기: .screen-stack 밖에 두어 어느 화면으로 이동해도 우측 상단에 계속 고정되어 보인다.
@@ -4030,25 +4213,32 @@
       >
     </button>
 
-    <!-- 하단 네비게이션 바: 최상위 화면(홈·정보)에서만 보인다(body.has-bottom-nav).
-       .screen-stack 밖에 하나만 두고 goTo()가 표시/활성 상태를 갱신한다.
-       "더보기"는 화면이 아니라 openMoreDrawer()로 여는 사이드바 드로어라, 다른 화면 위에서도 늘 누를 수 있게
-       이 nav 자체는 계속 화면 하단에 붙어있다(드로어가 열려도 이 nav는 드로어 아래쪽에서 계속 보인다). -->
+    <!-- 긴급 도움: 네비바 안의 탭이 아니라, 네비바 우측 위에 겹쳐 뜨는 원형 버튼(FAB)이다.
+         화면을 이동하는 게 아니라 바로 시트를 여는 동작이라 네비의 4개 탭(정보/홈/기록/더보기)과 성격이 달라 분리했다.
+         id는 코치마크의 emergency 단계가 참조하므로 그대로 유지한다. body.has-bottom-nav일 때만 보인다(네비바와 노출 조건 동일). -->
+    <button
+      type="button"
+      class="nav-help-fab"
+      id="emergencyFab"
+      onclick="openEmergencySheet()"
+      aria-label="긴급 도움"
+    >
+      <svg viewBox="0 0 24 24"><use href="#ic-alert"></use></svg>
+      <span data-i18n="nav.help">도움</span>
+    </button>
+
+    <!-- 하단 네비게이션 바: 최상위 화면(홈·정보·기록·설정)에서만 보인다(body.has-bottom-nav).
+       .screen-stack 밖에 하나만 두고 goTo()가 표시/활성 상태를 갱신한다. -->
     <nav class="bottom-nav" id="bottomNav" aria-label="주요 화면 이동">
-      <!-- 순서: 도움 / 홈 / 정보 / 더보기 — 가장 급할 때 누르는 도움을 엄지가 닿기 쉬운 맨 왼쪽에 둔다.
-         기록·설정은 더보기 드로어 메뉴 안으로 옮겼다(각 화면 gear-btn으로도 설정에 접근 가능).
-         긴급 도움: 화면을 이동하는 탭이 아니라 바로 시트를 여는 버튼이라 data-tab을 두지 않는다(활성 표시 대상 아님).
-         id는 코치마크의 emergency 단계가 참조하므로 그대로 유지한다. -->
+      <!-- 순서: 정보 / 홈 / 기록 / 더보기(설정) — 4개 탭만 둔다. 긴급 도움은 위의 원형 버튼으로 분리됐다.
+         "더보기"는 곧장 screen-settings로 이동한다(코치마크 튜토리얼 이식과 함께 codex/guardian-app 구조로 맞춤). -->
       <button
         type="button"
-        class="nav-help"
-        id="emergencyFab"
-        onclick="openEmergencySheet()"
-        aria-label="긴급 도움"
+        data-tab="screen-info"
+        onclick="goTo('screen-info')"
       >
-        <span class="nav-help-badge"
-          ><svg viewBox="0 0 24 24"><use href="#ic-alert"></use></svg></span
-        ><span data-i18n="nav.help">도움</span>
+        <svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg
+        ><span data-i18n="nav.info">정보</span>
       </button>
       <button
         type="button"
@@ -4060,136 +4250,21 @@
       </button>
       <button
         type="button"
-        data-tab="screen-info"
-        onclick="goTo('screen-info')"
+        data-tab="screen-history"
+        onclick="goTo('screen-history')"
       >
-        <svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg
-        ><span data-i18n="nav.info">정보</span>
+        <svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg
+        ><span data-i18n="nav.history">기록</span>
       </button>
       <button
         type="button"
         data-tab="screen-more"
-        onclick="openMoreDrawer()"
+        onclick="goTo('screen-more')"
       >
         <svg viewBox="0 0 24 24"><use href="#ic-list"></use></svg
         ><span data-i18n="home.moreMenu">더보기</span>
       </button>
     </nav>
-
-    <!-- 더보기: 오른쪽에서 슬라이드인하는 사이드바(디자인 시안 기준, 2026-07-31) — goTo()로 전환하는
-         전체 화면이 아니라 emergencyBackdrop/Sheet와 같은 오버레이 패턴. 배경 화면은 어둡게 깔리고
-         왼쪽 가장자리만 살짝 보인다. -->
-    <div
-      class="sheet-backdrop"
-      id="moreBackdrop"
-      style="display: none"
-      onclick="closeMoreDrawer()"
-    ></div>
-    <div class="more-drawer" id="moreDrawer">
-      <div class="topbar">
-        <button class="nav-btn" onclick="closeMoreDrawer()" data-i18n="common.home">
-          ← 홈으로</button
-        ><span class="header-title"
-          ><span data-i18n="home.moreMenu">더보기</span></span
-        ><span></span>
-      </div>
-
-      <!-- 프로필 요약 카드: appState.profile(이름/나이/성별/지역)을 그대로 보여준다.
-           값이 비어있으면 '-'로 표시(지어내지 않음) — renderMoreProfileSummary()가 채운다. -->
-      <div class="profile-summary-card">
-        <div class="profile-summary-name">
-          <span data-i18n="home.moreNameLabel">이름 :</span>
-          <strong id="moreProfileName">-</strong>
-        </div>
-        <div class="profile-summary-stats">
-          <div class="profile-summary-stat">
-            <span class="pss-label" data-i18n="home.moreAgeLabel">나이</span>
-            <span class="pss-value" id="moreProfileAge">-</span>
-          </div>
-          <div class="profile-summary-stat">
-            <span class="pss-label" data-i18n="home.moreGenderLabel"
-              >성별</span
-            >
-            <span class="pss-value" id="moreProfileGender">-</span>
-          </div>
-          <div class="profile-summary-stat">
-            <span class="pss-label" data-i18n="home.moreRegionLabel"
-              >지역</span
-            >
-            <span class="pss-value" id="moreProfileRegion">-</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="more-menu-list">
-        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-my-info')">
-          <span class="more-menu-icon"
-            ><svg viewBox="0 0 24 24"><use href="#ic-user"></use></svg
-          ></span>
-          <span class="more-menu-label" data-i18n="home.moreMyInfo"
-            >내 정보</span
-          >
-          <svg class="more-menu-chevron" viewBox="0 0 24 24">
-            <use href="#ic-chevron"></use>
-          </svg>
-        </button>
-        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-history')">
-          <span class="more-menu-icon"
-            ><svg viewBox="0 0 24 24"><use href="#ic-clock"></use></svg
-          ></span>
-          <span class="more-menu-label" data-i18n="home.moreHistory"
-            >분석 기록</span
-          >
-          <svg class="more-menu-chevron" viewBox="0 0 24 24">
-            <use href="#ic-chevron"></use>
-          </svg>
-        </button>
-        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-stats')">
-          <span class="more-menu-icon"
-            ><svg viewBox="0 0 24 24"><use href="#ic-list"></use></svg
-          ></span>
-          <span class="more-menu-label" data-i18n="home.moreStats"
-            >통계</span
-          >
-          <svg class="more-menu-chevron" viewBox="0 0 24 24">
-            <use href="#ic-chevron"></use>
-          </svg>
-        </button>
-        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-info')">
-          <span class="more-menu-icon"
-            ><svg viewBox="0 0 24 24"><use href="#ic-info"></use></svg
-          ></span>
-          <span class="more-menu-label" data-i18n="home.publicInfoDefault"
-            >알아두면 좋은 정보</span
-          >
-          <svg class="more-menu-chevron" viewBox="0 0 24 24">
-            <use href="#ic-chevron"></use>
-          </svg>
-        </button>
-        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-settings')">
-          <span class="more-menu-icon"
-            ><svg viewBox="0 0 24 24"><use href="#ic-gear"></use></svg
-          ></span>
-          <span class="more-menu-label" data-i18n="settings.title"
-            >설정</span
-          >
-          <svg class="more-menu-chevron" viewBox="0 0 24 24">
-            <use href="#ic-chevron"></use>
-          </svg>
-        </button>
-        <button class="more-menu-row" onclick="closeMoreDrawer(); goTo('screen-customer-support')">
-          <span class="more-menu-icon"
-            ><svg viewBox="0 0 24 24"><use href="#ic-question"></use></svg
-          ></span>
-          <span class="more-menu-label" data-i18n="settings.support"
-            >고객 지원</span
-          >
-          <svg class="more-menu-chevron" viewBox="0 0 24 24">
-            <use href="#ic-chevron"></use>
-          </svg>
-        </button>
-      </div>
-    </div>
 
     <!-- 긴급 도움 Bottom Sheet -->
     <div
@@ -4433,8 +4508,41 @@
       </button>
     </div>
 
+    <!-- 코치마크 튜토리얼: 실제 화면 위에 스포트라이트 + 말풍선으로 사용법을 안내한다(가짜 미리보기 화면 대신 실제 버튼을 직접 눌러보며 학습).
+         진행 상황은 말풍선 안의 "n / m" 표시(coachTipStep)로만 알려준다. -->
+    <div class="coach-overlay" id="coachOverlay" style="display: none">
+      <div class="coach-hole" id="coachHole"></div>
+      <div class="coach-tip" id="coachTip">
+        <div class="coach-tip-step" id="coachTipStep"></div>
+        <div class="coach-tip-title" id="coachTipTitle"></div>
+        <div class="coach-tip-desc" id="coachTipDesc"></div>
+        <button
+          class="coach-tip-next"
+          id="coachTipNext"
+          onclick="advanceCoachStep()"
+          style="display: none"
+          data-i18n="coach.next"
+        >
+          다음으로 넘어가기
+        </button>
+        <button
+          class="nav-btn coach-tip-skip"
+          onclick="confirmSkipCoachmark()"
+          data-i18n="coach.skipTutorial"
+        >
+          튜토리얼 건너뛰기
+        </button>
+      </div>
+    </div>
+
     <div class="sr-only" role="status" aria-live="polite" id="liveRegion"></div>
     <div class="global-toast" id="globalToast"></div>
+
+    <!-- 쉬운 모드: codex/guardian-app 앱(easy/app.html)을 같은 페이지 안에서 전체 화면 iframe으로 띄운다.
+         페이지 이동이 아니므로 주소창은 그대로고, toggleEasyMode()가 처음 켤 때만 src를 채워 로드한다. -->
+    <div id="easyModeOverlay" style="display: none; position: fixed; inset: 0; z-index: 700; background: #fff;">
+      <iframe id="easyModeFrame" title="쉬운 모드" style="width: 100%; height: 100%; border: 0; display: block;"></iframe>
+    </div>
 
     <script src="js/script.js"></script>
   </body>

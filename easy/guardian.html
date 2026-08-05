@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#3d6bf5">
+  <title>온담 보호자</title>
+  <link rel="stylesheet" href="css/guardian.css?v=20260804-6">
+</head>
+<body>
+  <main class="guardian-shell">
+    <section class="connect-screen" id="connectScreen">
+      <div class="brand-lockup">
+        <div class="brand-mark" aria-hidden="true">온</div>
+        <div><strong>온담 보호자</strong><span>부모님의 일상을 안심하고 살펴보세요</span></div>
+      </div>
+      <div class="connect-hero">
+        <span class="eyebrow">가족 안심 연결</span>
+        <h1>부모님 곁에<br>한 걸음 더 가까이</h1>
+        <p>어르신이 온담에 가입할 때 사용한 전화번호로 안전하게 연결합니다.</p>
+      </div>
+      <form class="connect-card" id="connectForm">
+        <label for="guardianPhoneLogin">어르신 전화번호</label>
+        <input id="guardianPhoneLogin" type="tel" inputmode="numeric" autocomplete="tel"
+               placeholder="010-1234-5678" aria-describedby="connectHelp">
+        <p class="field-help" id="connectHelp">어르신이 온담 회원가입에 사용한 전화번호를 입력해주세요.</p>
+        <p class="form-error" id="connectError" role="alert"></p>
+        <button class="primary-action" type="submit">부모님과 연결하기</button>
+        <button class="demo-action" type="button" id="demoButton">연결 전 화면 미리보기</button>
+      </form>
+      <a class="elder-link" href="index.html">어르신용 온담으로 돌아가기</a>
+    </section>
+
+    <section class="app-screen" id="guardianApp" hidden>
+      <header class="app-header">
+        <div>
+          <span class="app-kicker">온담 보호자</span>
+          <h1 id="guardianGreeting">안녕하세요</h1>
+        </div>
+        <button class="profile-button" id="profileButton" aria-label="연결 정보 보기">보</button>
+      </header>
+
+      <div class="connection-banner" id="connectionBanner">
+        <span class="live-dot"></span>
+        <strong id="connectionText">부모님 앱과 연결됨</strong>
+        <span id="lastUpdatedText">방금 업데이트</span>
+      </div>
+
+      <div class="view active" id="viewHome">
+        <section class="senior-card">
+          <div class="senior-avatar" id="seniorAvatar">김</div>
+          <div class="senior-info">
+            <span>돌봄 중인 가족</span>
+            <strong id="seniorName">김온담 어르신</strong>
+            <small id="seniorMeta">72세 · 경기도 안산시</small>
+          </div>
+          <a class="round-call" id="guardianCallLink" href="tel:" aria-label="부모님께 전화하기">☎</a>
+        </section>
+
+        <section class="status-card safe" id="statusCard">
+          <div class="status-icon" id="statusIcon">✓</div>
+          <div>
+            <span class="status-label">오늘의 안심 상태</span>
+            <h2 id="statusTitle">확인할 위험 알림이 없어요</h2>
+            <p id="statusDescription">최근 확인한 문서와 문자는 안전합니다.</p>
+          </div>
+        </section>
+
+        <div class="section-heading">
+          <div><span>지금 확인해 주세요</span><h2>최근 활동</h2></div>
+          <button data-view-target="history">전체 보기</button>
+        </div>
+        <div class="activity-list" id="homeActivityList"></div>
+
+        <div class="section-heading">
+          <div><span>놓치지 않도록</span><h2>다가오는 일정</h2></div>
+        </div>
+        <div class="schedule-list" id="homeScheduleList"></div>
+      </div>
+
+      <div class="view" id="viewHistory">
+        <div class="page-title">
+          <span>부모님이 확인한 내용</span>
+          <h2>분석 기록</h2>
+        </div>
+        <div class="filter-row" id="historyFilters">
+          <button class="active" data-filter="all">전체</button>
+          <button data-filter="danger">위험</button>
+          <button data-filter="document">문서</button>
+          <button data-filter="message">문자</button>
+        </div>
+        <div class="activity-list full" id="historyList"></div>
+      </div>
+
+      <div class="view" id="viewInbox">
+        <div class="page-title">
+          <span>부모님이 직접 보낸 내용</span>
+          <h2>받은 연락</h2>
+        </div>
+        <div class="inbox-summary" id="inboxSummary">
+          <div><strong id="unreadMessageCount">0</strong><span>읽지 않은 연락</span></div>
+          <p>부모님이 ‘보호자에게 알리기’ 또는 ‘자녀에게 보내기’를 누른 결과가 도착합니다.</p>
+        </div>
+        <div class="activity-list full" id="inboxList"></div>
+      </div>
+
+      <div class="view" id="viewStats">
+        <div class="page-title">
+          <span>한눈에 보는 이용 현황</span>
+          <h2>안심 통계</h2>
+        </div>
+        <div class="metric-grid">
+          <article><span>이번 달 분석</span><strong id="metricAnalyses">0</strong><small>건</small></article>
+          <article class="alert-metric"><span>위험 문자</span><strong id="metricDanger">0</strong><small>건</small></article>
+          <article><span>완료한 일정</span><strong id="metricDone">0</strong><small>건</small></article>
+          <article><span>남은 일정</span><strong id="metricPending">0</strong><small>건</small></article>
+        </div>
+        <section class="chart-card">
+          <div class="chart-heading"><h3>최근 4주 활동</h3><span>분석 횟수</span></div>
+          <div class="bar-chart" id="activityChart" aria-label="최근 4주 분석 횟수"></div>
+        </section>
+        <section class="summary-card">
+          <h3>보호자 안심 요약</h3>
+          <ul id="guardianSummary"></ul>
+        </section>
+      </div>
+
+      <div class="view" id="viewMore">
+        <div class="page-title">
+          <span>연결과 도움말</span>
+          <h2>더보기</h2>
+        </div>
+        <section class="menu-card" id="testControls">
+          <button id="addTestMessageButton"><span class="menu-icon">＋</span><span><strong>새 위험 연락 테스트</strong><small>부모님에게 새 문자가 온 상황을 만듭니다</small></span><b>›</b></button>
+          <button id="resetTestDataButton"><span class="menu-icon">↺</span><span><strong>테스트 자료 다시 채우기</strong><small>문서·문자·일정 예시를 처음 상태로 되돌립니다</small></span><b>›</b></button>
+        </section>
+        <section class="menu-card">
+          <button id="refreshDataButton"><span class="menu-icon">↻</span><span><strong>최신 정보 불러오기</strong><small>부모님 앱의 새 기록을 확인합니다</small></span><b>›</b></button>
+          <a href="index.html"><span class="menu-icon">온</span><span><strong>어르신용 앱 열기</strong><small>부모님 화면을 함께 확인합니다</small></span><b>›</b></a>
+          <button id="connectionGuideButton"><span class="menu-icon">?</span><span><strong>다른 휴대폰 연결 안내</strong><small>보호자 연결 방법을 확인합니다</small></span><b>›</b></button>
+        </section>
+        <section class="menu-card">
+          <button id="notificationToggle"><span class="menu-icon">♬</span><span><strong>위험 알림</strong><small id="notificationState">새 위험 문자가 있으면 알려드려요</small></span><i class="toggle on" aria-hidden="true"></i></button>
+          <button id="disconnectButton"><span class="menu-icon danger">×</span><span><strong>연결 해제</strong><small>이 기기의 보호자 연결을 종료합니다</small></span><b>›</b></button>
+        </section>
+        <p class="privacy-note">온담은 부모님의 분석 결과 중 보호자에게 필요한 내용만 보여줍니다.</p>
+      </div>
+
+      <nav class="guardian-nav" aria-label="보호자 앱 메뉴">
+        <button class="active" data-view="home"><span>⌂</span>홈</button>
+        <button data-view="inbox"><span class="nav-icon-wrap">✉<b id="inboxBadge" hidden>0</b></span>받은 연락</button>
+        <button data-view="history"><span>▤</span>기록</button>
+        <button data-view="stats"><span>▥</span>통계</button>
+        <button data-view="more"><span>•••</span>더보기</button>
+      </nav>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="guideModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+      <button class="modal-close" id="closeGuideButton" aria-label="닫기">×</button>
+      <span class="eyebrow">연결 안내</span>
+      <h2 id="guideTitle">다른 휴대폰에서 연결하려면</h2>
+      <ol>
+        <li>어르신이 온담에 가입할 때 사용한 전화번호를 확인합니다.</li>
+        <li>보호자 화면에서 어르신 전화번호를 입력합니다.</li>
+        <li>‘부모님과 연결하기’를 누르면 어르신 계정과 연결됩니다.</li>
+      </ol>
+      <p>현재 시제품은 같은 브라우저에 저장된 어르신 계정을 찾습니다. 실제 서비스에서는 서버에서 어르신 번호를 확인한 뒤 문자 인증 또는 어르신 승인을 추가할 수 있습니다.</p>
+      <button class="primary-action" id="confirmGuideButton">확인했어요</button>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="detailModal" hidden>
+    <div class="modal detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+      <button class="modal-close" id="closeDetailButton" aria-label="닫기">×</button>
+      <span class="detail-type" id="detailType">분석 결과</span>
+      <h2 id="detailTitle">확인 내용</h2>
+      <div class="detail-status" id="detailStatus"></div>
+      <figure class="detail-photo" id="detailPhotoWrap" hidden>
+        <img id="detailPhoto" alt="부모님이 분석한 문서 사진">
+        <figcaption>부모님이 분석할 때 사용한 문서 사진</figcaption>
+      </figure>
+      <section class="detail-section original-message" id="detailOriginalSection" hidden>
+        <h3>받은 문자 원문</h3>
+        <blockquote id="detailOriginalText"></blockquote>
+      </section>
+      <section class="detail-section">
+        <h3>내용 요약</h3>
+        <p id="detailSummary"></p>
+      </section>
+      <section class="detail-section" id="detailReasonSection">
+        <h3>왜 주의해야 하나요?</h3>
+        <p id="detailReason"></p>
+      </section>
+      <section class="detail-section" id="detailChecklistSection">
+        <h3>확인할 일</h3>
+        <ul id="detailChecklist"></ul>
+      </section>
+      <dl class="detail-facts" id="detailFacts"></dl>
+      <button class="primary-action" id="confirmDetailButton">확인했어요</button>
+    </div>
+  </div>
+  <div class="toast" id="guardianToast" role="status"></div>
+  <script src="js/guardian.js?v=20260804-1"></script>
+</body>
+</html>

@@ -182,19 +182,58 @@ function syncVoiceEnabledToggles(){
   if (greetEmoji) greetEmoji.textContent = appState.settings.voiceEnabled ? '🔊' : '🔇';
 }
 
-/** 쉬운 모드: 홈 화면 핵심 기능 3개를 아이콘 없이 큰 글자 + 같은 색 계열 블록 버튼으로 바꾼다(ATM 큰글씨 모드 참고).
- *  다른 화면·기능에는 영향 없음 — body.easy-mode 클래스 하나로 css/styles.css의 홈 카드 스타일만 덮어쓴다. */
-function toggleEasyMode(){
-  appState.settings.easyMode = !appState.settings.easyMode;
-  syncEasyModeUI();
-  saveState();
+/** "음성 안내 사용하기" 버튼은 맨 처음 인사 화면(screen-greet)에서만 보여주고, 그 다음 화면부터는 숨긴다
+ *  (설정 화면에도 같은 기능의 스위치가 있으니 계속 떠 있을 필요가 없다 — 매 화면 우측 상단을 가리던 문제 해결). */
+function syncGreetVoiceToggleVisibility(id){
+  const btn = document.getElementById('greetVoiceToggleBtn');
+  if (btn) btn.style.display = (id === 'screen-greet') ? '' : 'none';
 }
 
-function syncEasyModeUI(){
-  document.body.classList.toggle('easy-mode', !!appState.settings.easyMode);
-  const label = document.getElementById('easyModeToggleLabel');
-  if (label) label.textContent = appState.settings.easyMode ? '쉬운 모드 켜짐' : '쉬운 모드';
+/** env(safe-area-inset-*)는 중첩된 브라우징 컨텍스트(iframe) 안에서는 실제 상태바/제스처바 높이 대신
+ *  0을 반환하는 경우가 있다(안드로이드 웹뷰에서 특히 흔함) — 그래서 이 값은 항상 최상위 문서(부모)에서
+ *  직접 측정해, 같은 오리진인 iframe 문서에 CSS 커스텀 프로퍼티로 주입해준다. */
+function measureSafeAreaInset(side){
+  const probe = document.createElement('div');
+  probe.style.cssText = `position:fixed; top:0; left:0; visibility:hidden; pointer-events:none; padding-${side}:env(safe-area-inset-${side});`;
+  document.body.appendChild(probe);
+  const value = getComputedStyle(probe).getPropertyValue(`padding-${side}`);
+  probe.remove();
+  return value;
 }
+
+/** 쉬운 모드(easy/app.html)의 상단바가 안드로이드 상태바 밑에 깔려 겹쳐 보이던 문제 수정:
+ *  iframe 문서 자체는 env(safe-area-inset-top/bottom)을 0으로 읽는 경우가 있어, 부모에서 측정한
+ *  실제 값을 그 문서의 :root에 강제로 심어준다(easy/css/styles.css가 이 값을 우선 사용하도록 되어 있음). */
+function syncEasySafeArea(frame){
+  const doc = frame.contentDocument;
+  if (!doc || !doc.documentElement) return;
+  doc.documentElement.style.setProperty('--safe-area-inset-top', measureSafeAreaInset('top'));
+  doc.documentElement.style.setProperty('--safe-area-inset-bottom', measureSafeAreaInset('bottom'));
+}
+
+/** 쉬운 모드: 페이지 이동(location.href) 없이, codex/guardian-app 앱 자체(easy/app.html, 이 배포에 그대로
+ *  복사해 넣은 것)를 같은 페이지 안 전체 화면 iframe으로 띄운다 — 주소창은 그대로고, 실제로 다른 페이지가
+ *  열리는 느낌 없이 화면만 바뀐다. 같은 오리진이라 로그인 세션(AUTH_KEY)·appState(STORAGE_KEY)를 그대로 공유한다.
+ *  iframe은 처음 켤 때만 로드한다(src를 미리 채워두지 않음 — 안 쓰면 codex 앱 리소스를 받아올 필요가 없다). */
+function toggleEasyMode(checkbox){
+  if (checkbox && !checkbox.checked) return; // 이 페이지에 있다는 것 자체가 "꺼짐" 상태라 끄는 동작은 할 일이 없다
+  const frame = document.getElementById('easyModeFrame');
+  if (!frame.getAttribute('src')) {
+    frame.addEventListener('load', () => syncEasySafeArea(frame), { once: true });
+    frame.src = 'easy/app.html';
+  }
+  document.getElementById('easyModeOverlay').style.display = 'block';
+}
+
+/** easy/app.html(iframe 안)의 "일반 모드" 버튼이 같은 오리진이라 parent.hideEasyMode()로 직접 호출한다.
+ *  iframe을 다시 숨기고, 쉬운 모드 스위치도 꺼진 상태로 되돌린다. */
+function hideEasyMode(){
+  const overlay = document.getElementById('easyModeOverlay');
+  if (overlay) overlay.style.display = 'none';
+  const toggle = document.getElementById('easyModeToggleInput');
+  if (toggle) toggle.checked = false;
+}
+window.hideEasyMode = hideEasyMode;
 
 /** 번역된 문구(온보딩/튜토리얼)를 읽어줄 때만 언어별 TTS lang을 쓰고, 그 외(AI 분석 결과 등 항상 한국어인 문구)는 기본값(한국어)을 유지한다 */
 const TTS_LANG_MAP = { ko: 'ko-KR', zh: 'zh-CN', vi: 'vi-VN', th: 'th-TH', uz: 'uz-UZ' };
@@ -256,10 +295,8 @@ const onboardScreens = new Set(['screen-greet', 'screen-signup', 'screen-reset-p
 
 /* 하단 네비게이션 바를 노출할 최상위 화면. 여기 없는 화면(촬영·로딩·결과 등 흐름 중간)에서는 숨겨서
    "네비바가 보이면 출발점, 안 보이면 진행 중"이라는 규칙을 만든다.
-   더보기는 이제 화면 전환이 아니라 사이드바 드로어(openMoreDrawer())라 여기 포함되지 않는다.
-   기록(screen-history)·설정(screen-settings)은 더보기 메뉴로 옮겨갔다 — 각 화면의 gear-btn과
-   더보기의 "분석 기록" 행으로 여전히 접근 가능하다. */
-const TAB_SCREENS = new Set(['screen-home', 'screen-info']);
+   기록·설정도 codex/guardian-app처럼 각자 탭이 되었다("더보기"가 곧 screen-settings). */
+const TAB_SCREENS = new Set(['screen-home', 'screen-info', 'screen-history', 'screen-more']);
 
 /** 네비바의 활성 탭 표시를 현재 화면에 맞춘다 */
 function syncBottomNav(id){
@@ -281,8 +318,10 @@ function goTo(id){
   target.classList.add('active');
   target.scrollTop = 0; // 화면은 각자 스크롤 위치를 기억하므로, 새로 들어올 때는 항상 맨 위에서 시작한다
   activeScreenEl = target;
-  speak(screenVoiceText(target), screenVoiceLang(target));
+  // 코치마크가 이 화면에서 직접 안내 음성을 읽어줄 예정이면, 화면 기본 안내와 겹쳐 읽혀 잘리는 걸 막기 위해 기본 음성은 건너뛴다
+  if (!coachWillNarrate(id)) speak(screenVoiceText(target), screenVoiceLang(target));
   document.body.classList.toggle('in-onboarding', onboardScreens.has(id));
+  syncGreetVoiceToggleVisibility(id);
 
   // 네비바는 최상위 탭 화면에서만 보인다.
   document.body.classList.toggle('has-bottom-nav', TAB_SCREENS.has(id));
@@ -315,7 +354,272 @@ function goTo(id){
     syncGuardianNotifyPrompt();
   }
   if (id === 'screen-guardian-profile') syncGuardianUI();
+  if (id === 'screen-more') renderMoreProfileSummary();
   if (INFO_DETAIL_GREET_IDS[id]) renderInfoDetailGreet(id);
+
+  coachOnNavigate(id);
+}
+
+/** "튜토리얼을 건너뛸까요?" 확인 시트.
+ *  브라우저 기본 confirm()은 앱과 생김새가 달라 어르신에게 낯설고, 진행 중이던 음성 안내도 끊긴다.
+ *  그래서 다른 확인 창들과 같은 바텀시트로 통일했다. 건너뛰기를 눌렀을 때 할 일은 호출한 쪽이 넘겨준다. */
+let pendingSkipAction = null;
+
+function openSkipConfirm(onConfirm){
+  pendingSkipAction = onConfirm;
+  document.getElementById('skipConfirmBackdrop').style.display = 'block';
+  document.getElementById('skipConfirmSheet').style.display = 'block';
+  speak(t('skipConfirm.title'));
+}
+
+function closeSkipConfirm(){
+  pendingSkipAction = null;
+  document.getElementById('skipConfirmBackdrop').style.display = 'none';
+  document.getElementById('skipConfirmSheet').style.display = 'none';
+}
+
+function acceptSkipConfirm(){
+  const action = pendingSkipAction;
+  closeSkipConfirm(); // pendingSkipAction을 비운 뒤 실행해야 화면 전환 중 중복 실행되지 않는다
+  if (action) action();
+}
+
+/** 첫 사용 안내는 홈의 핵심 기능 세 가지만 차례로 강조하고, 기능을 실행시키지 않은 채 홈에서 끝낸다. */
+function startFirstUseTutorial(){
+  goTo('screen-home');
+  setTimeout(() => startCoachmark(homeFeatureCoachSteps), 200);
+}
+
+/* ---------------------------------------------------------
+   코치마크 튜토리얼: 가짜 미리보기 화면 대신, 실제 화면 위에 스포트라이트 + 말풍선을 띄워
+   사용자가 진짜 버튼을 직접 눌러보며 실제 플로우(문서 촬영, 문자 확인)를 체험하게 한다.
+   각 단계는 { screen, target(실제 화면 안의 CSS 선택자), key, advance?, skippable? } 로 구성되고,
+   화면 전환은 goTo()가 실제로 호출될 때만 다음 단계로 넘어간다(가짜 onclick으로 흉내내지 않음).
+   title/desc/voice는 문구를 직접 담지 않고 key(coach.<key>.title/desc/voice)로 t()를 통해
+   언어 설정에 맞는 문구를 가져온다. (codex/guardian-app에서 이식, main 화면 구조에 맞게 정리)
+   --------------------------------------------------------- */
+const fullCoachSteps = [
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-doc-choice"]', key: 'doc1' },
+  { screen: 'screen-doc-choice', target: '#screen-doc-choice .feature-card[onclick*="screen-doc-capture"]', key: 'doc2' },
+  { screen: 'screen-doc-capture', target: '#screen-doc-capture .camera-shutter', key: 'doc3', advance: 'click' },
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="openSmsCheck"]', key: 'sms1' },
+  { screen: 'screen-sms-permission-needed', target: '#smsPermissionRetryBtn', key: 'smsPermission', skippable: true },
+  { screen: 'screen-sms-recent', target: '#screen-sms-recent .row:first-child', key: 'sms2' },
+  { screen: 'screen-home', target: '#bottomNav [data-tab="screen-history"]', key: 'history1' },
+  { screen: 'screen-history', target: '#screen-history .nav-btn', key: 'history2' },
+  { screen: 'screen-info', target: '#publicInfoList .row:first-child', key: 'info1' },
+  { screen: 'screen-info-pension', target: '#screen-info-pension .primary-btn', key: 'info2' },
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-welfare-nearby"]', key: 'welfare1' },
+  { screen: 'screen-welfare-nearby', target: '#screen-welfare-nearby .secondary-btn[onclick*="screen-home"]', key: 'welfare2' },
+  { screen: 'screen-home', target: '#screen-home .topbar [data-replay]', key: 'voice1', advance: 'click' },
+  { screen: 'screen-home', target: '#emergencyFab', key: 'emergency1', skippable: true },
+  { screen: 'screen-home', target: '#bottomNav [data-tab="screen-more"]', key: 'settingsIntro' },
+  { screen: 'screen-more', target: '#screen-more .more-menu-row[onclick*="screen-settings"]', key: 'moreToSettings' },
+  { screen: 'screen-settings', target: '#fontScaleGroup', key: 'fontsize', skippable: true },
+  { screen: 'screen-settings', target: '#voiceRateGroup', key: 'rate', skippable: true },
+  { screen: 'screen-settings', target: '#guardianName', key: 'guardian', skippable: true },
+  { screen: 'screen-settings', target: '#languageGroup', key: 'language', skippable: true },
+  { screen: 'screen-settings', target: '#screen-settings .topbar .nav-btn', key: 'finish', advance: 'click' }
+];
+
+/** "사용 방법 안내"의 각 항목별 미니 투어: 전체 투어(fullCoachSteps)에서 해당 구간만 골라 재사용한다.
+ *  아래 slice/인덱스는 fullCoachSteps의 순서에 의존하므로, 그 배열의 항목을 지우거나 순서를 바꾸지 말 것. */
+const docMiniCoachSteps = fullCoachSteps.slice(0, 3);
+const smsMiniCoachSteps = fullCoachSteps.slice(3, 6);
+const historyMiniCoachSteps = fullCoachSteps.slice(6, 8);
+const publicInfoMiniCoachSteps = fullCoachSteps.slice(8, 10);
+const welfareMiniCoachSteps = fullCoachSteps.slice(10, 12);
+const homeFeatureCoachSteps = [
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-doc-choice"]', key: 'doc1', skippable: true },
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="openSmsCheck"]', key: 'sms1', skippable: true },
+  { screen: 'screen-home', target: '#screen-home .feature-card[onclick*="screen-welfare-nearby"]', key: 'welfare1', skippable: true }
+];
+const voiceMiniCoachSteps = [fullCoachSteps[12]];
+const emergencyMiniCoachSteps = [fullCoachSteps[13]];
+const settingsMiniCoachSteps = [
+  { screen: 'screen-settings', target: '#fontScaleGroup', key: 'fontsize', skippable: true },
+  { screen: 'screen-settings', target: '#voiceRateGroup', key: 'rate', skippable: true },
+  { screen: 'screen-settings', target: '#guardianName', key: 'guardian', skippable: true },
+  { screen: 'screen-settings', target: '#languageGroup', key: 'language', skippable: true }
+];
+
+/** 홈 카드의 "사용 방법 보기": 선택한 기능의 실제 이용 순서만 큰 안내로 보여준다. */
+function startHomeFeatureTutorial(feature){
+  const tutorials = {
+    doc: docMiniCoachSteps,
+    sms: smsMiniCoachSteps,
+    welfare: welfareMiniCoachSteps
+  };
+  startCoachmark(tutorials[feature] || homeFeatureCoachSteps);
+}
+
+/** 첫 실행 안내: 앱의 핵심인 문서 촬영·문자 확인만 다루고 마지막에 "나머지는 여기서 볼 수 있어요"로 마무리한다. */
+const firstRunHelpStep = {
+  screen: 'screen-home',
+  target: '#bottomNav',
+  key: 'moreHelp', skippable: true
+};
+const firstRunCoachSteps = [...fullCoachSteps.slice(0, 6), firstRunHelpStep];
+
+let coachSteps = firstRunCoachSteps;
+let coachIndex = -1;
+let coachActive = false;
+
+/** steps를 생략하면 첫 실행 안내(firstRunCoachSteps), 넘기면 "사용 방법 안내"의 항목별 미니 투어를 시작한다 */
+function startCoachmark(steps){
+  coachSteps = steps || firstRunCoachSteps;
+  coachActive = true;
+  coachIndex = 0;
+  goTo(coachSteps[0].screen); // goTo가 coachOnNavigate를 호출해 1단계를 띄워줌
+}
+
+/** 코치마크 오버레이(스포트라이트+말풍선)를 한꺼번에 켜고 끈다 */
+function setCoachOverlayVisible(visible){
+  const overlay = document.getElementById('coachOverlay');
+  if (overlay) overlay.style.display = visible ? 'block' : 'none';
+}
+
+function stopCoachmark(silent){
+  coachActive = false;
+  coachIndex = -1;
+  clearCoachAdvanceListener();
+  setCoachOverlayVisible(false);
+  if (activeScreenEl) document.body.classList.toggle('in-onboarding', onboardScreens.has(activeScreenEl.id));
+  if (!silent) {
+    speak('안내가 끝났습니다. 이제 실제로 사용해보세요.');
+    showGlobalToast('튜토리얼이 끝났습니다.');
+  }
+}
+
+/** 진행 중인 코치마크의 "튜토리얼 건너뛰기": 같은 문구로 한 번 더 확인 */
+function confirmSkipCoachmark(){
+  openSkipConfirm(() => { stopCoachmark(true); goTo('screen-home'); });
+}
+
+/** 이 화면에 들어가면 코치마크가 곧바로 안내 음성을 읽어줄지 미리 판단(goTo의 기본 음성과 겹쳐 잘리는 것을 막기 위함) */
+function coachWillNarrate(id){
+  if (!coachActive) return false;
+  const step = coachSteps[coachIndex];
+  if (!step) return false;
+  const nextStep = coachSteps[coachIndex + 1];
+  return id === step.screen || (nextStep && id === nextStep.screen);
+}
+
+/** goTo()가 호출될 때마다 실행됨: 코치마크가 기다리던 다음 화면이면 다음 단계를 보여주고,
+ *  같은 화면으로 되돌아온 것이면 같은 단계를 다시 보여주고, 그 외(다른 곳을 눌러본 경우)에는 오버레이만 숨긴다.
+ *  마지막 단계의 화면을 벗어나면 튜토리얼을 종료한다. */
+function coachOnNavigate(id){
+  if (!coachActive) return;
+  const step = coachSteps[coachIndex];
+  if (!step) return;
+  const nextStep = coachSteps[coachIndex + 1];
+  const nextNextStep = coachSteps[coachIndex + 2];
+  if (id === step.screen) {
+    setTimeout(showCoachStep, 200);
+  } else if (nextStep && id === nextStep.screen) {
+    coachIndex++;
+    setTimeout(showCoachStep, 200);
+  } else if (nextNextStep && id === nextNextStep.screen) {
+    // 조건에 따라 중간 단계가 통째로 생략될 수 있는 경우(예: 문자 읽기 권한이 이미 있어 권한 안내 화면을 거치지 않음) —
+    // 그 단계는 건너뛰고 실제로 도착한 화면부터 바로 이어받는다
+    coachIndex += 2;
+    setTimeout(showCoachStep, 200);
+  } else if (!nextStep) {
+    stopCoachmark();
+  } else {
+    // 분석 중/결과 화면처럼 성공·실패로 갈라지는 중간 화면은 그냥 지나쳐 보내고(오버레이만 숨김),
+    // 다음 단계가 기다리는 화면(예: 홈)으로 실제로 돌아왔을 때 위 분기에서 자연스럽게 이어받는다
+    setCoachOverlayVisible(false);
+  }
+}
+
+/** 다음 단계로 넘어갈 때 기다리고 있던 이전 단계의 advance 리스너가 뒤늦게 중복으로 발동하지 않도록 정리해둔다 */
+let coachAdvanceEl = null;
+let coachAdvanceType = null;
+let coachAdvanceHandler = null;
+function clearCoachAdvanceListener(){
+  if (coachAdvanceEl && coachAdvanceType && coachAdvanceHandler) {
+    coachAdvanceEl.removeEventListener(coachAdvanceType, coachAdvanceHandler);
+  }
+  coachAdvanceEl = null; coachAdvanceType = null; coachAdvanceHandler = null;
+}
+
+function showCoachStep(){
+  const step = coachSteps[coachIndex];
+  clearCoachAdvanceListener();
+  if (!step) { stopCoachmark(); return; }
+  if (!activeScreenEl || activeScreenEl.id !== step.screen) { setCoachOverlayVisible(false); return; }
+
+  const el = document.querySelector(step.target);
+  if (!el) { setCoachOverlayVisible(false); return; }
+
+  el.scrollIntoView({ block: 'center' });
+  positionCoachStep(el, step);
+  setCoachOverlayVisible(true);
+  speak(t('coach.' + step.key + '.voice'), currentTtsLang());
+  setTimeout(() => { if (activeScreenEl && activeScreenEl.id === step.screen) positionCoachStep(el, step); }, 350);
+
+  if (step.advance) {
+    const handler = () => {
+      if (document.activeElement && document.activeElement !== document.body && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+      }
+      clearCoachAdvanceListener();
+      coachIndex++;
+      setTimeout(showCoachStep, 450);
+    };
+    el.addEventListener(step.advance, handler, { once: true });
+    coachAdvanceEl = el; coachAdvanceType = step.advance; coachAdvanceHandler = handler;
+  }
+}
+
+/** 선택 사항인 단계(글자 크기·음성 속도·보호자 정보 등)에서 값을 바꾸지 않고도 다음으로 넘어갈 수 있게 해주는 버튼 */
+function advanceCoachStep(){
+  if (!coachActive) return;
+  clearCoachAdvanceListener();
+  if (document.activeElement && document.activeElement !== document.body && typeof document.activeElement.blur === 'function') {
+    document.activeElement.blur();
+  }
+  coachIndex++;
+  setTimeout(showCoachStep, 200);
+}
+
+/** 코치마크가 켜져 있는 동안 화면 크기/뷰포트가 바뀌면(회전, 모바일 키보드 열림·닫힘 등) 스포트라이트 위치를 다시 계산한다 */
+function repositionCurrentCoachStep(){
+  if (!coachActive) return;
+  const overlay = document.getElementById('coachOverlay');
+  if (!overlay || overlay.style.display === 'none') return;
+  const step = coachSteps[coachIndex];
+  if (!step) return;
+  const el = document.querySelector(step.target);
+  if (el) positionCoachStep(el, step);
+}
+window.addEventListener('resize', repositionCurrentCoachStep);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', repositionCurrentCoachStep);
+
+function positionCoachStep(el, step){
+  const rect = el.getBoundingClientRect();
+  const pad = 8;
+  const hole = document.getElementById('coachHole');
+  hole.style.top = (rect.top - pad) + 'px';
+  hole.style.left = (rect.left - pad) + 'px';
+  hole.style.width = (rect.width + pad * 2) + 'px';
+  hole.style.height = (rect.height + pad * 2) + 'px';
+
+  document.getElementById('coachTipStep').textContent = `${coachIndex + 1} / ${coachSteps.length}`;
+  document.getElementById('coachTipTitle').textContent = t('coach.' + step.key + '.title');
+  document.getElementById('coachTipDesc').textContent = t('coach.' + step.key + '.desc');
+  const nextButton = document.getElementById('coachTipNext');
+  nextButton.style.display = step.skippable ? 'block' : 'none';
+  nextButton.textContent = coachIndex === coachSteps.length - 1 ? '안내 끝내기' : '다음 기능 보기';
+
+  const tip = document.getElementById('coachTip');
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const putBelow = spaceBelow > 180 || rect.top < 180;
+  tip.style.top = putBelow ? (rect.bottom + pad + 10) + 'px' : '';
+  tip.style.bottom = putBelow ? '' : (window.innerHeight - rect.top + pad + 10) + 'px';
+  const tipWidth = Math.min(380, window.innerWidth - 32);
+  tip.style.left = Math.max(16, Math.min(rect.left, window.innerWidth - tipWidth - 16)) + 'px';
 }
 
 /** AI 분석 대기 화면의 진행바: 실제로 언제 끝날지 모르니 90%까지만 천천히 채워두고,
@@ -1733,21 +2037,6 @@ function openMap(query){
 }
 
 /* ---------------------------------------------------------
-   9-1. 더보기: 오른쪽에서 슬라이드인하는 사이드바 드로어
-   --------------------------------------------------------- */
-function openMoreDrawer(){
-  renderMoreProfileSummary();
-  document.getElementById('moreBackdrop').style.display = 'block';
-  document.getElementById('moreDrawer').classList.add('open');
-  syncBottomNav('screen-more'); // 드로어가 열려있는 동안은 "더보기" 탭을 활성 표시한다
-}
-function closeMoreDrawer(){
-  document.getElementById('moreBackdrop').style.display = 'none';
-  document.getElementById('moreDrawer').classList.remove('open');
-  syncBottomNav(activeScreenEl ? activeScreenEl.id : 'screen-home'); // 실제로 보고 있던 화면 탭으로 활성 표시 복구
-}
-
-/* ---------------------------------------------------------
    10. 긴급 도움 FAB + Bottom Sheet
    --------------------------------------------------------- */
 function openEmergencySheet(){
@@ -2035,6 +2324,31 @@ const I18N = {
     'onboard.profile.genderLabel': '성별', 'onboard.profile.ageLabel': '나이',
     'onboard.profile.agePlaceholder': '예: 73', 'onboard.profile.ageNote': '만 나이를 숫자로 적어주세요. 나이에 따라 받을 수 있는 혜택이 달라요.',
     'skipConfirm.title': '튜토리얼을 건너뛸까요?', 'skipConfirm.keep': '계속 보기',
+    'coach.moreHelp.title': '여기서 다른 기능도 볼 수 있어요', 'coach.moreHelp.desc': '아래 정보·기록·설정을 눌러 보세요.', 'coach.moreHelp.voice': '아래쪽 메뉴에서 다른 기능도 볼 수 있어요.',
+    'coach.next': '다음으로 넘어가기', 'coach.skipTutorial': '튜토리얼 건너뛰기',
+    'coach.doc1.title': '문서 찍어서 확인하기', 'coach.doc1.desc': '고지서나 안내문을 찍으면 중요한 내용과 해야 할 일을 쉽게 알려드려요.', 'coach.doc1.voice': '문서 찍어서 확인하기는 고지서나 안내문의 중요한 내용을 쉽게 알려드리는 기능입니다.',
+    'coach.doc2.title': '직접 촬영해볼게요', 'coach.doc2.desc': '카메라로 문서를 찍어보세요.', 'coach.doc2.voice': '직접 촬영하기를 눌러보세요.',
+    'coach.doc3.title': '촬영 버튼을 눌러주세요', 'coach.doc3.desc': '문서가 화면 가운데 오도록 맞추고 눌러주세요.', 'coach.doc3.voice': '촬영 버튼을 눌러주세요.',
+    'coach.sms1.title': '수상한 문자 확인하기', 'coach.sms1.desc': '받은 문자가 위험한지 안전한지 확인하고, 위험한 이유도 알려드려요.', 'coach.sms1.voice': '수상한 문자 확인하기는 받은 문자가 위험한지 안전한지 알려드리는 기능입니다.',
+    'coach.smsPermission.title': '문자 읽기를 허용해주세요', 'coach.smsPermission.desc': '허용하면 최근 문자를 바로 보여드려요.', 'coach.smsPermission.voice': '허용을 눌러주세요.',
+    'coach.sms2.title': '이 문자를 눌러 확인해보세요', 'coach.sms2.desc': '탭 한 번으로 바로 확인할 수 있어요.', 'coach.sms2.voice': '문자를 눌러 확인해보세요.',
+    'coach.history1.title': '기록도 볼 수 있어요', 'coach.history1.desc': '지금까지 확인한 문서와 문자 기록을 모아볼 수 있어요.', 'coach.history1.voice': '아래 기록 버튼을 눌러보세요.',
+    'coach.history2.title': '다시 홈으로 돌아가볼게요', 'coach.history2.desc': '← 홈으로 버튼을 누르면 언제든 돌아갈 수 있어요.', 'coach.history2.voice': '홈으로 버튼을 눌러 돌아가보세요.',
+    'coach.info1.title': '알아두면 좋은 정보도 있어요', 'coach.info1.desc': '기초연금, 건강검진 같은 유용한 정보를 안내해드려요.', 'coach.info1.voice': '알아두면 좋은 정보를 눌러보세요.',
+    'coach.info2.title': '다 보셨으면 홈으로 돌아가요', 'coach.info2.desc': '홈으로 돌아가기 버튼을 눌러주세요.', 'coach.info2.voice': '홈으로 돌아가기 버튼을 눌러주세요.',
+    'coach.welfare1.title': '가까운 경로당 찾기', 'coach.welfare1.desc': '현재 위치나 입력한 지역을 기준으로 가까운 경로당을 찾아드려요.', 'coach.welfare1.voice': '가까운 경로당 찾기는 내 주변 경로당의 위치를 알려드리는 기능입니다.',
+    'coach.welfare2.title': '홈 화면으로 돌아가볼게요', 'coach.welfare2.desc': '홈 화면으로 돌아가기 버튼을 눌러주세요.', 'coach.welfare2.voice': '홈 화면으로 돌아가기 버튼을 눌러주세요.',
+    'coach.voice1.title': '음성으로 안내받을 수도 있어요', 'coach.voice1.desc': '이 버튼을 누르면 화면 안내를 다시 들을 수 있어요.', 'coach.voice1.voice': '음성으로 안내받기 버튼을 눌러보세요.',
+    'coach.emergency1.title': '긴급할 땐 이 버튼을 누르세요', 'coach.emergency1.desc': '보호자나 119·112·118로 바로 연락할 수 있어요. 눌러서 직접 확인해보시고, 다 보셨으면 다음으로 넘어가세요.', 'coach.emergency1.voice': '도움 버튼을 눌러보세요. 확인하셨으면 다음으로 눌러 넘어가세요.',
+    'coach.settingsIntro.title': '더보기도 살펴볼게요', 'coach.settingsIntro.desc': '내 정보, 기록, 설정을 여기서 볼 수 있어요.', 'coach.settingsIntro.voice': '아래 더보기 버튼을 눌러보세요.',
+    'coach.moreToSettings.title': '설정을 눌러볼게요', 'coach.moreToSettings.desc': '글자 크기, 음성 속도, 보호자 정보를 바꿀 수 있어요.', 'coach.moreToSettings.voice': '설정을 눌러보세요.',
+    'coach.fontsize.title': '글자 크기를 바꿔보세요', 'coach.fontsize.desc': '보통, 크게, 아주 크게 중에서 골라보세요. 다 고르셨으면 다음으로 넘어가세요.', 'coach.fontsize.voice': '글자 크기를 눌러보세요. 다 고르셨으면 다음으로 눌러 넘어가세요.',
+    'coach.rate.title': '음성 속도도 바꿀 수 있어요', 'coach.rate.desc': '읽어주는 속도를 편한 대로 골라보세요. 다 고르셨으면 다음으로 넘어가세요.', 'coach.rate.voice': '음성 읽기 속도를 눌러보세요. 다 고르셨으면 다음으로 눌러 넘어가세요.',
+    'coach.guardian.title': '보호자 정보를 등록해보세요', 'coach.guardian.desc': '위험한 문자를 발견하면 보호자에게 바로 알릴 수 있어요. 선택 사항이니 원하지 않으면 다음으로 넘어가도 돼요.', 'coach.guardian.voice': '보호자 이름을 입력해보세요. 원하지 않으면 다음으로 눌러 넘어가도 됩니다.',
+    'coach.helplink.title': '사용 방법 안내도 있어요', 'coach.helplink.desc': '헷갈릴 때 언제든 다시 볼 수 있어요.', 'coach.helplink.voice': '사용 방법 안내를 눌러보세요.',
+    'coach.helpback.title': '뒤로 가서 마무리할게요', 'coach.helpback.desc': '← 뒤로 버튼을 눌러주세요.', 'coach.helpback.voice': '뒤로 버튼을 눌러주세요.',
+    'coach.finish.title': '이제 홈으로 돌아가면 끝이에요', 'coach.finish.desc': '← 홈으로 버튼을 눌러 안내를 마쳐요.', 'coach.finish.voice': '홈으로 버튼을 눌러 안내를 마쳐요.',
+    'coach.language.title': '언어도 바꿀 수 있어요', 'coach.language.desc': '중국어·베트남어·태국어·우즈베크어 중에서 골라보세요. 다 고르셨으면 다음으로 넘어가세요.', 'coach.language.voice': '언어 설정을 눌러보세요. 다 고르셨으면 다음으로 눌러 넘어가세요.',
     'onboard.profile.useLocation': '내 현재 위치 입력하기',
     'onboard.profile.regionNote': '시/군/구까지 자세히 적어주시면 더 알맞은 정보를 드릴 수 있어요.',
     'onboard.profile.next': '다음',
@@ -2202,6 +2516,31 @@ const I18N = {
     'onboard.profile.genderLabel': '性别', 'onboard.profile.ageLabel': '年龄',
     'onboard.profile.agePlaceholder': '例: 73', 'onboard.profile.ageNote': '请填写周岁数字。可享受的福利会因年龄而异。',
     'skipConfirm.title': '要跳过教程吗？', 'skipConfirm.keep': '继续观看',
+    'coach.moreHelp.title': '在这里还能看到其他功能', 'coach.moreHelp.desc': '请点击下方的信息、记录、设置。', 'coach.moreHelp.voice': '在下方菜单中还能看到其他功能。',
+    'coach.next': '继续下一步', 'coach.skipTutorial': '跳过教程',
+    'coach.doc1.title': '拍摄文件试试看', 'coach.doc1.desc': '点击此卡片可以拍摄文件并交给AI分析。', 'coach.doc1.voice': '请点击拍摄文件卡片。',
+    'coach.doc2.title': '直接拍摄一下', 'coach.doc2.desc': '用相机拍摄文件吧。', 'coach.doc2.voice': '请点击直接拍摄。',
+    'coach.doc3.title': '请按拍摄按钮', 'coach.doc3.desc': '将文件对准屏幕中央后按下按钮。', 'coach.doc3.voice': '请按拍摄按钮。',
+    'coach.sms1.title': '短信也可以确认', 'coach.sms1.desc': '也可以在这里确认收到的短信是否安全。', 'coach.sms1.voice': '请点击导入短信内容卡片。',
+    'coach.smsPermission.title': '请允许读取短信', 'coach.smsPermission.desc': '允许后会立即显示最近的短信。', 'coach.smsPermission.voice': '请点击允许。',
+    'coach.sms2.title': '点击这条短信确认', 'coach.sms2.desc': '轻触一下即可确认。', 'coach.sms2.voice': '请点击短信确认。',
+    'coach.history1.title': '也可以查看记录', 'coach.history1.desc': '可以汇总查看至今确认过的文件和短信记录。', 'coach.history1.voice': '请点击下方的记录按钮。',
+    'coach.history2.title': '我们再回到首页', 'coach.history2.desc': '点击←返回首页按钮可以随时返回。', 'coach.history2.voice': '请点击返回首页按钮。',
+    'coach.info1.title': '还有值得了解的信息', 'coach.info1.desc': '为您提供基础养老金、健康体检等实用信息。', 'coach.info1.voice': '请点击值得了解的信息。',
+    'coach.info2.title': '看完了就回到首页吧', 'coach.info2.desc': '请点击返回首页按钮。', 'coach.info2.voice': '请点击返回首页按钮。',
+    'coach.welfare1.title': '也为您查找附近的福利中心·老人活动中心', 'coach.welfare1.desc': '为您提供所在位置附近的福利中心和老人活动中心位置。', 'coach.welfare1.voice': '请点击附近福利中心·老人活动中心查询。',
+    'coach.welfare2.title': '我们再回到首页', 'coach.welfare2.desc': '请点击返回首页按钮。', 'coach.welfare2.voice': '请点击返回首页按钮。',
+    'coach.voice1.title': '也可以用语音获得指引', 'coach.voice1.desc': '点击此按钮可以再次听取画面指引。', 'coach.voice1.voice': '请点击语音指引按钮。',
+    'coach.emergency1.title': '紧急情况请按此按钮', 'coach.emergency1.desc': '可以直接联系监护人或119·112·118。请点击直接确认，确认完毕后点击下一步。', 'coach.emergency1.voice': '请点击求助按钮。确认后请点击下一步继续。',
+    'coach.settingsIntro.title': '我们也看看更多菜单', 'coach.settingsIntro.desc': '可以在这里查看我的信息、记录和设置。', 'coach.settingsIntro.voice': '请点击下方的更多按钮。',
+    'coach.moreToSettings.title': '点击设置试试', 'coach.moreToSettings.desc': '可以更改字体大小、语音速度、监护人信息。', 'coach.moreToSettings.voice': '请点击设置。',
+    'coach.fontsize.title': '试试更改字体大小', 'coach.fontsize.desc': '可以在普通、大、特大中选择。选好后请点击下一步。', 'coach.fontsize.voice': '请点击字体大小。选好后请点击下一步继续。',
+    'coach.rate.title': '语音速度也可以更改', 'coach.rate.desc': '请选择您喜欢的朗读速度。选好后请点击下一步。', 'coach.rate.voice': '请点击语音朗读速度。选好后请点击下一步继续。',
+    'coach.guardian.title': '试试登记监护人信息', 'coach.guardian.desc': '发现危险短信时可以立即通知监护人。这是可选项，不需要的话可以直接下一步。', 'coach.guardian.voice': '请输入监护人姓名。不需要的话可以点击下一步跳过。',
+    'coach.helplink.title': '还有使用方法说明', 'coach.helplink.desc': '遇到不明白的地方随时可以再查看。', 'coach.helplink.voice': '请点击使用方法说明。',
+    'coach.helpback.title': '我们返回并结束吧', 'coach.helpback.desc': '请点击←返回按钮。', 'coach.helpback.voice': '请点击返回按钮。',
+    'coach.finish.title': '现在回到首页就结束了', 'coach.finish.desc': '请点击←返回首页按钮结束指引。', 'coach.finish.voice': '请点击返回首页按钮结束指引。',
+    'coach.language.title': '语言也可以更改', 'coach.language.desc': '请在中文·越南语·泰语·乌兹别克语中选择。选好后请点击下一步。', 'coach.language.voice': '请点击语言设置。选好后请点击下一步继续。',
     'onboard.profile.useLocation': '输入我的当前位置',
     'onboard.profile.regionNote': '详细填写到市/郡/区，可以为您提供更合适的信息。',
     'onboard.profile.next': '下一步',
@@ -2995,7 +3334,6 @@ function syncSettingsUI(){
   syncToggleGroup('voiceRateGroup', 'rate', appState.settings.voiceRate);
   syncGuardianUI();
   syncVoiceEnabledToggles();
-  syncEasyModeUI();
   syncProfileUI();
   const acct = document.getElementById('accountInfoLine');
   if (acct) {
@@ -3799,6 +4137,7 @@ window.addEventListener('load', async () => {
   }
   document.body.classList.toggle('has-bottom-nav', TAB_SCREENS.has(first.id));
   syncBottomNav(first.id);
+  syncGreetVoiceToggleVisibility(first.id);
   first.scrollTop = 0;
   document.getElementById('liveRegion').textContent = screenVoiceText(first);
 
